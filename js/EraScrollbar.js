@@ -103,9 +103,10 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
         const labelX = 15;
         const lineStartX = dimensions.width - colorBarWidth - 10;
         
-        const yearScale = d3.scaleLinear()
-            .domain([-4004, 30])
-            .range([0, dimensions.height]);
+        // Remove this unused yearScale:
+        // const yearScale = d3.scaleLinear()
+        //     .domain([-4004, 30])
+        //     .range([0, dimensions.height]);
 
         const intervals = [];
         for (let year = -4000; year <= 0; year += 500) {
@@ -119,9 +120,9 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .append('line')
             .attr('class', 'year-line')
             .attr('x1', lineStartX)
-            .attr('y1', d => yearScale(d))
+            .attr('y1', d => yearToPixel(d)) // Use yearToPixel instead of yearScale
             .attr('x2', colorBarX)
-            .attr('y2', d => yearScale(d))
+            .attr('y2', d => yearToPixel(d)) // Use yearToPixel instead of yearScale
             .attr('stroke', '#999')
             .attr('stroke-width', 1)
             .attr('stroke-dasharray', '2,2');
@@ -132,7 +133,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .append('text')
             .attr('class', 'year-label')
             .attr('x', labelX)
-            .attr('y', d => yearScale(d) + 5)
+            .attr('y', d => yearToPixel(d) + 5) // Use yearToPixel instead of yearScale
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`)
             .attr('font-size', '14px')
             .attr('fill', '#333')
