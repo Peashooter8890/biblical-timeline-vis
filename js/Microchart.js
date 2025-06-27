@@ -3,9 +3,10 @@ import { getRangeInfo, getEffectiveColumn } from './utils.js';
 const { useEffect, useRef } = preactHooks;
 const html = htm.bind(preact.h);
 
-const Microchart = ({ data, selection }) => {
+const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
+    const eventsRef = useRef([]);
 
     useEffect(() => {
         if (!svgRef.current || !containerRef.current || !data.length || !selection) return;
@@ -60,10 +61,15 @@ const Microchart = ({ data, selection }) => {
                 events.push({
                     ...d.fields,
                     color: rangeInfo.color,
-                    columnX: getColumnXForEra(effectiveColumn, maxColumnsInEra)
+                    columnX: getColumnXForEra(effectiveColumn, maxColumnsInEra),
+                    y: yScale(d.fields.startDate)
                 });
             });
         });
+
+        // Sort events by year and store for indicator positioning
+        events.sort((a, b) => a.startDate - b.startDate);
+        eventsRef.current = events;
 
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
@@ -96,7 +102,7 @@ const Microchart = ({ data, selection }) => {
             .append('circle')
             .attr('class', 'microchart-dot')
             .attr('cx', d => d.columnX)
-            .attr('cy', d => yScale(d.startDate))
+            .attr('cy', d => d.y)
             .attr('r', 3)
             .attr('fill', d => d.color)
             .on('mouseover', function(event, d) {
@@ -135,6 +141,39 @@ const Microchart = ({ data, selection }) => {
         };
 
     }, [data, selection]);
+
+    // Handle indicator positioning based on scroll info
+    useEffect(() => {
+        if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange) return;
+
+        const { topVisibleYear, scrollPercentage } = scrollInfo;
+        const events = eventsRef.current;
+
+        let indicatorY;
+
+        if (scrollPercentage === 1) {
+            // Fully scrolled to bottom or no scrolling available - position at last event
+            const lastEvent = events[events.length - 1];
+            indicatorY = lastEvent.y;
+        } else {
+            // Find the event that corresponds to the top visible year
+            // Find the closest event to the top visible year
+            let closestEvent = events[0];
+            let minDistance = Math.abs(events[0].startDate - topVisibleYear);
+
+            for (let i = 1; i < events.length; i++) {
+                const distance = Math.abs(events[i].startDate - topVisibleYear);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEvent = events[i];
+                }
+            }
+
+            indicatorY = closestEvent.y;
+        }
+
+        onIndicatorChange(indicatorY);
+    }, [scrollInfo, onIndicatorChange]);
 
     return html`
         <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc; position: relative;">

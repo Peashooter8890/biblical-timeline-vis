@@ -116,6 +116,29 @@ body {
     z-index: 31; /* Even higher for the arrow */
 }
 
+.microchart-position-indicator {
+    position: absolute;
+    right: 0;
+    width: 100%;
+    height: 2px;
+    background-color: red;
+    z-index: 30; /* Highest - appears on top of everything */
+    pointer-events: none;
+}
+
+.microchart-position-indicator::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -10px;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-right: 10px solid red;
+    z-index: 31; /* Even higher for the arrow */
+}
+
 .year-label {
     user-select: none;
     -webkit-user-select: none;
