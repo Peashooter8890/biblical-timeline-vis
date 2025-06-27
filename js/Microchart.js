@@ -1,9 +1,9 @@
 import { getRangeInfo, getEffectiveColumn } from './utils.js';
 
-const { useEffect, useRef } = preactHooks;
+const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
 
-const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
+const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
@@ -175,8 +175,16 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
+    // Add wheel event handler
+    const handleWheel = useCallback((event) => {
+        if (onScroll) {
+            event.preventDefault();
+            onScroll(event.deltaY);
+        }
+    }, [onScroll]);
+
     return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc; position: relative;">
+        <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc; position: relative;" onWheel=${handleWheel}>
             <svg ref=${svgRef}></svg>
         </div>
     `;

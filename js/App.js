@@ -2,7 +2,7 @@ import EraScrollbar from './EraScrollbar.js';
 import Microchart from './Microchart.js';
 import EventDisplay from './EventDisplay.js';
 
-const { useState, useEffect, useCallback } = preactHooks;
+const { useState, useEffect, useCallback, useRef } = preactHooks;
 const html = htm.bind(preact.h);
 
 const App = () => {
@@ -14,6 +14,7 @@ const App = () => {
         topVisibleYear: -4004, 
         selectionRange: [-4004, 30] 
     });
+    const eventDisplayRef = useRef(null);
 
     useEffect(() => {
         fetch('data/events.json')
@@ -46,6 +47,15 @@ const App = () => {
         setScrollInfo(newScrollInfo);
     }, []);
 
+    // Handle scroll events from microchart and era scrollbar
+    const handleExternalScroll = useCallback((deltaY) => {
+        if (eventDisplayRef.current) {
+            const container = eventDisplayRef.current;
+            const scrollAmount = deltaY * 2; // Adjust scroll sensitivity
+            container.scrollTop += scrollAmount;
+        }
+    }, []);
+
     return html`
         <div class="timeline-container">
             <div class="sidebar">
@@ -53,7 +63,8 @@ const App = () => {
                    <${EraScrollbar}
                         onBrush=${handleBrush}
                         onIndicatorChange=${handleIndicatorChange}
-                        scrollInfo=${scrollInfo} />
+                        scrollInfo=${scrollInfo}
+                        onScroll=${handleExternalScroll} />
                    <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
                 </div>
                 <div class="microchart-container">
@@ -61,14 +72,16 @@ const App = () => {
                         data=${events} 
                         selection=${selection}
                         onIndicatorChange=${handleMicrochartIndicatorChange}
-                        scrollInfo=${scrollInfo} />
+                        scrollInfo=${scrollInfo}
+                        onScroll=${handleExternalScroll} />
                     <div class="microchart-position-indicator" style=${{top: `${microchartIndicatorY}px`}}></div>
                 </div>
             </div>
             <${EventDisplay} 
                  data=${events}
                  selection=${selection}
-                 onScrollInfoChange=${handleScrollInfoChange} />
+                 onScrollInfoChange=${handleScrollInfoChange}
+                 containerRef=${eventDisplayRef} />
         </div>
     `;
 };

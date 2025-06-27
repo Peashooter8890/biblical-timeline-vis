@@ -3,8 +3,11 @@ import { formatYear } from './utils.js';
 const { useRef, useMemo, useCallback, useEffect } = preactHooks;
 const html = htm.bind(preact.h);
 
-const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
-    const containerRef = useRef(null);
+const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
+    const internalRef = useRef(null);
+
+    // Use the passed ref or fall back to internal ref
+    const actualRef = containerRef || internalRef;
 
     if (!data.length || !selection) {
         return html`<div class="event-display-container">Loading events...</div>`;
@@ -29,9 +32,9 @@ const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
     }, [data, selection]);
 
     const handleScroll = useCallback(() => {
-        if (!containerRef.current || !groupedEvents.length) return;
+        if (!actualRef.current || !groupedEvents.length) return;
 
-        const container = containerRef.current;
+        const container = actualRef.current;
         const scrollTop = container.scrollTop;
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
@@ -129,7 +132,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
     }, [handleScroll, groupedEvents]);
 
     return html`
-        <div class="event-display-container" ref=${containerRef} onScroll=${handleScroll}>
+        <div class="event-display-container" ref=${actualRef} onScroll=${handleScroll}>
             ${groupedEvents.length === 0
                 ? html`<p>No events in the selected time range.</p>`
                 : groupedEvents.map(group => html`

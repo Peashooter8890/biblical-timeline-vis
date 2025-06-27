@@ -3,7 +3,7 @@ import { TIME_RANGES } from './constants.js';
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
 
-const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
+const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -384,8 +384,16 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
+    // Add wheel event handler
+    const handleWheel = useCallback((event) => {
+        if (onScroll) {
+            event.preventDefault();
+            onScroll(event.deltaY);
+        }
+    }, [onScroll]);
+
     return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%; position: relative;">
+        <div ref=${containerRef} style="width: 100%; height: 100%; position: relative;" onWheel=${handleWheel}>
             <svg ref=${svgRef}></svg>
             <div class="selection-overlay"></div>
             <div class="top-handle"></div>

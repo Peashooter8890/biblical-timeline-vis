@@ -4,6 +4,14 @@ body {
     padding: 0;
     background-color: #f0f0f0;
     color: #333;
+    /* Hide scrollbars for the entire page */
+    overflow: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+body::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
 }
 
 #app {
@@ -13,6 +21,14 @@ body {
     height: 100vh;
     width: 100vw;
     background-color: #f0f0f0;
+    /* Hide scrollbars */
+    overflow: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+#app::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
 }
 
 .timeline-container {
@@ -57,6 +73,13 @@ body {
     height: 100%;
     box-sizing: border-box;
     background-color: #e8e8e8; /* Changed to slightly darker gray */
+    /* Hide scrollbars */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.event-display-container::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
 }
 
 .event-group {
