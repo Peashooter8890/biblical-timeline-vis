@@ -82,7 +82,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
             .attr('height', dimensions.height)
-            // .attr('viewBox', `-2 0 ${dimensions.width + 4} ${dimensions.height}`);
+            .style('overflow', 'visible'); // Added to allow text overflow
         
         svg.selectAll('*').remove();
 
@@ -186,6 +186,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .style('border', '3px solid #000')
             .style('border-radius', '8px')
             .style('pointer-events', 'auto') // Enable pointer events
+            .style('z-index', '20') // Middle layer - above dots but below position indicator
             .style('top', '0px')
             .style('left', '0px')
             .style('width', `${dimensions.width}px`)

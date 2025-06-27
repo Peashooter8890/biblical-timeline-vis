@@ -67,7 +67,8 @@ const Microchart = ({ data, selection }) => {
 
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
-            .attr('height', dimensions.height);
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible'); // Added to allow dots to overflow
 
         svg.selectAll('*').remove();
 
