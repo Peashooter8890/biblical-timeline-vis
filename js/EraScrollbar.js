@@ -7,6 +7,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
+    const brushBoundsRef = useRef([0, 0]); // Store current brush bounds in pixels
 
     useEffect(() => {
         if (!svgRef.current || !containerRef.current) return;
@@ -141,9 +142,19 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .on('brush end', (event) => {
                 if (event.selection) {
                     const [y0, y1] = event.selection;
+                    // Store the brush bounds in pixels - these are the actual visual bounds
+                    brushBoundsRef.current = [y0, y1];
+                    
                     const startYear = pixelToYear(y0);
                     const endYear = pixelToYear(y1);
                     onBrush([startYear, endYear]);
+                }
+            })
+            .on('brush', (event) => {
+                // Also update during brushing (not just on end)
+                if (event.selection) {
+                    const [y0, y1] = event.selection;
+                    brushBoundsRef.current = [y0, y1];
                 }
             });
 
@@ -151,19 +162,35 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .attr('class', 'brush')
             .call(brush);
         
-        // Initialize brush to full range
+        // Initialize brush to full range and store bounds
         brush.move(brushG, [0, dimensions.height]);
+        brushBoundsRef.current = [0, dimensions.height];
 
     }, [onBrush]);
 
     useEffect(() => {
         if (!scrollInfo || !scaleInfoRef.current || scrollInfo.topVisibleYear === undefined) return;
 
-        const { topVisibleYear } = scrollInfo;
+        const { topVisibleYear, scrollPercentage, selectionRange } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
         
-        // Position indicator at the exact year that's at the top of the viewport
-        const indicatorY = yearToPixel(topVisibleYear);
+        // Always calculate the current brush bounds from the current selection
+        const currentBrushStart = yearToPixel(selectionRange[0]);
+        const currentBrushEnd = yearToPixel(selectionRange[1]);
+        
+        let indicatorY;
+        
+        // Edge behavior: align with current selection bounds when fully scrolled
+        if (scrollPercentage === 0) {
+            // Fully scrolled to top - align with top edge of current selection
+            indicatorY = currentBrushStart;
+        } else if (scrollPercentage === 1) {
+            // Fully scrolled to bottom - align with bottom edge of current selection
+            indicatorY = currentBrushEnd;
+        } else {
+            // Normal case: position at the exact year
+            indicatorY = yearToPixel(topVisibleYear);
+        }
         
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);

@@ -73,6 +73,22 @@ const Microchart = ({ data, selection }) => {
 
         const g = svg.append('g');
 
+        // Create tooltip div
+        const tooltip = d3.select(containerRef.current)
+            .append('div')
+            .attr('class', 'microchart-tooltip')
+            .style('opacity', 0)
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.8)')
+            .style('color', 'white')
+            .style('padding', '8px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('z-index', '1000')
+            .style('max-width', '200px')
+            .style('word-wrap', 'break-word');
+
         g.selectAll('.microchart-dot')
             .data(events)
             .enter()
@@ -81,12 +97,46 @@ const Microchart = ({ data, selection }) => {
             .attr('cx', d => d.columnX)
             .attr('cy', d => yScale(d.startDate))
             .attr('r', 3)
-            .attr('fill', d => d.color);
+            .attr('fill', d => d.color)
+            .on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', .9);
+                tooltip.html(d.title)
+                    .style('left', (event.layerX + 10) + 'px')
+                    .style('top', (event.layerY - 10) + 'px');
+                
+                // Highlight the dot
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .attr('r', 4)
+                    .style('stroke', '#000')
+                    .style('stroke-width', '1px');
+            })
+            .on('mouseout', function(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                // Reset the dot
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .attr('r', 3)
+                    .style('stroke', '#fff')
+                    .style('stroke-width', '1px');
+            });
+
+        // Cleanup function to remove tooltip when component unmounts or re-renders
+        return () => {
+            d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
+        };
 
     }, [data, selection]);
 
     return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc;">
+        <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc; position: relative;">
             <svg ref=${svgRef}></svg>
         </div>
     `;

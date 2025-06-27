@@ -33,9 +33,19 @@ const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
 
         const container = containerRef.current;
         const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
         const eventElements = container.querySelectorAll('.event-group');
         
         if (eventElements.length === 0) return;
+
+        // Calculate scroll percentage (0 to 1)
+        const maxScroll = scrollHeight - clientHeight;
+        let scrollPercentage = 0;
+        
+        if (maxScroll > 0) {
+            scrollPercentage = Math.max(0, Math.min(1, scrollTop / maxScroll));
+        }
 
         // Find the continuous year at the top of the viewport
         let topVisibleYear = groupedEvents[0].year;
@@ -101,6 +111,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
         
         const scrollInfo = {
             topVisibleYear,
+            scrollPercentage,
             selectionRange: selection
         };
         
