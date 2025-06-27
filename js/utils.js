@@ -21,15 +21,78 @@ const formatYear = (year) => {
     return year;
 };
 
-const getEffectiveColumn = (event) => {
-    const fields = event.fields;
-    if (fields.customColumn && fields.customColumn.trim() !== '') {
-        return parseFloat(fields.customColumn);
-    }
-    if (fields.column && fields.column.trim() !== '') {
-        return parseFloat(fields.column);
-    }
-    return 1;
-};
+// Calculate columns for events with empty column values
+const calculateColumns = (data) => {
+    // Group events by startDate
+    const eventsByDate = {};
+    
+    data.forEach((event, index) => {
+        const startDate = event.fields.startDate;
+        if (!eventsByDate[startDate]) {
+            eventsByDate[startDate] = [];
+        }
+        eventsByDate[startDate].push({ ...event, originalIndex: index });
+    });
+    
+    // Process each group of events with the same startDate
+    Object.keys(eventsByDate).forEach(startDate => {
+        const events = eventsByDate[startDate];
+        
+        if (events.length > 1) {
+            // Sort events by title for consistent ordering (or you could use another field)
+            events.sort((a, b) => {
+                return a.fields.title.localeCompare(b.fields.title);
+            });
+            
+            // Find existing column assignments
+            const existingColumns = events
+                .filter(event => event.fields.column && event.fields.column.trim() !== '')
+                .map(event => parseInt(event.fields.column))
+                .sort((a, b) => a - b);
+            
+            // Assign columns
+            let nextAvailableColumn = 1;
+            
+            events.forEach(event => {
+                if (!event.fields.column || event.fields.column.trim() === '') {
+                    // Find the next available column number
+                    while (existingColumns.includes(nextAvailableColumn)) {
+                        nextAvailableColumn++;
+                    }
+                    event.fields.customColumn = nextAvailableColumn.toString();
+                    existingColumns.push(nextAvailableColumn);
+                    existingColumns.sort((a, b) => a - b);
+                    nextAvailableColumn++;
+                }
+            });
+        }
+    });
+    
+    // Flatten back to original order
+    const result = new Array(data.length);
+    Object.values(eventsByDate).forEach(events => {
+        events.forEach(event => {
+            result[event.originalIndex] = event;
+            delete result[event.originalIndex].originalIndex;
+        });
+    });
+    
+    return result;
+}
 
-export { parseDuration, getRangeInfo, formatYear, getEffectiveColumn };
+const getEffectiveColumn = (event) => {
+    // First check if there's a regular column value
+    if (event.fields.column && event.fields.column.trim() !== '') {
+        return parseFloat(event.fields.column);
+    }
+    
+    // Then check if there's a calculated custom column
+    if (event.fields.customColumn) {
+        return parseFloat(event.fields.customColumn);
+    }
+    
+    // Default to column 1 if no column is specified
+    return 1;
+}
+
+export {parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn};

@@ -1,6 +1,7 @@
 import EraScrollbar from './EraScrollbar.js';
 import Microchart from './Microchart.js';
 import EventDisplay from './EventDisplay.js';
+import { calculateColumns } from './utils.js';
 
 const { useState, useEffect, useCallback, useRef } = preactHooks;
 const html = htm.bind(preact.h);
@@ -20,7 +21,9 @@ const App = () => {
         fetch('data/events.json')
             .then(res => res.json())
             .then(data => {
-                const sortedData = data.sort((a, b) => a.fields.startDate - b.fields.startDate);
+                // Calculate custom columns for events with empty column values
+                const dataWithColumns = calculateColumns(data);
+                const sortedData = dataWithColumns.sort((a, b) => a.fields.startDate - b.fields.startDate);
                 setEvents(sortedData);
             })
             .catch(err => console.error("Failed to load event data:", err));
