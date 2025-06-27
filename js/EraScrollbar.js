@@ -167,45 +167,166 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
         svg.selectAll('.brush .selection')
             .style('display', 'none');
 
+        // Disable the overlay rect that allows creating new selections
+        svg.selectAll('.brush .overlay')
+            .style('pointer-events', 'none');
+
         // Initialize brush to full range and store bounds
         brush.move(brushG, [0, dimensions.height]);
         brushBoundsRef.current = [0, dimensions.height];
 
-        // Add HTML overlay for visual selection
+        // Define resize zone size - use a fixed pixel size or percentage of container
+        const RESIZE_ZONE_SIZE = dimensions.height * 0.025;
+
+        // Add HTML overlay for visual selection with custom interaction
         const overlay = d3.select(containerRef.current)
             .select('.selection-overlay')
             .style('position', 'absolute')
             .style('background', 'rgba(119, 119, 119, 0.3)')
             .style('border', '3px solid #000')
             .style('border-radius', '8px')
-            .style('pointer-events', 'none')
+            .style('pointer-events', 'auto') // Enable pointer events
             .style('top', '0px')
             .style('left', '0px')
             .style('width', `${dimensions.width}px`)
             .style('height', `${dimensions.height}px`)
-            .style('box-sizing', 'border-box');
+            .style('box-sizing', 'border-box')
+            .style('cursor', 'move')
+            .on('mousedown', function(event) {
+                const overlayRect = this.getBoundingClientRect();
+                const mouseY = event.clientY - overlayRect.top;
+                
+                // Determine interaction mode based on mouse position
+                // Use fixed resize zone size instead of percentage of selection height
+                let mode = 'drag';
+                if (mouseY <= RESIZE_ZONE_SIZE) {
+                    mode = 'resize-top';
+                    this.style.cursor = 'ns-resize';
+                } else if (mouseY >= overlayRect.height - RESIZE_ZONE_SIZE) {
+                    mode = 'resize-bottom';
+                    this.style.cursor = 'ns-resize';
+                }
+                
+                const startMouseY = event.clientY;
+                const currentBounds = brushBoundsRef.current;
+                const [currentY0, currentY1] = currentBounds;
+                
+                const handleMouseMove = (moveEvent) => {
+                    const deltaY = moveEvent.clientY - startMouseY;
+                    let newY0 = currentY0;
+                    let newY1 = currentY1;
+                    
+                    switch (mode) {
+                        case 'resize-top':
+                            newY0 = Math.max(0, Math.min(currentY1 - 20, currentY0 + deltaY));
+                            break;
+                        case 'resize-bottom':
+                            newY1 = Math.min(dimensions.height, Math.max(currentY0 + 20, currentY1 + deltaY));
+                            break;
+                        case 'drag':
+                            const selectionHeight = currentY1 - currentY0;
+                            newY0 = Math.max(0, Math.min(dimensions.height - selectionHeight, currentY0 + deltaY));
+                            newY1 = newY0 + selectionHeight;
+                            break;
+                    }
+                    
+                    // Update brush selection programmatically
+                    brush.move(brushG, [newY0, newY1]);
+                };
+                
+                const handleMouseUp = () => {
+                    this.style.cursor = 'move';
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                };
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                event.preventDefault();
+            })
+            .on('mousemove', function(event) {
+                if (event.buttons === 0) { // No mouse button pressed
+                    const overlayRect = this.getBoundingClientRect();
+                    const mouseY = event.clientY - overlayRect.top;
+                    
+                    // Update cursor based on position using fixed resize zone size
+                    if (mouseY <= RESIZE_ZONE_SIZE || mouseY >= overlayRect.height - RESIZE_ZONE_SIZE) {
+                        this.style.cursor = 'ns-resize';
+                    } else {
+                        this.style.cursor = 'move';
+                    }
+                }
+            });
 
         // Add top handle
         const topHandle = d3.select(containerRef.current)
             .select('.top-handle')
             .style('position', 'absolute')
             .style('background', '#000')
-            .style('pointer-events', 'none')
+            .style('pointer-events', 'auto') // Enable pointer events
             .style('width', `${dimensions.width / 3}px`)
             .style('height', '8px')
             .style('left', `${dimensions.width / 3}px`)
-            .style('top', '-4px');
+            .style('top', '-4px')
+            .style('cursor', 'ns-resize')
+            .on('mousedown', function(event) {
+                const startMouseY = event.clientY;
+                const currentBounds = brushBoundsRef.current;
+                const [currentY0, currentY1] = currentBounds;
+                
+                const handleMouseMove = (moveEvent) => {
+                    const deltaY = moveEvent.clientY - startMouseY;
+                    const newY0 = Math.max(0, Math.min(currentY1 - 20, currentY0 + deltaY));
+                    
+                    // Update brush selection programmatically
+                    brush.move(brushG, [newY0, currentY1]);
+                };
+                
+                const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                };
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                event.preventDefault();
+                event.stopPropagation();
+            });
 
         // Add bottom handle
         const bottomHandle = d3.select(containerRef.current)
             .select('.bottom-handle')
             .style('position', 'absolute')
             .style('background', '#000')
-            .style('pointer-events', 'none')
+            .style('pointer-events', 'auto') // Enable pointer events
             .style('width', `${dimensions.width / 3}px`)
             .style('height', '8px')
             .style('left', `${dimensions.width / 3}px`)
-            .style('bottom', '-4px');
+            .style('bottom', '-4px')
+            .style('cursor', 'ns-resize')
+            .on('mousedown', function(event) {
+                const startMouseY = event.clientY;
+                const currentBounds = brushBoundsRef.current;
+                const [currentY0, currentY1] = currentBounds;
+                
+                const handleMouseMove = (moveEvent) => {
+                    const deltaY = moveEvent.clientY - startMouseY;
+                    const newY1 = Math.min(dimensions.height, Math.max(currentY0 + 20, currentY1 + deltaY));
+                    
+                    // Update brush selection programmatically
+                    brush.move(brushG, [currentY0, newY1]);
+                };
+                
+                const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                };
+                
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                event.preventDefault();
+                event.stopPropagation();
+            });
 
         // Update overlay and handles on brush events
         brush.on('brush end', (event) => {

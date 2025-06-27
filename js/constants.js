@@ -7,7 +7,7 @@ const TIME_RANGES = [
     { start: -930,  end: -715,  color: '#fdbf6f' },
     { start: -714,  end: -431,  color: '#cab2d6' },
     { start: -430,  end: -1,    color: '#FFB6C1' },
-    { start: 0,     end: 57,    color: '#C4A484' }
+    { start: 0,     end: 60,    color: '#C4A484' }
 ];
 
 export { TIME_RANGES };
