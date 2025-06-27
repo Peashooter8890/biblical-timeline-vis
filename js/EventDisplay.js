@@ -3,7 +3,7 @@ import { formatYear } from './utils.js';
 const { useRef, useMemo, useCallback, useEffect } = preactHooks;
 const html = htm.bind(preact.h);
 
-const EventDisplay = ({ data, selection, onTopEventChange }) => {
+const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
     const containerRef = useRef(null);
 
     if (!data.length || !selection) {
@@ -33,8 +33,11 @@ const EventDisplay = ({ data, selection, onTopEventChange }) => {
 
         const container = containerRef.current;
         const scrollTop = container.scrollTop;
-        
         const eventElements = container.querySelectorAll('.event-group');
+        
+        if (eventElements.length === 0) return;
+
+        // Find the continuous year at the top of the viewport
         let topVisibleYear = groupedEvents[0].year;
         
         for (let i = 0; i < eventElements.length; i++) {
@@ -43,16 +46,71 @@ const EventDisplay = ({ data, selection, onTopEventChange }) => {
             const elementBottom = elementTop + element.offsetHeight;
             
             if (elementBottom > scrollTop) {
-                topVisibleYear = groupedEvents[i].year;
+                if (i === 0) {
+                    // First element - interpolate from start of element
+                    if (element.offsetHeight > 0) {
+                        const scrollIntoElement = Math.max(0, scrollTop - elementTop);
+                        const progressThroughElement = scrollIntoElement / element.offsetHeight;
+                        
+                        // If there's a next element, interpolate toward it
+                        if (i + 1 < groupedEvents.length) {
+                            const currentYear = groupedEvents[i].year;
+                            const nextYear = groupedEvents[i + 1].year;
+                            topVisibleYear = currentYear + (progressThroughElement * (nextYear - currentYear));
+                        } else {
+                            topVisibleYear = groupedEvents[i].year;
+                        }
+                    } else {
+                        topVisibleYear = groupedEvents[i].year;
+                    }
+                } else {
+                    // Check if we're between this element and the previous one
+                    const prevElement = eventElements[i - 1];
+                    const prevBottom = prevElement.offsetTop + prevElement.offsetHeight;
+                    
+                    if (scrollTop <= prevBottom && scrollTop >= elementTop) {
+                        // We're between elements - interpolate
+                        const prevYear = groupedEvents[i - 1].year;
+                        const currentYear = groupedEvents[i].year;
+                        const totalDistance = elementTop - prevBottom;
+                        
+                        if (totalDistance > 0) {
+                            const progressBetween = (scrollTop - prevBottom) / totalDistance;
+                            topVisibleYear = prevYear + (progressBetween * (currentYear - prevYear));
+                        } else {
+                            topVisibleYear = currentYear;
+                        }
+                    } else {
+                        // We're in this element
+                        const scrollIntoElement = Math.max(0, scrollTop - elementTop);
+                        const progressThroughElement = element.offsetHeight > 0 ? 
+                            scrollIntoElement / element.offsetHeight : 0;
+                        
+                        if (i + 1 < groupedEvents.length) {
+                            const currentYear = groupedEvents[i].year;
+                            const nextYear = groupedEvents[i + 1].year;
+                            topVisibleYear = currentYear + (progressThroughElement * (nextYear - currentYear));
+                        } else {
+                            topVisibleYear = groupedEvents[i].year;
+                        }
+                    }
+                }
                 break;
             }
         }
         
-        onTopEventChange(topVisibleYear);
-    }, [groupedEvents, onTopEventChange]);
+        const scrollInfo = {
+            topVisibleYear,
+            selectionRange: selection
+        };
+        
+        onScrollInfoChange(scrollInfo);
+    }, [groupedEvents, onScrollInfoChange, selection]);
 
     useEffect(() => {
-        handleScroll();
+        // Call handleScroll when groupedEvents change to initialize
+        const timer = setTimeout(handleScroll, 0);
+        return () => clearTimeout(timer);
     }, [handleScroll, groupedEvents]);
 
     return html`

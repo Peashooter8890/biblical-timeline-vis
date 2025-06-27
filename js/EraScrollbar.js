@@ -3,9 +3,10 @@ import { TIME_RANGES } from './constants.js';
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
 
-const EraScrollbar = ({ onBrush, onIndicatorChange, topVisibleYear }) => {
+const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
+    const scaleInfoRef = useRef(null);
 
     useEffect(() => {
         if (!svgRef.current || !containerRef.current) return;
@@ -29,6 +30,53 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, topVisibleYear }) => {
             rangePositions.push(currentY);
             currentY += rangeHeights[i];
         }
+
+        const yearToPixel = (year) => {
+            const rangeIndex = TIME_RANGES.findIndex(range => 
+                year >= range.start && year <= range.end
+            );
+            
+            if (rangeIndex === -1) {
+                // Handle edge cases - find closest range
+                if (year < TIME_RANGES[0].start) return rangePositions[0];
+                if (year > TIME_RANGES[TIME_RANGES.length - 1].end) return dimensions.height;
+                return 0;
+            }
+            
+            const range = TIME_RANGES[rangeIndex];
+            const rangeSpan = range.end - range.start;
+            const positionInRange = (year - range.start) / rangeSpan;
+            
+            return rangePositions[rangeIndex] + (positionInRange * rangeHeights[rangeIndex]);
+        };
+
+        const pixelToYear = (pixel) => {
+            let rangeIndex = TIME_RANGES.length - 1;
+            for (let i = 0; i < rangePositions.length - 1; i++) {
+                if (pixel < rangePositions[i + 1]) {
+                    rangeIndex = i;
+                    break;
+                }
+            }
+
+            const range = TIME_RANGES[rangeIndex];
+            const rangeStartPixel = rangePositions[rangeIndex];
+            const rangeHeight = rangeHeights[rangeIndex];
+
+            if (rangeHeight <= 0) return range.start;
+
+            const pixelIntoRange = pixel - rangeStartPixel;
+            const proportion = pixelIntoRange / rangeHeight;
+            const yearSpan = range.end - range.start;
+            return range.start + (proportion * yearSpan);
+        };
+
+        // Store scale info
+        scaleInfoRef.current = {
+            yearToPixel,
+            pixelToYear,
+            dimensions
+        };
 
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
@@ -88,41 +136,6 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, topVisibleYear }) => {
             .attr('fill', '#333')
             .attr('text-anchor', 'start');
 
-        const yearToPixel = (year) => {
-            const rangeIndex = TIME_RANGES.findIndex(range => 
-                year >= range.start && year <= range.end
-            );
-            
-            if (rangeIndex === -1) return 0;
-            
-            const range = TIME_RANGES[rangeIndex];
-            const rangeSpan = range.end - range.start;
-            const positionInRange = (year - range.start) / rangeSpan;
-            
-            return rangePositions[rangeIndex] + (positionInRange * rangeHeights[rangeIndex]);
-        };
-
-        const pixelToYear = (pixel) => {
-            let rangeIndex = TIME_RANGES.length - 1;
-            for (let i = 0; i < rangePositions.length - 1; i++) {
-                if (pixel < rangePositions[i + 1]) {
-                    rangeIndex = i;
-                    break;
-                }
-            }
-
-            const range = TIME_RANGES[rangeIndex];
-            const rangeStartPixel = rangePositions[rangeIndex];
-            const rangeHeight = rangeHeights[rangeIndex];
-
-            if (rangeHeight <= 0) return range.start;
-
-            const pixelIntoRange = pixel - rangeStartPixel;
-            const proportion = pixelIntoRange / rangeHeight;
-            const yearSpan = range.end - range.start;
-            return range.start + (proportion * yearSpan);
-        };
-
         const brush = d3.brushY()
             .extent([[0, 0], [dimensions.width, dimensions.height]])
             .on('brush end', (event) => {
@@ -138,42 +151,22 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, topVisibleYear }) => {
             .attr('class', 'brush')
             .call(brush);
         
+        // Initialize brush to full range
         brush.move(brushG, [0, dimensions.height]);
 
-    }, []);
+    }, [onBrush]);
 
     useEffect(() => {
-        if (topVisibleYear !== null && containerRef.current) {
-            const containerRect = containerRef.current.getBoundingClientRect();
-            
-            const totalSpan = TIME_RANGES.reduce((sum, range) => sum + Math.abs(range.end - range.start), 0);
-            
-            const rangeHeights = TIME_RANGES.map(range => {
-                const span = Math.abs(range.end - range.start);
-                return (span / totalSpan) * containerRect.height;
-            });
+        if (!scrollInfo || !scaleInfoRef.current || scrollInfo.topVisibleYear === undefined) return;
 
-            const rangePositions = [];
-            let currentY = 0;
-            for (let i = 0; i < TIME_RANGES.length; i++) {
-                rangePositions.push(currentY);
-                currentY += rangeHeights[i];
-            }
-            
-            const rangeIndex = TIME_RANGES.findIndex(range => 
-                topVisibleYear >= range.start && topVisibleYear <= range.end
-            );
-            
-            if (rangeIndex !== -1) {
-                const range = TIME_RANGES[rangeIndex];
-                const rangeSpan = range.end - range.start;
-                const positionInRange = (topVisibleYear - range.start) / rangeSpan;
-                const indicatorY = rangePositions[rangeIndex] + (positionInRange * rangeHeights[rangeIndex]);
-                
-                onIndicatorChange(indicatorY);
-            }
-        }
-    }, [topVisibleYear, onIndicatorChange]);
+        const { topVisibleYear } = scrollInfo;
+        const { yearToPixel } = scaleInfoRef.current;
+        
+        // Position indicator at the exact year that's at the top of the viewport
+        const indicatorY = yearToPixel(topVisibleYear);
+        
+        onIndicatorChange(indicatorY);
+    }, [scrollInfo, onIndicatorChange]);
 
     return html`
         <div ref=${containerRef} style="width: 100%; height: 100%;">

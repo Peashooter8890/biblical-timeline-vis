@@ -9,7 +9,10 @@ const App = () => {
     const [events, setEvents] = useState([]);
     const [selection, setSelection] = useState([-4004, 30]);
     const [indicatorY, setIndicatorY] = useState(0);
-    const [topVisibleYear, setTopVisibleYear] = useState(null);
+    const [scrollInfo, setScrollInfo] = useState({ 
+        topVisibleYear: -4004, 
+        selectionRange: [-4004, 30] 
+    });
 
     useEffect(() => {
         fetch('data/events.json')
@@ -21,18 +24,31 @@ const App = () => {
             .catch(err => console.error("Failed to load event data:", err));
     }, []);
 
-    const handleBrush = useCallback((domain) => setSelection(domain), []);
-    const handleIndicatorChange = useCallback((yPosition) => setIndicatorY(yPosition), []);
-    const handleTopEventChange = useCallback((year) => setTopVisibleYear(year), []);
+    const handleBrush = useCallback((domain) => {
+        setSelection(domain);
+        // Update scrollInfo with new selection range
+        setScrollInfo(prev => ({
+            ...prev,
+            selectionRange: domain
+        }));
+    }, []);
+
+    const handleIndicatorChange = useCallback((yPosition) => {
+        setIndicatorY(yPosition);
+    }, []);
+
+    const handleScrollInfoChange = useCallback((newScrollInfo) => {
+        setScrollInfo(newScrollInfo);
+    }, []);
 
     return html`
         <div class="timeline-container">
             <div class="sidebar">
                 <div class="era-scrollbar-container">
-                   <${EraScrollbar} 
-                       onBrush=${handleBrush} 
-                       onIndicatorChange=${handleIndicatorChange}
-                       topVisibleYear=${topVisibleYear} />
+                   <${EraScrollbar}
+                        onBrush=${handleBrush}
+                        onIndicatorChange=${handleIndicatorChange}
+                        scrollInfo=${scrollInfo} />
                    <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
                 </div>
                 <div class="microchart-container">
@@ -40,9 +56,9 @@ const App = () => {
                 </div>
             </div>
             <${EventDisplay} 
-                data=${events} 
-                selection=${selection} 
-                onTopEventChange=${handleTopEventChange} />
+                 data=${events}
+                 selection=${selection}
+                 onScrollInfoChange=${handleScrollInfoChange} />
         </div>
     `;
 };
