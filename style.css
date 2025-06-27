@@ -23,7 +23,7 @@ body {
     background-color: #fff;
     border: 1px solid #ccc;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .sidebar {
@@ -33,7 +33,7 @@ body {
 }
 
 .era-scrollbar-container, .microchart-container {
-    width: 100px; /* Add this line */
+    width: 100px;
     height: 100%;
     box-sizing: border-box;
     position: relative;
@@ -79,15 +79,6 @@ body {
     color: #888;
 }
 
-/* D3 Brush Styling */
-.brush .selection {
-    fill: #777;
-    fill-opacity: .3;
-    stroke: #000; /* Change to black */
-    stroke-width: 3px; /* Make border more noticeable */
-    border-radius: 5px; /* Add rounded corners */
-}
-
 /* D3 Microchart Styling */
 .microchart-line {
     stroke-width: 5px;
@@ -106,21 +97,15 @@ body {
     z-index: 10;
 }
 
-.position-indicator::before, .position-indicator::after {
+.position-indicator::before {
     content: '';
     position: absolute;
     top: -4px;
+    left: -10px;
     width: 0;
     height: 0;
     border-top: 5px solid transparent;
     border-bottom: 5px solid transparent;
-}
-
-.position-indicator::before {
-    left: -10px;
-    border-right: 10px solid red;
-}
-.position-indicator::after {
-    right: -10px;
     border-left: 10px solid red;
+    z-index: 11;
 }
