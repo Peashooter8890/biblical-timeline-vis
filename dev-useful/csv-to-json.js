@@ -45,7 +45,7 @@ function csvToJson(csvFilePath, outputPath = 'events.json') {
             const fields = {};
             
             // Only include specified fields
-            const includedFields = ['title', 'startDate', 'duration', 'column'];
+            const includedFields = ['title', 'startDate', 'duration', 'column', 'sortKey'];
             includedFields.forEach(field => {
                 if (row[field] !== undefined) {
                     fields[field] = row[field];
@@ -100,7 +100,7 @@ function parseCSVLine(line) {
 }
 
 // Main execution
-const csvFilePath = 'dev/events-Grid view.csv'; // Update this path if needed
+const csvFilePath = 'dev-useful/events-Grid view.csv'; // Update this path if needed
 const outputPath = 'data/events.json';
 
 // Convert the CSV to JSON

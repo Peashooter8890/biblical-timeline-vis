@@ -39,9 +39,9 @@ const calculateColumns = (data) => {
         const events = eventsByDate[startDate];
         
         if (events.length > 1) {
-            // Sort events by title for consistent ordering (or you could use another field)
+            // Sort events by sortKey in descending order (higher sortKey = lower column number)
             events.sort((a, b) => {
-                return a.fields.title.localeCompare(b.fields.title);
+                return parseFloat(b.fields.sortKey) - parseFloat(a.fields.sortKey);
             });
             
             // Find existing column assignments
