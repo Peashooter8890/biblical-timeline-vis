@@ -45,6 +45,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange }) => {
         
         if (maxScroll > 0) {
             scrollPercentage = Math.max(0, Math.min(1, scrollTop / maxScroll));
+        } else {
+            // No scrolling possible - all content fits in view
+            // Force scrollPercentage to 1 to position indicator at bottom
+            scrollPercentage = 1;
         }
 
         // Find the continuous year at the top of the viewport
