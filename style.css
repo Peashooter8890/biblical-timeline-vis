@@ -95,6 +95,7 @@ body {
     height: 2px;
     background-color: red;
     z-index: 10;
+    pointer-events: none; /* Allow mouse events to pass through */
 }
 
 .position-indicator::before {
