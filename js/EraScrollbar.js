@@ -181,11 +181,33 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
             .style('pointer-events', 'none')
             .style('top', '0px')
             .style('left', '0px')
-            .style('width', `${dimensions.width}px`) // Use actual SVG width instead of 100%
-            .style('height', `${dimensions.height}px`) // Use actual SVG height instead of 100%
-            .style('box-sizing', 'border-box'); // Ensure border doesn't add to dimensions
+            .style('width', `${dimensions.width}px`)
+            .style('height', `${dimensions.height}px`)
+            .style('box-sizing', 'border-box');
 
-        // Update overlay on brush events
+        // Add top handle
+        const topHandle = d3.select(containerRef.current)
+            .select('.top-handle')
+            .style('position', 'absolute')
+            .style('background', '#000')
+            .style('pointer-events', 'none')
+            .style('width', `${dimensions.width / 3}px`)
+            .style('height', '8px')
+            .style('left', `${dimensions.width / 3}px`)
+            .style('top', '-4px');
+
+        // Add bottom handle
+        const bottomHandle = d3.select(containerRef.current)
+            .select('.bottom-handle')
+            .style('position', 'absolute')
+            .style('background', '#000')
+            .style('pointer-events', 'none')
+            .style('width', `${dimensions.width / 3}px`)
+            .style('height', '8px')
+            .style('left', `${dimensions.width / 3}px`)
+            .style('bottom', '-4px');
+
+        // Update overlay and handles on brush events
         brush.on('brush end', (event) => {
             if (event.selection) {
                 const [y0, y1] = event.selection;
@@ -195,7 +217,14 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
                 overlay
                     .style('top', `${y0}px`)
                     .style('height', `${y1 - y0}px`)
-                    .style('width', `${dimensions.width}px`); // Ensure width stays consistent
+                    .style('width', `${dimensions.width}px`);
+                
+                // Update handle positions
+                topHandle
+                    .style('top', `${y0 - 4}px`);
+                
+                bottomHandle
+                    .style('top', `${y1 - 4}px`);
                 
                 const startYear = pixelToYear(y0);
                 const endYear = pixelToYear(y1);
@@ -233,9 +262,11 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo }) => {
     }, [scrollInfo, onIndicatorChange]);
 
     return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%;">
+        <div ref=${containerRef} style="width: 100%; height: 100%; position: relative;">
             <svg ref=${svgRef}></svg>
             <div class="selection-overlay"></div>
+            <div class="top-handle"></div>
+            <div class="bottom-handle"></div>
         </div>
     `;
 };
