@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>God's Bloodline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Georgia&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --tw-gray-100: rgb(241 245 249);
+        --tw-gray-300: rgb(203 213 225);
+        --tw-gray-800: rgb(30 41 59);
+        --tw-blue-500: rgb(14 165 233);
+    }
+
+    body, html {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'PT Sans', sans-serif;
+        background-color: var(--tw-gray-100);
+    }
+
+    *, *:before, *:after {
+        box-sizing: inherit;
+    }
+
+    .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        max-height: 100vh;
+        padding: 0.75rem;
+    }
+
+    .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        height: 100%;
+    }
+
+    .header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        margin: 0.75rem 0;
+        padding: 0 0.5rem;
+    }
+
+    .header h1 {
+        margin: 0;
+        margin-left: 0.25rem;
+        font-family: 'Georgia', ui-serif, serif;
+        font-style: italic;
+        font-size: 1.5rem;
+        line-height: 2rem;
+        font-weight: normal;
+    }
+
+    .header-controls {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+    }
+
+    #people-legend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem 0.5rem;
+        padding: 0.25rem;
+        margin: 0;
+        list-style: none;
+    }
+
+    #people-legend input[type="radio"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    #people-legend label {
+        cursor: pointer;
+        padding: 0.125rem 0.5rem 0.125rem;
+        padding-top: 0.25rem;
+        border-bottom: 4px solid var(--tw-gray-300);
+    }
+
+    #people-legend-all + label { border-bottom-color: var(--tw-gray-300); }
+    #people-legend-period1 + label { border-bottom-color: #5795ff; }
+    #people-legend-period2 + label { border-bottom-color: #5795ff; }
+    #people-legend-period3 + label { border-bottom-color: #ff7f00; }
+    #people-legend-period4 + label { border-bottom-color: #fdbf6f; }
+    #people-legend-period5 + label { border-bottom-color: #C4A484; }
+
+    #people-legend input[type="radio"]:checked + label {
+        font-weight: 700;
+    }
+
+    #people-legend-all:checked + label { background-color: var(--tw-gray-300); color: black; }
+    #people-legend-period1:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
+    #people-legend-period2:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
+    #people-legend-period3:checked + label { background-color: #ff7f00; color: white; border-color: #ff7f00; }
+    #people-legend-period4:checked + label { background-color: #fdbf6f; color: black; border-color: #fdbf6f; }
+    #people-legend-period5:checked + label { background-color: #C4A484; color: white; border-color: #C4A484; }
+
+    .main-content-placeholder {
+        margin: 0.75rem 0.5rem;
+        border: 2px solid var(--tw-gray-300);
+        background-color: white;
+        flex-grow: 1;
+        min-height: 0;
+    }
+
+    @media (min-width: 768px) {
+        .header-controls {
+            flex-direction: row;
+            justify-content: space-between;
+            width: auto;
+            gap: 1rem;
+        }
+        .header h1 {
+            margin-top: 0;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .header {
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 1.875rem;
+            line-height: 2.25rem;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+    <div class="content-wrapper">
+        <header class="header">
+            <h1><i>Timeline of the Bible</i></h1>
+            <div class="header-controls">
+                <div class="order-1">
+                    <form>
+                        <ul id="people-legend">
+                            <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked><label for="people-legend-all">ALL</label></li>
+                            <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1"><label for="people-legend-period1">4003 BC - 3001 BC</label></li>
+                            <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2"><label for="people-legend-period2">3000 BC - 2001 BC</label></li>
+                            <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3"><label for="people-legend-period3">2000 BC - 1001 BC</label></li>
+                            <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4"><label for="people-legend-period4">1000 BC - 0</label></li>
+                            <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5"><label for="people-legend-period5">0 - 57 AD</label></li>
+                        </ul>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content-placeholder"></div>
+    </div>
+</div>
+
+</body>
+</html>

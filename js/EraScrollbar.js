@@ -2,7 +2,6 @@ import { TIME_RANGES } from './constants.js';
 
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
-
 const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
@@ -132,12 +131,12 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             .enter()
             .append('text')
             .attr('class', 'year-label')
-            .attr('x', labelX)
+            .attr('x', colorBarX - 15) // Position near the right edge, before the color bar
             .attr('y', d => yearToPixel(d) + 5) // Use yearToPixel instead of yearScale
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`)
             .attr('font-size', '14px')
             .attr('fill', '#333')
-            .attr('text-anchor', 'start');
+            .attr('text-anchor', 'end'); // Change from 'start' to 'end' for right alignment
 
         const brush = d3.brushY()
             .extent([[0, 0], [dimensions.width, dimensions.height]])

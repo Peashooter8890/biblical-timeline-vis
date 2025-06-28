@@ -21,9 +21,7 @@ const formatYear = (year) => {
     return year;
 };
 
-// Calculate columns for events with empty column values
 const calculateColumns = (data) => {
-    // Group events by startDate
     const eventsByDate = {};
     
     data.forEach((event, index) => {
@@ -68,15 +66,21 @@ const calculateColumns = (data) => {
         }
     });
     
-    // Flatten back to original order
     const result = new Array(data.length);
     Object.values(eventsByDate).forEach(events => {
         events.forEach(event => {
+            // Clean startDates that are of format ex. "0030-03-05" and make it into "0030"
+            if (event.fields.startDate && event.fields.startDate.includes('-')) {
+                const dashIndex = event.fields.startDate.indexOf('-');
+                if (dashIndex > 0) {
+                    event.fields.startDate = event.fields.startDate.substring(0, dashIndex);
+                }
+            }
+            
             result[event.originalIndex] = event;
             delete result[event.originalIndex].originalIndex;
         });
     });
-    
     return result;
 }
 

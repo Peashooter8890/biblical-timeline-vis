@@ -85,7 +85,7 @@ body::-webkit-scrollbar {
 .event-group {
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #e0e0e0;
+    /* Remove border-bottom from here */
 }
 
 .event-group h3 {
@@ -93,6 +93,9 @@ body::-webkit-scrollbar {
     font-size: 1.1em;
     color: #000;
     font-weight: 600;
+    /* Add border below the year heading */
+    border-bottom: 1px solid black;
+    padding-bottom: 5px;
 }
 
 .event-item {
