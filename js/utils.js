@@ -77,6 +77,11 @@ const calculateColumns = (data) => {
                 }
             }
             
+            // Trim leading zeros from startDate
+            if (event.fields.startDate && typeof event.fields.startDate === 'string') {
+                event.fields.startDate = event.fields.startDate.replace(/^0+/, '') || '0';
+            }
+            
             result[event.originalIndex] = event;
             delete result[event.originalIndex].originalIndex;
         });
