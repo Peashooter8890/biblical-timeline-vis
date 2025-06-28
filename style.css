@@ -261,6 +261,10 @@ body, html {
     padding: 0.125rem 0.5rem 0.125rem;
     padding-top: 0.25rem;
     border-bottom: 4px solid var(--tw-gray-300);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 #people-legend-all + label { border-bottom-color: var(--tw-gray-300); }
@@ -287,6 +291,20 @@ body, html {
     background-color: white;
     flex-grow: 1;
     min-height: 0;
+}
+
+.selection-overlay {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.selection-overlay:focus {
+    outline: none !important;
+}
+
+/* Hide any default D3 brush styling that might leak through */
+.brush .selection {
+    display: none !important;
 }
 
 @media (min-width: 768px) {
