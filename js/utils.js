@@ -97,6 +97,6 @@ const getEffectiveColumn = (event) => {
     
     // Default to column 1 if no column is specified
     return 1;
-}
+};
 
 export {parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn};

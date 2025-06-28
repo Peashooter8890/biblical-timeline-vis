@@ -12,10 +12,21 @@ const App = () => {
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(0);
     const [scrollInfo, setScrollInfo] = useState({ 
-        topVisibleYear: -4004, 
-        selectionRange: [-4004, 30] 
+        topVisibleYear: -4003, 
+        selectionRange: [-4003, 57] 
     });
+    const [selectedPeriod, setSelectedPeriod] = useState('all');
     const eventDisplayRef = useRef(null);
+
+    // Define the time periods
+    const timePeriods = {
+        'all': [-4003, 57],
+        'period1': [-4003, -3001],
+        'period2': [-3000, -2001], 
+        'period3': [-2000, -1001],
+        'period4': [-1000, 0],
+        'period5': [0, 57]
+    };
 
     useEffect(() => {
         fetch('data/events.json')
@@ -59,6 +70,21 @@ const App = () => {
         }
     }, []);
 
+    // Handle period selection changes
+    const handlePeriodChange = useCallback((event) => {
+        const period = event.target.value;
+        setSelectedPeriod(period);
+        
+        const newRange = timePeriods[period];
+        if (newRange) {
+            setSelection(newRange);
+            setScrollInfo(prev => ({
+                ...prev,
+                selectionRange: newRange
+            }));
+        }
+    }, []);
+
     return html`
         <div class="page-container">
             <div class="content-wrapper">
@@ -68,12 +94,12 @@ const App = () => {
                         <div class="order-1">
                             <form>
                                 <ul id="people-legend">
-                                    <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked=${true} /><label for="people-legend-all">ALL</label></li>
-                                    <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1" /><label for="people-legend-period1">4003 BC - 3001 BC</label></li>
-                                    <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2" /><label for="people-legend-period2">3000 BC - 2001 BC</label></li>
-                                    <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3" /><label for="people-legend-period3">2000 BC - 1001 BC</label></li>
-                                    <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4" /><label for="people-legend-period4">1000 BC - 0</label></li>
-                                    <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5" /><label for="people-legend-period5">0 - 57 AD</label></li>
+                                    <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked=${selectedPeriod === 'all'} onChange=${handlePeriodChange} /><label for="people-legend-all">ALL</label></li>
+                                    <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1" checked=${selectedPeriod === 'period1'} onChange=${handlePeriodChange} /><label for="people-legend-period1">4003 BC - 3001 BC</label></li>
+                                    <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2" checked=${selectedPeriod === 'period2'} onChange=${handlePeriodChange} /><label for="people-legend-period2">3000 BC - 2001 BC</label></li>
+                                    <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3" checked=${selectedPeriod === 'period3'} onChange=${handlePeriodChange} /><label for="people-legend-period3">2000 BC - 1001 BC</label></li>
+                                    <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4" checked=${selectedPeriod === 'period4'} onChange=${handlePeriodChange} /><label for="people-legend-period4">1000 BC - 0</label></li>
+                                    <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5" checked=${selectedPeriod === 'period5'} onChange=${handlePeriodChange} /><label for="people-legend-period5">0 - 57 AD</label></li>
                                 </ul>
                             </form>
                         </div>
@@ -86,7 +112,8 @@ const App = () => {
                                 onBrush=${handleBrush}
                                 onIndicatorChange=${handleIndicatorChange}
                                 scrollInfo=${scrollInfo}
-                                onScroll=${handleExternalScroll} />
+                                onScroll=${handleExternalScroll}
+                                externalSelection=${selection} />
                            <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
                         </div>
                         <div class="microchart-container">
