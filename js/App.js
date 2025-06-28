@@ -60,31 +60,52 @@ const App = () => {
     }, []);
 
     return html`
-        <div class="timeline-container">
-            <div class="sidebar">
-                <div class="era-scrollbar-container">
-                   <${EraScrollbar}
-                        onBrush=${handleBrush}
-                        onIndicatorChange=${handleIndicatorChange}
-                        scrollInfo=${scrollInfo}
-                        onScroll=${handleExternalScroll} />
-                   <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
-                </div>
-                <div class="microchart-container">
-                    <${Microchart} 
-                        data=${events} 
+        <div class="page-container">
+            <div class="content-wrapper">
+                <header class="header">
+                    <h1><i>Timeline of the Bible</i></h1>
+                    <div class="header-controls">
+                        <div class="order-1">
+                            <form>
+                                <ul id="people-legend">
+                                    <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked=${true} /><label for="people-legend-all">ALL</label></li>
+                                    <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1" /><label for="people-legend-period1">4003 BC - 3001 BC</label></li>
+                                    <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2" /><label for="people-legend-period2">3000 BC - 2001 BC</label></li>
+                                    <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3" /><label for="people-legend-period3">2000 BC - 1001 BC</label></li>
+                                    <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4" /><label for="people-legend-period4">1000 BC - 0</label></li>
+                                    <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5" /><label for="people-legend-period5">0 - 57 AD</label></li>
+                                </ul>
+                            </form>
+                        </div>
+                    </div>
+                </header>
+                <div class="timeline-container">
+                    <div class="sidebar">
+                        <div class="era-scrollbar-container">
+                           <${EraScrollbar}
+                                onBrush=${handleBrush}
+                                onIndicatorChange=${handleIndicatorChange}
+                                scrollInfo=${scrollInfo}
+                                onScroll=${handleExternalScroll} />
+                           <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
+                        </div>
+                        <div class="microchart-container">
+                            <${Microchart} 
+                                data=${events} 
+                                selection=${selection}
+                                onIndicatorChange=${handleMicrochartIndicatorChange}
+                                scrollInfo=${scrollInfo}
+                                onScroll=${handleExternalScroll} />
+                            <div class="microchart-position-indicator" style=${{top: `${microchartIndicatorY}px`}}></div>
+                        </div>
+                    </div>
+                    <${EventDisplay} 
+                        data=${events}
                         selection=${selection}
-                        onIndicatorChange=${handleMicrochartIndicatorChange}
-                        scrollInfo=${scrollInfo}
-                        onScroll=${handleExternalScroll} />
-                    <div class="microchart-position-indicator" style=${{top: `${microchartIndicatorY}px`}}></div>
-                </div>
+                        onScrollInfoChange=${handleScrollInfoChange}
+                        containerRef=${eventDisplayRef} />
+                    </div>
             </div>
-            <${EventDisplay} 
-                 data=${events}
-                 selection=${selection}
-                 onScrollInfoChange=${handleScrollInfoChange}
-                 containerRef=${eventDisplayRef} />
         </div>
     `;
 };
