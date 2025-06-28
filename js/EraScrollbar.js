@@ -2,43 +2,58 @@ import { TIME_RANGES } from './constants.js';
 
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
+
+// Constants
+const YEAR_INTERVAL = 500;
+const YEAR_RANGE_START = -4000;
+const YEAR_RANGE_END = 0;
+const MIN_SELECTION_HEIGHT = 5;
+const COLOR_BAR_WIDTH_RATIO = 1/6;
+const LABEL_MARGIN = 15;
+const LINE_GAP = 10;
+const HANDLE_HEIGHT = 8;
+const HANDLE_OFFSET = 4;
+const RESIZE_ZONE_RATIO = 0.025;
+
 const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
-    const brushBoundsRef = useRef([0, 0]); // Store current brush bounds in pixels
+    const brushBoundsRef = useRef([0, 0]);
 
-    useEffect(() => {
-        if (!svgRef.current || !containerRef.current) return;
+    const calculateDimensions = useCallback((container) => {
+        const rect = container.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+    }, []);
 
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const dimensions = { 
-            width: containerRect.width, 
-            height: containerRect.height 
-        };
-
-        const totalSpan = TIME_RANGES.reduce((sum, range) => sum + Math.abs(range.end - range.start), 0);
+    const calculateRangeLayout = useCallback((dimensions) => {
+        const totalSpan = TIME_RANGES.reduce((sum, range) => 
+            sum + Math.abs(range.end - range.start), 0);
         
-        const rangeHeights = TIME_RANGES.map(range => {
+        const heights = TIME_RANGES.map(range => {
             const span = Math.abs(range.end - range.start);
             return (span / totalSpan) * dimensions.height;
         });
 
-        const rangePositions = [];
+        const positions = [];
         let currentY = 0;
-        for (let i = 0; i < TIME_RANGES.length; i++) {
-            rangePositions.push(currentY);
-            currentY += rangeHeights[i];
+        for (const height of heights) {
+            positions.push(currentY);
+            currentY += height;
         }
+
+        return { heights, positions };
+    }, []);
+
+    const createScaleFunctions = useCallback((dimensions, rangeLayout) => {
+        const { heights, positions } = rangeLayout;
 
         const yearToPixel = (year) => {
             const rangeIndex = TIME_RANGES.findIndex(range => 
-                year >= range.start && year <= range.end
-            );
+                year >= range.start && year <= range.end);
             
             if (rangeIndex === -1) {
-                // Handle edge cases - find closest range
-                if (year < TIME_RANGES[0].start) return rangePositions[0];
+                if (year < TIME_RANGES[0].start) return positions[0];
                 if (year > TIME_RANGES[TIME_RANGES.length - 1].end) return dimensions.height;
                 return 0;
             }
@@ -47,21 +62,21 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             const rangeSpan = range.end - range.start;
             const positionInRange = (year - range.start) / rangeSpan;
             
-            return rangePositions[rangeIndex] + (positionInRange * rangeHeights[rangeIndex]);
+            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
         };
 
         const pixelToYear = (pixel) => {
             let rangeIndex = TIME_RANGES.length - 1;
-            for (let i = 0; i < rangePositions.length - 1; i++) {
-                if (pixel < rangePositions[i + 1]) {
+            for (let i = 0; i < positions.length - 1; i++) {
+                if (pixel < positions[i + 1]) {
                     rangeIndex = i;
                     break;
                 }
             }
 
             const range = TIME_RANGES[rangeIndex];
-            const rangeStartPixel = rangePositions[rangeIndex];
-            const rangeHeight = rangeHeights[rangeIndex];
+            const rangeStartPixel = positions[rangeIndex];
+            const rangeHeight = heights[rangeIndex];
 
             if (rangeHeight <= 0) return range.start;
 
@@ -71,21 +86,23 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             return range.start + (proportion * yearSpan);
         };
 
-        // Store scale info
-        scaleInfoRef.current = {
-            yearToPixel,
-            pixelToYear,
-            dimensions
-        };
+        return { yearToPixel, pixelToYear };
+    }, []);
 
-        const svg = d3.select(svgRef.current)
-            .attr('width', dimensions.width)
-            .attr('height', dimensions.height)
-            .style('overflow', 'visible'); // Added to allow text overflow
-        
-        svg.selectAll('*').remove();
+    const generateYearIntervals = useCallback(() => {
+        const intervals = [];
+        for (let year = YEAR_RANGE_START; year <= YEAR_RANGE_END; year += YEAR_INTERVAL) {
+            intervals.push(year);
+        }
+        if (!intervals.includes(YEAR_RANGE_END)) {
+            intervals.push(YEAR_RANGE_END);
+        }
+        return intervals;
+    }, []);
 
-        const colorBarWidth = dimensions.width / 6;
+    const createColorBars = useCallback((svg, dimensions, rangeLayout) => {
+        const { heights, positions } = rangeLayout;
+        const colorBarWidth = dimensions.width * COLOR_BAR_WIDTH_RATIO;
         const colorBarX = dimensions.width - colorBarWidth;
         
         svg.selectAll('.era-rect')
@@ -94,24 +111,19 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             .append('rect')
             .attr('class', 'era-rect')
             .attr('x', colorBarX)
-            .attr('y', (d, i) => rangePositions[i])
+            .attr('y', (d, i) => positions[i])
             .attr('width', colorBarWidth)
-            .attr('height', (d, i) => rangeHeights[i])
+            .attr('height', (d, i) => heights[i])
             .attr('fill', d => d.color);
 
-        const labelX = 15;
-        const lineStartX = dimensions.width - colorBarWidth - 10;
-        
-        // Remove this unused yearScale:
-        // const yearScale = d3.scaleLinear()
-        //     .domain([-4004, 30])
-        //     .range([0, dimensions.height]);
+        return { colorBarWidth, colorBarX };
+    }, []);
 
-        const intervals = [];
-        for (let year = -4000; year <= 0; year += 500) {
-            intervals.push(year);
-        }
-        intervals.push(0);
+    const createYearMarkers = useCallback((svg, dimensions, scaleFunctions, colorBarLayout) => {
+        const { yearToPixel } = scaleFunctions;
+        const { colorBarX } = colorBarLayout;
+        const lineStartX = colorBarX - LINE_GAP;
+        const intervals = generateYearIntervals();
 
         svg.selectAll('.year-line')
             .data(intervals)
@@ -119,9 +131,9 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             .append('line')
             .attr('class', 'year-line')
             .attr('x1', lineStartX)
-            .attr('y1', d => yearToPixel(d)) // Use yearToPixel instead of yearScale
+            .attr('y1', yearToPixel)
             .attr('x2', colorBarX)
-            .attr('y2', d => yearToPixel(d)) // Use yearToPixel instead of yearScale
+            .attr('y2', yearToPixel)
             .attr('stroke', '#999')
             .attr('stroke-width', 1)
             .attr('stroke-dasharray', '2,2');
@@ -131,19 +143,22 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
             .enter()
             .append('text')
             .attr('class', 'year-label')
-            .attr('x', colorBarX - 15) // Position near the right edge, before the color bar
-            .attr('y', d => yearToPixel(d) + 5) // Use yearToPixel instead of yearScale
+            .attr('x', colorBarX - LABEL_MARGIN)
+            .attr('y', d => yearToPixel(d) + 5)
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`)
             .attr('font-size', '14px')
             .attr('fill', '#333')
-            .attr('text-anchor', 'end'); // Change from 'start' to 'end' for right alignment
+            .attr('text-anchor', 'end');
+    }, [generateYearIntervals]);
 
-        const brush = d3.brushY()
+    const createBrushBehavior = useCallback((dimensions, scaleFunctions) => {
+        const { pixelToYear } = scaleFunctions;
+
+        return d3.brushY()
             .extent([[0, 0], [dimensions.width, dimensions.height]])
             .on('brush end', (event) => {
                 if (event.selection) {
                     const [y0, y1] = event.selection;
-                    // Store the brush bounds in pixels - these are the actual visual bounds
                     brushBoundsRef.current = [y0, y1];
                     
                     const startYear = pixelToYear(y0);
@@ -152,106 +167,126 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
                 }
             })
             .on('brush', (event) => {
-                // Also update during brushing (not just on end)
                 if (event.selection) {
                     const [y0, y1] = event.selection;
                     brushBoundsRef.current = [y0, y1];
                 }
             });
+    }, [onBrush]);
 
-        const brushG = svg.append('g')
-            .attr('class', 'brush')
-            .call(brush);
-        
-        // Hide the default SVG selection rectangle
-        svg.selectAll('.brush .selection')
-            .style('display', 'none');
+    const updateBrushPosition = useCallback((brush, brushG, y0, y1) => {
+        brush.move(brushG, [y0, y1]);
+    }, []);
 
-        // Disable the overlay rect that allows creating new selections
-        svg.selectAll('.brush .overlay')
-            .style('pointer-events', 'none');
+    const createInteractionHandler = useCallback((dimensions, brush, brushG, resizeZoneSize) => {
+        return function(event) {
+            const overlayRect = this.getBoundingClientRect();
+            const mouseY = event.clientY - overlayRect.top;
+            
+            let mode = 'drag';
+            if (mouseY <= resizeZoneSize) {
+                mode = 'resize-top';
+                this.style.cursor = 'ns-resize';
+            } else if (mouseY >= overlayRect.height - resizeZoneSize) {
+                mode = 'resize-bottom';
+                this.style.cursor = 'ns-resize';
+            }
+            
+            const startMouseY = event.clientY;
+            const currentBounds = brushBoundsRef.current;
+            const [currentY0, currentY1] = currentBounds;
+            
+            const handleMouseMove = (moveEvent) => {
+                const deltaY = moveEvent.clientY - startMouseY;
+                let newY0 = currentY0;
+                let newY1 = currentY1;
+                
+                switch (mode) {
+                    case 'resize-top':
+                        newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
+                        break;
+                    case 'resize-bottom':
+                        newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
+                        break;
+                    case 'drag':
+                        const selectionHeight = currentY1 - currentY0;
+                        newY0 = Math.max(0, Math.min(dimensions.height - selectionHeight, currentY0 + deltaY));
+                        newY1 = newY0 + selectionHeight;
+                        break;
+                }
+                
+                updateBrushPosition(brush, brushG, newY0, newY1);
+            };
+            
+            const handleMouseUp = () => {
+                this.style.cursor = 'move';
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            event.preventDefault();
+        };
+    }, [updateBrushPosition]);
 
-        // Initialize brush to full range and store bounds
-        brush.move(brushG, [0, dimensions.height]);
-        brushBoundsRef.current = [0, dimensions.height];
+    const createHandleMouseDown = useCallback((dimensions, brush, brushG, isTop) => {
+        return function(event) {
+            const startMouseY = event.clientY;
+            const currentBounds = brushBoundsRef.current;
+            const [currentY0, currentY1] = currentBounds;
+            
+            const handleMouseMove = (moveEvent) => {
+                const deltaY = moveEvent.clientY - startMouseY;
+                
+                if (isTop) {
+                    const newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
+                    updateBrushPosition(brush, brushG, newY0, currentY1);
+                } else {
+                    const newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
+                    updateBrushPosition(brush, brushG, currentY0, newY1);
+                }
+            };
+            
+            const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            event.preventDefault();
+            event.stopPropagation();
+        };
+    }, [updateBrushPosition]);
 
-        // Define resize zone size - use a fixed pixel size or percentage of container
-        const RESIZE_ZONE_SIZE = dimensions.height * 0.025;
+    const createOverlayElements = useCallback((container, dimensions, brush, brushG) => {
+        const resizeZoneSize = dimensions.height * RESIZE_ZONE_RATIO;
+        const handleWidth = dimensions.width / 3;
+        const handleLeft = dimensions.width / 3;
 
-        // Add HTML overlay for visual selection with custom interaction
-        const overlay = d3.select(containerRef.current)
+        // Selection overlay
+        const overlay = d3.select(container)
             .select('.selection-overlay')
             .style('position', 'absolute')
             .style('background', 'rgba(119, 119, 119, 0.3)')
             .style('border', '3px solid #000')
             .style('border-radius', '8px')
-            .style('pointer-events', 'auto') // Enable pointer events
-            .style('z-index', '20') // Middle layer - above dots but below position indicator
+            .style('pointer-events', 'auto')
+            .style('z-index', '20')
             .style('top', '0px')
             .style('left', '0px')
             .style('width', `${dimensions.width}px`)
             .style('height', `${dimensions.height}px`)
             .style('box-sizing', 'border-box')
             .style('cursor', 'move')
-            .on('mousedown', function(event) {
-                const overlayRect = this.getBoundingClientRect();
-                const mouseY = event.clientY - overlayRect.top;
-                
-                // Determine interaction mode based on mouse position
-                // Use fixed resize zone size instead of percentage of selection height
-                let mode = 'drag';
-                if (mouseY <= RESIZE_ZONE_SIZE) {
-                    mode = 'resize-top';
-                    this.style.cursor = 'ns-resize';
-                } else if (mouseY >= overlayRect.height - RESIZE_ZONE_SIZE) {
-                    mode = 'resize-bottom';
-                    this.style.cursor = 'ns-resize';
-                }
-                
-                const startMouseY = event.clientY;
-                const currentBounds = brushBoundsRef.current;
-                const [currentY0, currentY1] = currentBounds;
-                
-                const handleMouseMove = (moveEvent) => {
-                    const deltaY = moveEvent.clientY - startMouseY;
-                    let newY0 = currentY0;
-                    let newY1 = currentY1;
-                    
-                    switch (mode) {
-                        case 'resize-top':
-                            newY0 = Math.max(0, Math.min(currentY1 - 20, currentY0 + deltaY));
-                            break;
-                        case 'resize-bottom':
-                            newY1 = Math.min(dimensions.height, Math.max(currentY0 + 20, currentY1 + deltaY));
-                            break;
-                        case 'drag':
-                            const selectionHeight = currentY1 - currentY0;
-                            newY0 = Math.max(0, Math.min(dimensions.height - selectionHeight, currentY0 + deltaY));
-                            newY1 = newY0 + selectionHeight;
-                            break;
-                    }
-                    
-                    // Update brush selection programmatically
-                    brush.move(brushG, [newY0, newY1]);
-                };
-                
-                const handleMouseUp = () => {
-                    this.style.cursor = 'move';
-                    document.removeEventListener('mousemove', handleMouseMove);
-                    document.removeEventListener('mouseup', handleMouseUp);
-                };
-                
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-                event.preventDefault();
-            })
+            .on('mousedown', createInteractionHandler(dimensions, brush, brushG, resizeZoneSize))
             .on('mousemove', function(event) {
-                if (event.buttons === 0) { // No mouse button pressed
+                if (event.buttons === 0) {
                     const overlayRect = this.getBoundingClientRect();
                     const mouseY = event.clientY - overlayRect.top;
                     
-                    // Update cursor based on position using fixed resize zone size
-                    if (mouseY <= RESIZE_ZONE_SIZE || mouseY >= overlayRect.height - RESIZE_ZONE_SIZE) {
+                    if (mouseY <= resizeZoneSize || mouseY >= overlayRect.height - resizeZoneSize) {
                         this.style.cursor = 'ns-resize';
                     } else {
                         this.style.cursor = 'move';
@@ -259,102 +294,96 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
                 }
             });
 
-        // Add top handle
-        const topHandle = d3.select(containerRef.current)
+        // Top handle
+        const topHandle = d3.select(container)
             .select('.top-handle')
             .style('position', 'absolute')
             .style('background', '#000')
-            .style('pointer-events', 'auto') // Enable pointer events
-            .style('width', `${dimensions.width / 3}px`)
-            .style('height', '8px')
-            .style('left', `${dimensions.width / 3}px`)
-            .style('top', '-4px')
+            .style('pointer-events', 'auto')
+            .style('width', `${handleWidth}px`)
+            .style('height', `${HANDLE_HEIGHT}px`)
+            .style('left', `${handleLeft}px`)
+            .style('top', `-${HANDLE_OFFSET}px`)
             .style('cursor', 'ns-resize')
-            .on('mousedown', function(event) {
-                const startMouseY = event.clientY;
-                const currentBounds = brushBoundsRef.current;
-                const [currentY0, currentY1] = currentBounds;
-                
-                const handleMouseMove = (moveEvent) => {
-                    const deltaY = moveEvent.clientY - startMouseY;
-                    const newY0 = Math.max(0, Math.min(currentY1 - 20, currentY0 + deltaY));
-                    
-                    // Update brush selection programmatically
-                    brush.move(brushG, [newY0, currentY1]);
-                };
-                
-                const handleMouseUp = () => {
-                    document.removeEventListener('mousemove', handleMouseMove);
-                    document.removeEventListener('mouseup', handleMouseUp);
-                };
-                
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-                event.preventDefault();
-                event.stopPropagation();
-            });
+            .on('mousedown', createHandleMouseDown(dimensions, brush, brushG, true));
 
-        // Add bottom handle
-        const bottomHandle = d3.select(containerRef.current)
+        // Bottom handle
+        const bottomHandle = d3.select(container)
             .select('.bottom-handle')
             .style('position', 'absolute')
             .style('background', '#000')
-            .style('pointer-events', 'auto') // Enable pointer events
-            .style('width', `${dimensions.width / 3}px`)
-            .style('height', '8px')
-            .style('left', `${dimensions.width / 3}px`)
-            .style('bottom', '-4px')
+            .style('pointer-events', 'auto')
+            .style('width', `${handleWidth}px`)
+            .style('height', `${HANDLE_HEIGHT}px`)
+            .style('left', `${handleLeft}px`)
+            .style('bottom', `-${HANDLE_OFFSET}px`)
             .style('cursor', 'ns-resize')
-            .on('mousedown', function(event) {
-                const startMouseY = event.clientY;
-                const currentBounds = brushBoundsRef.current;
-                const [currentY0, currentY1] = currentBounds;
-                
-                const handleMouseMove = (moveEvent) => {
-                    const deltaY = moveEvent.clientY - startMouseY;
-                    const newY1 = Math.min(dimensions.height, Math.max(currentY0 + 20, currentY1 + deltaY));
-                    
-                    // Update brush selection programmatically
-                    brush.move(brushG, [currentY0, newY1]);
-                };
-                
-                const handleMouseUp = () => {
-                    document.removeEventListener('mousemove', handleMouseMove);
-                    document.removeEventListener('mouseup', handleMouseUp);
-                };
-                
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-                event.preventDefault();
-                event.stopPropagation();
-            });
+            .on('mousedown', createHandleMouseDown(dimensions, brush, brushG, false));
 
-        // Update overlay and handles on brush events
+        return { overlay, topHandle, bottomHandle };
+    }, [createInteractionHandler, createHandleMouseDown]);
+
+    const updateOverlayPositions = useCallback((overlayElements, dimensions, y0, y1) => {
+        const { overlay, topHandle, bottomHandle } = overlayElements;
+        
+        overlay
+            .style('top', `${y0}px`)
+            .style('height', `${y1 - y0}px`)
+            .style('width', `${dimensions.width}px`);
+        
+        topHandle.style('top', `${y0 - HANDLE_OFFSET}px`);
+        bottomHandle.style('top', `${y1 - HANDLE_OFFSET}px`);
+    }, []);
+
+    useEffect(() => {
+        if (!svgRef.current || !containerRef.current) return;
+
+        const dimensions = calculateDimensions(containerRef.current);
+        const rangeLayout = calculateRangeLayout(dimensions);
+        const scaleFunctions = createScaleFunctions(dimensions, rangeLayout);
+
+        scaleInfoRef.current = { ...scaleFunctions, dimensions };
+
+        const svg = d3.select(svgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
+        
+        svg.selectAll('*').remove();
+
+        const colorBarLayout = createColorBars(svg, dimensions, rangeLayout);
+        createYearMarkers(svg, dimensions, scaleFunctions, colorBarLayout);
+
+        const brush = createBrushBehavior(dimensions, scaleFunctions);
+        const brushG = svg.append('g').attr('class', 'brush').call(brush);
+        
+        // Hide default brush UI
+        svg.selectAll('.brush .selection').style('display', 'none');
+        svg.selectAll('.brush .overlay').style('pointer-events', 'none');
+
+        // Initialize brush and create overlay elements
+        brush.move(brushG, [0, dimensions.height]);
+        brushBoundsRef.current = [0, dimensions.height];
+
+        const overlayElements = createOverlayElements(containerRef.current, dimensions, brush, brushG);
+
+        // Enhanced brush event handler to update overlay positions
         brush.on('brush end', (event) => {
             if (event.selection) {
                 const [y0, y1] = event.selection;
                 brushBoundsRef.current = [y0, y1];
                 
-                // Update HTML overlay position
-                overlay
-                    .style('top', `${y0}px`)
-                    .style('height', `${y1 - y0}px`)
-                    .style('width', `${dimensions.width}px`);
+                updateOverlayPositions(overlayElements, dimensions, y0, y1);
                 
-                // Update handle positions
-                topHandle
-                    .style('top', `${y0 - 4}px`);
-                
-                bottomHandle
-                    .style('top', `${y1 - 4}px`);
-                
-                const startYear = pixelToYear(y0);
-                const endYear = pixelToYear(y1);
+                const startYear = scaleFunctions.pixelToYear(y0);
+                const endYear = scaleFunctions.pixelToYear(y1);
                 onBrush([startYear, endYear]);
             }
         });
 
-    }, [onBrush]);
+    }, [onBrush, calculateDimensions, calculateRangeLayout, createScaleFunctions, 
+        createColorBars, createYearMarkers, createBrushBehavior, createOverlayElements, 
+        updateOverlayPositions]);
 
     useEffect(() => {
         if (!scrollInfo || !scaleInfoRef.current || scrollInfo.topVisibleYear === undefined) return;
@@ -362,28 +391,22 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll }) => {
         const { topVisibleYear, scrollPercentage, selectionRange } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
         
-        // Always calculate the current brush bounds from the current selection
+        // Calculate indicator position with edge behavior for scroll bounds
         const currentBrushStart = yearToPixel(selectionRange[0]);
         const currentBrushEnd = yearToPixel(selectionRange[1]);
         
         let indicatorY;
-        
-        // Edge behavior: align with current selection bounds when fully scrolled
         if (scrollPercentage === 0) {
-            // Fully scrolled to top - align with top edge of current selection
             indicatorY = currentBrushStart;
         } else if (scrollPercentage === 1) {
-            // Fully scrolled to bottom - align with bottom edge of current selection
             indicatorY = currentBrushEnd;
         } else {
-            // Normal case: position at the exact year
             indicatorY = yearToPixel(topVisibleYear);
         }
         
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    // Add wheel event handler
     const handleWheel = useCallback((event) => {
         if (onScroll) {
             event.preventDefault();
