@@ -134,6 +134,13 @@ const App = () => {
                     </div>
             </div>
         </div>
+        <style>
+            @media (max-width: 767px) {
+                .microchart-container {
+                    display: none;
+                }
+            }
+        </style>
     `;
 };
 
