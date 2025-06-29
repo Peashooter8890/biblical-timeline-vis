@@ -1,10 +1,19 @@
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import EraScrollbar from './EraScrollbar.js';
 import Microchart from './Microchart.js';
 import EventDisplay from './EventDisplay.js';
 import { calculateColumns } from './utils.js';
 
-const { useState, useEffect, useCallback, useRef } = preactHooks;
-const html = htm.bind(preact.h);
+const loadCSS = (href) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+};
+
+if (!document.querySelector('link[href="css/app.css"]')) {
+    loadCSS('css/app.css');
+}
 
 const App = () => {
     const [events, setEvents] = useState([]);
@@ -18,7 +27,7 @@ const App = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const eventDisplayRef = useRef(null);
 
-    // Define the time periods
+    
     const timePeriods = {
         'all': [-4003, 57],
         'period1': [-4003, -3001],
@@ -32,7 +41,7 @@ const App = () => {
         fetch('data/events.json')
             .then(res => res.json())
             .then(data => {
-                // Calculate custom columns for events with empty column values
+                
                 const dataWithColumns = calculateColumns(data);
                 const sortedData = dataWithColumns.sort((a, b) => a.fields.startDate - b.fields.startDate);
                 setEvents(sortedData);
@@ -42,7 +51,7 @@ const App = () => {
 
     const handleBrush = useCallback((domain) => {
         setSelection(domain);
-        // Update scrollInfo with new selection range
+        
         setScrollInfo(prev => ({
             ...prev,
             selectionRange: domain
@@ -61,16 +70,16 @@ const App = () => {
         setScrollInfo(newScrollInfo);
     }, []);
 
-    // Handle scroll events from microchart and era scrollbar
+    
     const handleExternalScroll = useCallback((deltaY) => {
         if (eventDisplayRef.current) {
             const container = eventDisplayRef.current;
-            const scrollAmount = deltaY * 2; // Adjust scroll sensitivity
+            const scrollAmount = deltaY * 2; 
             container.scrollTop += scrollAmount;
         }
     }, []);
 
-    // Handle period selection changes
+    
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
         setSelectedPeriod(period);
@@ -85,63 +94,56 @@ const App = () => {
         }
     }, []);
 
-    return html`
-        <div class="page-container">
-            <div class="content-wrapper">
-                <header class="header">
+    return (
+        <div className="page-container">
+            <div className="content-wrapper">
+                <header className="header">
                     <h1><i>Timeline of the Bible</i></h1>
-                    <div class="header-controls">
-                        <div class="order-1">
+                    <div className="header-controls">
+                        <div className="order-1">
                             <form>
                                 <ul id="people-legend">
-                                    <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked=${selectedPeriod === 'all'} onChange=${handlePeriodChange} /><label for="people-legend-all">ALL</label></li>
-                                    <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1" checked=${selectedPeriod === 'period1'} onChange=${handlePeriodChange} /><label for="people-legend-period1">4003 BC - 3001 BC</label></li>
-                                    <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2" checked=${selectedPeriod === 'period2'} onChange=${handlePeriodChange} /><label for="people-legend-period2">3000 BC - 2001 BC</label></li>
-                                    <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3" checked=${selectedPeriod === 'period3'} onChange=${handlePeriodChange} /><label for="people-legend-period3">2000 BC - 1001 BC</label></li>
-                                    <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4" checked=${selectedPeriod === 'period4'} onChange=${handlePeriodChange} /><label for="people-legend-period4">1000 BC - 0</label></li>
-                                    <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5" checked=${selectedPeriod === 'period5'} onChange=${handlePeriodChange} /><label for="people-legend-period5">0 - 57 AD</label></li>
+                                    <li><input id="people-legend-all" type="radio" name="people-legend" value="all" checked={selectedPeriod === 'all'} onChange={handlePeriodChange} /><label htmlFor="people-legend-all">ALL</label></li>
+                                    <li><input id="people-legend-period1" type="radio" name="people-legend" value="period1" checked={selectedPeriod === 'period1'} onChange={handlePeriodChange} /><label htmlFor="people-legend-period1">4003 BC - 3001 BC</label></li>
+                                    <li><input id="people-legend-period2" type="radio" name="people-legend" value="period2" checked={selectedPeriod === 'period2'} onChange={handlePeriodChange} /><label htmlFor="people-legend-period2">3000 BC - 2001 BC</label></li>
+                                    <li><input id="people-legend-period3" type="radio" name="people-legend" value="period3" checked={selectedPeriod === 'period3'} onChange={handlePeriodChange} /><label htmlFor="people-legend-period3">2000 BC - 1001 BC</label></li>
+                                    <li><input id="people-legend-period4" type="radio" name="people-legend" value="period4" checked={selectedPeriod === 'period4'} onChange={handlePeriodChange} /><label htmlFor="people-legend-period4">1000 BC - 0</label></li>
+                                    <li><input id="people-legend-period5" type="radio" name="people-legend" value="period5" checked={selectedPeriod === 'period5'} onChange={handlePeriodChange} /><label htmlFor="people-legend-period5">0 - 57 AD</label></li>
                                 </ul>
                             </form>
                         </div>
                     </div>
                 </header>
-                <div class="timeline-container">
-                    <div class="sidebar">
-                        <div class="era-scrollbar-container">
-                           <${EraScrollbar}
-                                onBrush=${handleBrush}
-                                onIndicatorChange=${handleIndicatorChange}
-                                scrollInfo=${scrollInfo}
-                                onScroll=${handleExternalScroll}
-                                externalSelection=${selection} />
-                           <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
+                <div className="timeline-container">
+                    <div className="sidebar">
+                        <div className="era-scrollbar-container">
+                           <EraScrollbar
+                                onBrush={handleBrush}
+                                onIndicatorChange={handleIndicatorChange}
+                                scrollInfo={scrollInfo}
+                                onScroll={handleExternalScroll}
+                                externalSelection={selection} />
+                           <div className="position-indicator" style={{top: `${indicatorY}px`}}></div>
                         </div>
-                        <div class="microchart-container">
-                            <${Microchart} 
-                                data=${events} 
-                                selection=${selection}
-                                onIndicatorChange=${handleMicrochartIndicatorChange}
-                                scrollInfo=${scrollInfo}
-                                onScroll=${handleExternalScroll} />
-                            <div class="microchart-position-indicator" style=${{top: `${microchartIndicatorY}px`}}></div>
+                        <div className="microchart-container">
+                            <Microchart 
+                                data={events} 
+                                selection={selection}
+                                onIndicatorChange={handleMicrochartIndicatorChange}
+                                scrollInfo={scrollInfo}
+                                onScroll={handleExternalScroll} />
+                            <div className="microchart-position-indicator" style={{top: `${microchartIndicatorY}px`}}></div>
                         </div>
                     </div>
-                    <${EventDisplay} 
-                        data=${events}
-                        selection=${selection}
-                        onScrollInfoChange=${handleScrollInfoChange}
-                        containerRef=${eventDisplayRef} />
-                    </div>
+                    <EventDisplay 
+                        data={events}
+                        selection={selection}
+                        onScrollInfoChange={handleScrollInfoChange}
+                        containerRef={eventDisplayRef} />
+                </div>
             </div>
         </div>
-        <style>
-            @media (max-width: 767px) {
-                .microchart-container {
-                    display: none;
-                }
-            }
-        </style>
-    `;
+    );
 };
 
 export default App;

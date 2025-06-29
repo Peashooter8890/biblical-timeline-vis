@@ -3,10 +3,22 @@ import { formatYear } from './utils.js';
 const { useRef, useMemo, useCallback, useEffect } = preactHooks;
 const html = htm.bind(preact.h);
 
+// Load EventDisplay-specific CSS
+const loadCSS = (href) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+};
+
+// Load EventDisplay CSS if not already loaded
+if (!document.querySelector('link[href="css/event-display.css"]')) {
+    loadCSS('css/event-display.css');
+}
+
 const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
     const internalRef = useRef(null);
 
-    // Use the passed ref or fall back to internal ref
     const actualRef = containerRef || internalRef;
 
     if (!data.length || !selection) {
@@ -42,7 +54,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         
         if (eventElements.length === 0) return;
 
-        // Calculate scroll percentage (0 to 1)
         const maxScroll = scrollHeight - clientHeight;
         let scrollPercentage = 0;
         
@@ -54,7 +65,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             scrollPercentage = 1;
         }
 
-        // Find the continuous year at the top of the viewport
         let topVisibleYear = groupedEvents[0].year;
         
         for (let i = 0; i < eventElements.length; i++) {
@@ -64,12 +74,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             
             if (elementBottom > scrollTop) {
                 if (i === 0) {
-                    // First element - interpolate from start of element
                     if (element.offsetHeight > 0) {
                         const scrollIntoElement = Math.max(0, scrollTop - elementTop);
                         const progressThroughElement = scrollIntoElement / element.offsetHeight;
                         
-                        // If there's a next element, interpolate toward it
                         if (i + 1 < groupedEvents.length) {
                             const currentYear = groupedEvents[i].year;
                             const nextYear = groupedEvents[i + 1].year;
@@ -81,12 +89,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                         topVisibleYear = groupedEvents[i].year;
                     }
                 } else {
-                    // Check if we're between this element and the previous one
                     const prevElement = eventElements[i - 1];
                     const prevBottom = prevElement.offsetTop + prevElement.offsetHeight;
                     
                     if (scrollTop <= prevBottom && scrollTop >= elementTop) {
-                        // We're between elements - interpolate
                         const prevYear = groupedEvents[i - 1].year;
                         const currentYear = groupedEvents[i].year;
                         const totalDistance = elementTop - prevBottom;
@@ -98,7 +104,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                             topVisibleYear = currentYear;
                         }
                     } else {
-                        // We're in this element
                         const scrollIntoElement = Math.max(0, scrollTop - elementTop);
                         const progressThroughElement = element.offsetHeight > 0 ? 
                             scrollIntoElement / element.offsetHeight : 0;
@@ -126,7 +131,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     }, [groupedEvents, onScrollInfoChange, selection]);
 
     useEffect(() => {
-        // Call handleScroll when groupedEvents change to initialize
         const timer = setTimeout(handleScroll, 0);
         return () => clearTimeout(timer);
     }, [handleScroll, groupedEvents]);

@@ -1,5 +1,18 @@
 import { TIME_RANGES } from './constants.js';
 
+// Load EraScrollbar-specific CSS
+const loadCSS = (href) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+};
+
+// Load EraScrollbar CSS if not already loaded
+if (!document.querySelector('link[href="css/era-scrollbar.css"]')) {
+    loadCSS('css/era-scrollbar.css');
+}
+
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
 
@@ -24,7 +37,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
     const scaleInfoRef = useRef(null);
     const brushBoundsRef = useRef([0, 0]);
     const brushRef = useRef(null);
-    const brushGroupRef = useRef(null); // renamed from brushGRef
+    const brushGroupRef = useRef(null);
     const overlayElementsRef = useRef(null);
     const isExternalUpdateRef = useRef(false);
     const isUserInteractingRef = useRef(false);
@@ -54,10 +67,10 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         return { eraHeights, eraPositions };
     }, []);
 
-    const createYearPixelConversionFunctions = useCallback((dimensions, timeRangeLayout) => { // renamed from createScaleFunctions
+    const createYearPixelConversionFunctions = useCallback((dimensions, timeRangeLayout) => {
         const { eraHeights, eraPositions } = timeRangeLayout;
 
-        const convertYearToPixel = (year) => { // renamed from yearToPixel
+        const convertYearToPixel = (year) => {
             const eraIndex = TIME_RANGES.findIndex(range => 
                 year >= range.start && year <= range.end);
             
@@ -67,15 +80,15 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
                 return 0;
             }
             
-            const timeRange = TIME_RANGES[eraIndex]; // renamed from range
-            const eraTimeSpan = timeRange.end - timeRange.start; // renamed from rangeSpan
-            const yearPositionInEra = (year - timeRange.start) / eraTimeSpan; // renamed from positionInRange
-            
+            const timeRange = TIME_RANGES[eraIndex];
+            const eraTimeSpan = timeRange.end - timeRange.start;
+            const yearPositionInEra = (year - timeRange.start) / eraTimeSpan;
+
             return eraPositions[eraIndex] + (yearPositionInEra * eraHeights[eraIndex]);
         };
 
-        const convertPixelToYear = (pixelY) => { // renamed from pixelToYear, parameter renamed from pixel
-            let eraIndex = TIME_RANGES.length - 1; // renamed from rangeIndex
+        const convertPixelToYear = (pixelY) => {
+            let eraIndex = TIME_RANGES.length - 1;
             for (let i = 0; i < eraPositions.length - 1; i++) {
                 if (pixelY < eraPositions[i + 1]) {
                     eraIndex = i;
@@ -83,15 +96,15 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
                 }
             }
 
-            const timeRange = TIME_RANGES[eraIndex]; // renamed from range
-            const eraStartPixel = eraPositions[eraIndex]; // renamed from rangeStartPixel
-            const eraPixelHeight = eraHeights[eraIndex]; // renamed from rangeHeight
+            const timeRange = TIME_RANGES[eraIndex];
+            const eraStartPixel = eraPositions[eraIndex];
+            const eraPixelHeight = eraHeights[eraIndex];
 
             if (eraPixelHeight <= 0) return timeRange.start;
 
-            const pixelOffsetInEra = pixelY - eraStartPixel; // renamed from pixelIntoRange
-            const pixelProportion = pixelOffsetInEra / eraPixelHeight; // renamed from proportion
-            const eraYearSpan = timeRange.end - timeRange.start; // renamed from yearSpan
+            const pixelOffsetInEra = pixelY - eraStartPixel;
+            const pixelProportion = pixelOffsetInEra / eraPixelHeight;
+            const eraYearSpan = timeRange.end - timeRange.start;
             return timeRange.start + (pixelProportion * eraYearSpan);
         };
 
@@ -109,11 +122,11 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         return yearIntervals;
     }, []);
 
-    const createEraColorBars = useCallback((svg, dimensions, timeRangeLayout) => { // renamed from createColorBars
+    const createEraColorBars = useCallback((svg, dimensions, timeRangeLayout) => {
         const { eraHeights, eraPositions } = timeRangeLayout;
         const colorBarWidth = dimensions.width * COLOR_BAR_WIDTH_RATIO;
-        const colorBarXPosition = dimensions.width - colorBarWidth; // renamed from colorBarX
-        
+        const colorBarXPosition = dimensions.width - colorBarWidth;
+
         svg.selectAll('.era-rect')
             .data(TIME_RANGES)
             .enter()
@@ -128,10 +141,10 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         return { colorBarWidth, colorBarXPosition };
     }, []);
 
-    const createYearMarkerLabels = useCallback((svg, dimensions, conversionFunctions, colorBarLayout) => { // renamed from createYearMarkers
+    const createYearMarkerLabels = useCallback((svg, dimensions, conversionFunctions, colorBarLayout) => {
         const { convertYearToPixel } = conversionFunctions;
         const { colorBarXPosition } = colorBarLayout;
-        const markerLineStartX = colorBarXPosition - LABEL_LINE_LENGTH; // renamed from lineStartX
+        const markerLineStartX = colorBarXPosition - LABEL_LINE_LENGTH;
         const yearIntervals = generateYearLabelIntervals();
 
         svg.selectAll('.year-line')
@@ -160,14 +173,14 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             .attr('text-anchor', 'end');
     }, [generateYearLabelIntervals]);
 
-    const createBrushSelectionBehavior = useCallback((dimensions, conversionFunctions) => { // renamed from createBrushBehavior
+    const createBrushSelectionBehavior = useCallback((dimensions, conversionFunctions) => {
         const { convertPixelToYear } = conversionFunctions;
 
         return d3.brushY()
             .extent([[0, 0], [dimensions.width, dimensions.height]])
             .on('brush end', (event) => {
                 if (event.selection && !isExternalUpdateRef.current) {
-                    const [selectionTopY, selectionBottomY] = event.selection; // renamed from y0, y1
+                    const [selectionTopY, selectionBottomY] = event.selection;
                     brushBoundsRef.current = [selectionTopY, selectionBottomY];
                     
                     const startYear = convertPixelToYear(selectionTopY);
@@ -177,23 +190,23 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             })
             .on('brush', (event) => {
                 if (event.selection) {
-                    const [selectionTopY, selectionBottomY] = event.selection; // renamed from y0, y1
+                    const [selectionTopY, selectionBottomY] = event.selection;
                     brushBoundsRef.current = [selectionTopY, selectionBottomY];
                 }
             });
     }, [onBrush]);
 
-    const updateBrushSelectionPosition = useCallback((brush, brushGroup, topY, bottomY) => { // renamed parameters
+    const updateBrushSelectionPosition = useCallback((brush, brushGroup, topY, bottomY) => {
         brush.move(brushGroup, [topY, bottomY]);
     }, []);
 
     const createSelectionDragHandler = useCallback((dimensions, brush, brushGroup, resizeZoneSize) => {
         return function(event) {
-            isUserInteractingRef.current = true; // Add this
+            isUserInteractingRef.current = true;
             const overlayRect = this.getBoundingClientRect();
-            const mouseYInOverlay = event.clientY - overlayRect.top; // renamed from mouseY
-            
-            let interactionMode = 'drag'; // renamed from mode
+            const mouseYInOverlay = event.clientY - overlayRect.top;
+
+            let interactionMode = 'drag';
             if (mouseYInOverlay <= resizeZoneSize) {
                 interactionMode = 'resize-top';
                 this.style.cursor = 'ns-resize';
@@ -202,15 +215,15 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
                 this.style.cursor = 'ns-resize';
             }
             
-            const initialMouseY = event.clientY; // renamed from startMouseY
+            const initialMouseY = event.clientY;
             const currentBounds = brushBoundsRef.current;
-            const [currentTopY, currentBottomY] = currentBounds; // renamed from currentY0, currentY1
-            
+            const [currentTopY, currentBottomY] = currentBounds;
+
             const handleMouseMove = (moveEvent) => {
-                const mouseDeltaY = moveEvent.clientY - initialMouseY; // renamed from deltaY
-                let newTopY = currentTopY; // renamed from newY0
-                let newBottomY = currentBottomY; // renamed from newY1
-                
+                const mouseDeltaY = moveEvent.clientY - initialMouseY;
+                let newTopY = currentTopY;
+                let newBottomY = currentBottomY;
+
                 switch (interactionMode) {
                     case 'resize-top':
                         newTopY = Math.max(0, Math.min(currentBottomY - MIN_SELECTION_HEIGHT, currentTopY + mouseDeltaY));
@@ -230,7 +243,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             
             const handleMouseUp = () => {
                 this.style.cursor = 'move';
-                isUserInteractingRef.current = false; // Add this
+                isUserInteractingRef.current = false;
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
             };
@@ -241,20 +254,20 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         };
     }, [updateBrushSelectionPosition]);
 
-    const createResizeHandleMouseDown = useCallback((dimensions, brush, brushGroup, isTopHandle) => { // renamed from createHandleMouseDown
+    const createResizeHandleMouseDown = useCallback((dimensions, brush, brushGroup, isTopHandle) => {
         return function(event) {
-            const initialMouseY = event.clientY; // renamed from startMouseY
+            const initialMouseY = event.clientY;
             const currentBounds = brushBoundsRef.current;
-            const [currentTopY, currentBottomY] = currentBounds; // renamed from currentY0, currentY1
-            
+            const [currentTopY, currentBottomY] = currentBounds;
+
             const handleMouseMove = (moveEvent) => {
-                const mouseDeltaY = moveEvent.clientY - initialMouseY; // renamed from deltaY
+                const mouseDeltaY = moveEvent.clientY - initialMouseY;
                 
                 if (isTopHandle) {
-                    const newTopY = Math.max(0, Math.min(currentBottomY - MIN_SELECTION_HEIGHT, currentTopY + mouseDeltaY)); // renamed from newY0
+                    const newTopY = Math.max(0, Math.min(currentBottomY - MIN_SELECTION_HEIGHT, currentTopY + mouseDeltaY));
                     updateBrushSelectionPosition(brush, brushGroup, newTopY, currentBottomY);
                 } else {
-                    const newBottomY = Math.min(dimensions.height, Math.max(currentTopY + MIN_SELECTION_HEIGHT, currentBottomY + mouseDeltaY)); // renamed from newY1
+                    const newBottomY = Math.min(dimensions.height, Math.max(currentTopY + MIN_SELECTION_HEIGHT, currentBottomY + mouseDeltaY));
                     updateBrushSelectionPosition(brush, brushGroup, currentTopY, newBottomY);
                 }
             };
@@ -271,13 +284,13 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         };
     }, [updateBrushSelectionPosition]);
 
-    const createSelectionOverlayElements = useCallback((container, dimensions, brush, brushGroup) => { // renamed from createOverlayElements
+    const createSelectionOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
         const resizeZoneSize = dimensions.height * RESIZE_ZONE_RATIO;
         const handleWidth = dimensions.width / 3;
-        const handleLeftPosition = dimensions.width / 3; // renamed from handleLeft
+        const handleLeftPosition = dimensions.width / 3;
 
         // Selection overlay
-        const selectionOverlay = d3.select(container) // renamed from overlay
+        const selectionOverlay = d3.select(container)
             .select('.selection-overlay')
             .style('position', 'absolute')
             .style('background', 'rgba(119, 119, 119, 0.3)')
@@ -295,8 +308,8 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             .on('mousemove', function(event) {
                 if (event.buttons === 0) {
                     const overlayRect = this.getBoundingClientRect();
-                    const mouseYInOverlay = event.clientY - overlayRect.top; // renamed from mouseY
-                    
+                    const mouseYInOverlay = event.clientY - overlayRect.top;
+
                     if (mouseYInOverlay <= resizeZoneSize || mouseYInOverlay >= overlayRect.height - resizeZoneSize) {
                         this.style.cursor = 'ns-resize';
                     } else {
@@ -306,7 +319,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             });
 
         // Top handle
-        const topResizeHandle = d3.select(container) // renamed from topHandle
+        const topResizeHandle = d3.select(container)
             .select('.top-handle')
             .style('position', 'absolute')
             .style('background', '#000')
@@ -319,7 +332,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
             .on('mousedown', createResizeHandleMouseDown(dimensions, brush, brushGroup, true));
 
         // Bottom handle
-        const bottomResizeHandle = d3.select(container) // renamed from bottomHandle
+        const bottomResizeHandle = d3.select(container)
             .select('.bottom-handle')
             .style('position', 'absolute')
             .style('background', '#000')
@@ -334,7 +347,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         return { selectionOverlay, topResizeHandle, bottomResizeHandle };
     }, [createSelectionDragHandler, createResizeHandleMouseDown]);
 
-    const updateSelectionOverlayPositions = useCallback((overlayElements, dimensions, topY, bottomY) => { // renamed from updateOverlayPositions
+    const updateSelectionOverlayPositions = useCallback((overlayElements, dimensions, topY, bottomY) => {
         const { selectionOverlay, topResizeHandle, bottomResizeHandle } = overlayElements;
         
         selectionOverlay
@@ -349,13 +362,13 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
     useEffect(() => {
         if (!svgRef.current || !containerRef.current) return;
 
-        const containerDimensions = calculateContainerDimensions(containerRef.current); // renamed from dimensions
-        const timeRangeLayout = calculateTimeRangeLayout(containerDimensions); // renamed from rangeLayout
-        const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout); // renamed from scaleFunctions
+        const containerDimensions = calculateContainerDimensions(containerRef.current);
+        const timeRangeLayout = calculateTimeRangeLayout(containerDimensions);
+        const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout);
 
         scaleInfoRef.current = { ...conversionFunctions, dimensions: containerDimensions };
 
-        const svgElement = d3.select(svgRef.current) // renamed from svg
+        const svgElement = d3.select(svgRef.current)
             .attr('width', containerDimensions.width)
             .attr('height', containerDimensions.height)
             .style('overflow', 'visible');
@@ -365,9 +378,9 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         const colorBarLayout = createEraColorBars(svgElement, containerDimensions, timeRangeLayout);
         createYearMarkerLabels(svgElement, containerDimensions, conversionFunctions, colorBarLayout);
 
-        const brushSelection = createBrushSelectionBehavior(containerDimensions, conversionFunctions); // renamed from brush
-        const brushGroup = svgElement.append('g').attr('class', 'brush').call(brushSelection); // renamed from brushG
-        
+        const brushSelection = createBrushSelectionBehavior(containerDimensions, conversionFunctions);
+        const brushGroup = svgElement.append('g').attr('class', 'brush').call(brushSelection);
+
         // Store brush references
         brushRef.current = brushSelection;
         brushGroupRef.current = brushGroup;
@@ -386,7 +399,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         // Enhanced brush event handler to update overlay positions
         brushSelection.on('brush end', (event) => {
             if (event.selection) {
-                const [selectionTopY, selectionBottomY] = event.selection; // renamed from y0, y1
+                const [selectionTopY, selectionBottomY] = event.selection;
                 brushBoundsRef.current = [selectionTopY, selectionBottomY];
                 
                 updateSelectionOverlayPositions(overlayElements, containerDimensions, selectionTopY, selectionBottomY);
@@ -440,10 +453,10 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         const { convertYearToPixel } = scaleInfoRef.current;
         
         // Calculate indicator position with edge behavior for scroll bounds
-        const currentBrushStartY = convertYearToPixel(selectionRange[0]); // renamed from currentBrushStart
-        const currentBrushEndY = convertYearToPixel(selectionRange[1]); // renamed from currentBrushEnd
-        
-        let scrollIndicatorY; // renamed from indicatorY
+        const currentBrushStartY = convertYearToPixel(selectionRange[0]);
+        const currentBrushEndY = convertYearToPixel(selectionRange[1]);
+
+        let scrollIndicatorY;
         if (scrollPercentage === 0) {
             scrollIndicatorY = currentBrushStartY;
         } else if (scrollPercentage === 1) {
@@ -455,7 +468,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         onIndicatorChange(scrollIndicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    const handleWheelScroll = useCallback((event) => { // renamed from handleWheel
+    const handleWheelScroll = useCallback((event) => {
         if (onScroll) {
             event.preventDefault();
             onScroll(event.deltaY);

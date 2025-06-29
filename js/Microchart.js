@@ -3,6 +3,19 @@ import { getRangeInfo, getEffectiveColumn } from './utils.js';
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
 
+// Load Microchart-specific CSS
+const loadCSS = (href) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+};
+
+// Load Microchart CSS if not already loaded
+if (!document.querySelector('link[href="css/microchart.css"]')) {
+    loadCSS('css/microchart.css');
+}
+
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
@@ -25,13 +38,12 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
 
         const filteredData = data.filter(d => d.fields.startDate >= startYear && d.fields.startDate <= endYear);
 
-        // Group events by era and calculate column distribution for each era
         const eventsByEra = {};
         const eraColumnCounts = {};
         
         filteredData.forEach(d => {
             const rangeInfo = getRangeInfo(d.fields.startDate);
-            const era = rangeInfo.color; // Using color as era identifier
+            const era = rangeInfo.color;
             const effectiveColumn = getEffectiveColumn(d);
             
             if (!eventsByEra[era]) {
@@ -74,7 +86,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
             .attr('height', dimensions.height)
-            .style('overflow', 'visible'); // Added to allow dots to overflow
+            .style('overflow', 'visible'); // Allow dots to overflow
 
         svg.selectAll('*').remove();
 
@@ -142,7 +154,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
 
     }, [data, selection]);
 
-    // Handle indicator positioning based on scroll info
     useEffect(() => {
         if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange) return;
 
@@ -156,8 +167,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
             const lastEvent = events[events.length - 1];
             indicatorY = lastEvent.y;
         } else {
-            // Find the event that corresponds to the top visible year
-            // Find the closest event to the top visible year
             let closestEvent = events[0];
             let minDistance = Math.abs(events[0].startDate - topVisibleYear);
 
@@ -175,7 +184,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    // Add wheel event handler
     const handleWheel = useCallback((event) => {
         if (onScroll) {
             event.preventDefault();
