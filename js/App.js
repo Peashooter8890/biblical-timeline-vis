@@ -8,7 +8,7 @@ const html = htm.bind(preact.h);
 
 const App = () => {
     const [events, setEvents] = useState([]);
-    const [selection, setSelection] = useState([-4004, 30]);
+    const [selection, setSelection] = useState([-4004, 57]);
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(0);
     const [scrollInfo, setScrollInfo] = useState({ 
