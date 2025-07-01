@@ -108,7 +108,6 @@ body::-webkit-scrollbar {
     color: #888;
 }
 
-/* D3 Microchart Styling */
 .microchart-line {
     stroke-width: 5px;
 }

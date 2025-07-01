@@ -1,4 +1,4 @@
-import { getRangeInfo, getEffectiveColumn } from './utils.js';
+import { getRangeInfo, getEffectiveColumn, parseDuration } from './utils.js';
 
 const { useEffect, useRef, useCallback } = preactHooks;
 const html = htm.bind(preact.h);
@@ -25,6 +25,16 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
 
         const filteredData = data.filter(d => d.fields.startDate >= startYear && d.fields.startDate <= endYear);
 
+        // Create a map for quick lookup of events by start date and column
+        const eventMap = new Map();
+        filteredData.forEach(d => {
+            const key = `${d.fields.startDate}|${getEffectiveColumn(d)}`;
+            if (!eventMap.has(key)) {
+                eventMap.set(key, []);
+            }
+            eventMap.get(key).push(d);
+        });
+
         // Group events by era and calculate column distribution for each era
         const eventsByEra = {};
         const eraColumnCounts = {};
@@ -50,6 +60,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         };
 
         const events = [];
+        const lines = [];
         
         Object.keys(eventsByEra).forEach(era => {
             const eraEvents = eventsByEra[era];
@@ -58,12 +69,33 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const effectiveColumn = getEffectiveColumn(d);
+                const startX = getColumnXForEra(effectiveColumn, maxColumnsInEra);
+                const startY = yScale(d.fields.startDate);
+
                 events.push({
                     ...d.fields,
                     color: rangeInfo.color,
-                    columnX: getColumnXForEra(effectiveColumn, maxColumnsInEra),
-                    y: yScale(d.fields.startDate)
+                    columnX: startX,
+                    y: startY
                 });
+
+                // Only draw lines for events with duration >= 1 year
+                const duration = parseDuration(d.fields.duration);
+                if (duration >= 1) {
+                    const eventEndDate = parseFloat(d.fields.startDate) + duration;
+                    const endY = yScale(eventEndDate);
+
+                    // Only draw line if end date is within the visible range
+                    if (eventEndDate >= startYear && eventEndDate <= endYear) {
+                        lines.push({
+                            x1: startX,
+                            y1: startY,
+                            x2: startX,
+                            y2: endY,
+                            color: rangeInfo.color
+                        });
+                    }
+                }
             });
         });
 
@@ -79,6 +111,19 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         svg.selectAll('*').remove();
 
         const g = svg.append('g');
+
+        // Draw lines first so dots are on top
+        g.selectAll('.microchart-line')
+            .data(lines)
+            .enter()
+            .append('line')
+            .attr('class', 'microchart-line')
+            .attr('x1', d => d.x1)
+            .attr('y1', d => d.y1)
+            .attr('x2', d => d.x2)
+            .attr('y2', d => d.y2)
+            .attr('stroke', d => d.color)
+            .style('stroke-width', '2px');
 
         // Create tooltip div
         const tooltip = d3.select(containerRef.current)
@@ -113,26 +158,22 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
                     .style('left', (event.layerX + 10) + 'px')
                     .style('top', (event.layerY - 10) + 'px');
                 
-                // Highlight the dot
+                // Highlight the dot - only add black stroke, don't change size
                 d3.select(this)
                     .transition()
                     .duration(100)
-                    .attr('r', 4)
                     .style('stroke', '#000')
-                    .style('stroke-width', '1px');
             })
             .on('mouseout', function(event, d) {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
                 
-                // Reset the dot
+                // Reset the dot - remove stroke, keep original size
                 d3.select(this)
                     .transition()
                     .duration(100)
-                    .attr('r', 3)
                     .style('stroke', '#fff')
-                    .style('stroke-width', '1px');
             });
 
         // Cleanup function to remove tooltip when component unmounts or re-renders
