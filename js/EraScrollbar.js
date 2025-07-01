@@ -31,7 +31,7 @@ const HANDLE_HEIGHT = 8;
 const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.025; // add a small resize zone at the top and bottom of the selection overlay for better UX
 
-const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
+const OldOutdatedEraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);

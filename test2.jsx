@@ -1,6 +1,7 @@
 const { useRef, useEffect, useCallback, useMemo, useState } = os.appHooks;
 import { formatYear } from 'eventTimeline.components.utils';
 import { getStyleOf } from 'eventTimeline.styles.styler';
+import { getContainerDimensions } from 'eventTimeline.components.utils';
 
 const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
     const internalRef = useRef(null);
@@ -44,23 +45,30 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 
     // Calculate virtual content dimensions
     const virtualDimensions = useMemo(() => {
-        // Estimate heights: 40px for year header + 25px per event + 20px padding
+        const margin = 20;
+        const padding = 10;
+        const yearHeader = 26;
+        const eventItem = 20;
+
         const totalHeight = groupedEvents.reduce((total, group) => {
-            return total + 40 + (group.events.length * 25) + 20;
+            return total + yearHeader + margin + padding + (group.events.length * eventItem);
         }, 0);
         
         return {
-            contentHeight: Math.max(totalHeight, containerHeight * 2), // Ensure there's always scrollable content
+            contentHeight: totalHeight,
             viewportHeight: containerHeight
         };
     }, [groupedEvents, containerHeight]);
 
-    // Update container height when component mounts/resizes
+    // Update container height using getContainerDimensions
     useEffect(() => {
-        if (actualRef.current) {
-            // Try to get height, fallback to window height if not available
-            const height = actualRef.current.clientHeight || window.innerHeight * 0.8;
-            setContainerHeight(height);
+        try {
+            const dimensions = getContainerDimensions();
+            setContainerHeight(dimensions.height);
+        } catch (error) {
+            console.error('[ERROR] Failed to get container dimensions:', error);
+            // Fallback to a reasonable default
+            setContainerHeight(400);
         }
     }, []);
 
