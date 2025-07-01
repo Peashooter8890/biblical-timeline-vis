@@ -7,8 +7,9 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
+    const resizeObserverRef = useRef(null);
 
-    useEffect(() => {
+    const renderChart = useCallback(() => {
         if (!svgRef.current || !containerRef.current || !data.length || !selection) return;
 
         const containerRect = containerRef.current.getBoundingClientRect();
@@ -223,8 +224,28 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         return () => {
             d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
         };
-
     }, [data, selection]);
+
+    // Set up ResizeObserver to watch for container size changes
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            renderChart();
+        });
+
+        resizeObserver.observe(containerRef.current);
+        resizeObserverRef.current = resizeObserver;
+
+        // Initial render
+        renderChart();
+
+        return () => {
+            if (resizeObserverRef.current) {
+                resizeObserverRef.current.disconnect();
+            }
+        };
+    }, [renderChart]);
 
     // Handle indicator positioning based on scroll info
     useEffect(() => {

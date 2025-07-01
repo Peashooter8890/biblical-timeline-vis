@@ -28,6 +28,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
     const overlayElementsRef = useRef(null);
     const isExternalUpdateRef = useRef(false);
     const isUserInteractingRef = useRef(false);
+    const resizeObserverRef = useRef(null);
 
     const calculateContainerDimensions = useCallback((container) => {
         const rect = container.getBoundingClientRect();
@@ -346,16 +347,16 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         bottomResizeHandle.style('top', `${bottomY - HANDLE_OFFSET}px`);
     }, []);
 
-    useEffect(() => {
+    const renderScrollbar = useCallback(() => {
         if (!svgRef.current || !containerRef.current) return;
 
-        const containerDimensions = calculateContainerDimensions(containerRef.current); // renamed from dimensions
-        const timeRangeLayout = calculateTimeRangeLayout(containerDimensions); // renamed from rangeLayout
-        const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout); // renamed from scaleFunctions
+        const containerDimensions = calculateContainerDimensions(containerRef.current);
+        const timeRangeLayout = calculateTimeRangeLayout(containerDimensions);
+        const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout);
 
         scaleInfoRef.current = { ...conversionFunctions, dimensions: containerDimensions };
 
-        const svgElement = d3.select(svgRef.current) // renamed from svg
+        const svgElement = d3.select(svgRef.current)
             .attr('width', containerDimensions.width)
             .attr('height', containerDimensions.height)
             .style('overflow', 'visible');
@@ -365,8 +366,8 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         const colorBarLayout = createEraColorBars(svgElement, containerDimensions, timeRangeLayout);
         createYearMarkerLabels(svgElement, containerDimensions, conversionFunctions, colorBarLayout);
 
-        const brushSelection = createBrushSelectionBehavior(containerDimensions, conversionFunctions); // renamed from brush
-        const brushGroup = svgElement.append('g').attr('class', 'brush').call(brushSelection); // renamed from brushG
+        const brushSelection = createBrushSelectionBehavior(containerDimensions, conversionFunctions);
+        const brushGroup = svgElement.append('g').attr('class', 'brush').call(brushSelection);
         
         // Store brush references
         brushRef.current = brushSelection;
@@ -377,8 +378,20 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         svgElement.selectAll('.brush .overlay').style('pointer-events', 'none');
 
         // Initialize brush and create overlay elements
-        brushSelection.move(brushGroup, [0, containerDimensions.height]);
-        brushBoundsRef.current = [0, containerDimensions.height];
+        const currentBounds = brushBoundsRef.current;
+        if (currentBounds[0] === 0 && currentBounds[1] === 0) {
+            // First initialization
+            brushSelection.move(brushGroup, [0, containerDimensions.height]);
+            brushBoundsRef.current = [0, containerDimensions.height];
+        } else {
+            // Preserve existing selection proportionally
+            const oldHeight = scaleInfoRef.current?.dimensions?.height || containerDimensions.height;
+            const scaleRatio = containerDimensions.height / oldHeight;
+            const newTopY = currentBounds[0] * scaleRatio;
+            const newBottomY = currentBounds[1] * scaleRatio;
+            brushSelection.move(brushGroup, [newTopY, newBottomY]);
+            brushBoundsRef.current = [newTopY, newBottomY];
+        }
 
         const overlayElements = createSelectionOverlayElements(containerRef.current, containerDimensions, brushSelection, brushGroup);
         overlayElementsRef.current = overlayElements;
@@ -386,7 +399,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         // Enhanced brush event handler to update overlay positions
         brushSelection.on('brush end', (event) => {
             if (event.selection) {
-                const [selectionTopY, selectionBottomY] = event.selection; // renamed from y0, y1
+                const [selectionTopY, selectionBottomY] = event.selection;
                 brushBoundsRef.current = [selectionTopY, selectionBottomY];
                 
                 updateSelectionOverlayPositions(overlayElements, containerDimensions, selectionTopY, selectionBottomY);
@@ -398,10 +411,30 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
                 }
             }
         });
-
-    }, [onBrush, calculateContainerDimensions, calculateTimeRangeLayout, createYearPixelConversionFunctions, 
+    }, [calculateContainerDimensions, calculateTimeRangeLayout, createYearPixelConversionFunctions, 
         createEraColorBars, createYearMarkerLabels, createBrushSelectionBehavior, createSelectionOverlayElements, 
-        updateSelectionOverlayPositions]);
+        updateSelectionOverlayPositions, onBrush]);
+
+    // Set up ResizeObserver to watch for container size changes
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            renderScrollbar();
+        });
+
+        resizeObserver.observe(containerRef.current);
+        resizeObserverRef.current = resizeObserver;
+
+        // Initial render
+        renderScrollbar();
+
+        return () => {
+            if (resizeObserverRef.current) {
+                resizeObserverRef.current.disconnect();
+            }
+        };
+    }, [renderScrollbar]);
 
     // Handle external selection changes
     useEffect(() => {
