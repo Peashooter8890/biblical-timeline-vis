@@ -354,7 +354,8 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         const timeRangeLayout = calculateTimeRangeLayout(containerDimensions);
         const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout);
 
-        scaleInfoRef.current = { ...conversionFunctions, dimensions: containerDimensions };
+        // Store the OLD scale info before updating it
+        const oldScaleInfo = scaleInfoRef.current;
 
         const svgElement = d3.select(svgRef.current)
             .attr('width', containerDimensions.width)
@@ -379,22 +380,42 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
 
         // Initialize brush and create overlay elements
         const currentBounds = brushBoundsRef.current;
+        let newTopY, newBottomY;
+        
         if (currentBounds[0] === 0 && currentBounds[1] === 0) {
             // First initialization
-            brushSelection.move(brushGroup, [0, containerDimensions.height]);
-            brushBoundsRef.current = [0, containerDimensions.height];
+            newTopY = 0;
+            newBottomY = containerDimensions.height;
         } else {
-            // Preserve existing selection proportionally
-            const oldHeight = scaleInfoRef.current?.dimensions?.height || containerDimensions.height;
-            const scaleRatio = containerDimensions.height / oldHeight;
-            const newTopY = currentBounds[0] * scaleRatio;
-            const newBottomY = currentBounds[1] * scaleRatio;
-            brushSelection.move(brushGroup, [newTopY, newBottomY]);
-            brushBoundsRef.current = [newTopY, newBottomY];
+            // Preserve existing selection based on actual years, not proportions
+            // Get the current year range from the previous bounds
+            if (oldScaleInfo && oldScaleInfo.convertPixelToYear) {
+                const startYear = oldScaleInfo.convertPixelToYear(currentBounds[0]);
+                const endYear = oldScaleInfo.convertPixelToYear(currentBounds[1]);
+                
+                // Convert these years to new pixel positions using NEW conversion functions
+                newTopY = conversionFunctions.convertYearToPixel(startYear);
+                newBottomY = conversionFunctions.convertYearToPixel(endYear);
+            } else {
+                // Fallback to proportional scaling if no previous scale info
+                const oldHeight = oldScaleInfo?.dimensions?.height || containerDimensions.height;
+                const scaleRatio = containerDimensions.height / oldHeight;
+                newTopY = currentBounds[0] * scaleRatio;
+                newBottomY = currentBounds[1] * scaleRatio;
+            }
         }
+        
+        // Update scaleInfoRef AFTER we've used the old one
+        scaleInfoRef.current = { ...conversionFunctions, dimensions: containerDimensions };
+        
+        brushSelection.move(brushGroup, [newTopY, newBottomY]);
+        brushBoundsRef.current = [newTopY, newBottomY];
 
         const overlayElements = createSelectionOverlayElements(containerRef.current, containerDimensions, brushSelection, brushGroup);
         overlayElementsRef.current = overlayElements;
+
+        // Update overlay positions immediately after creation
+        updateSelectionOverlayPositions(overlayElements, containerDimensions, newTopY, newBottomY);
 
         // Enhanced brush event handler to update overlay positions
         brushSelection.on('brush end', (event) => {
