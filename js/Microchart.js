@@ -62,6 +62,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         const events = [];
         const lines = [];
         
+        // First pass: collect all events (visible ones for dots)
         Object.keys(eventsByEra).forEach(era => {
             const eraEvents = eventsByEra[era];
             const maxColumnsInEra = eraColumnCounts[era];
@@ -78,20 +79,62 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
                     columnX: startX,
                     y: startY
                 });
+            });
+        });
 
-                // Only draw lines for events with duration >= 1 year
+        // Second pass: collect lines from ALL events in the dataset (not just filtered ones)
+        // This ensures lines are drawn even when their start dot is outside the visible range
+        const allEventsByEra = {};
+        const allEraColumnCounts = {};
+        
+        data.forEach(d => {
+            const rangeInfo = getRangeInfo(d.fields.startDate);
+            const era = rangeInfo.color;
+            const effectiveColumn = getEffectiveColumn(d);
+            
+            if (!allEventsByEra[era]) {
+                allEventsByEra[era] = [];
+                allEraColumnCounts[era] = 0;
+            }
+            
+            allEventsByEra[era].push(d);
+            allEraColumnCounts[era] = Math.max(allEraColumnCounts[era], effectiveColumn);
+        });
+
+        Object.keys(allEventsByEra).forEach(era => {
+            const eraEvents = allEventsByEra[era];
+            const maxColumnsInEra = allEraColumnCounts[era];
+            
+            eraEvents.forEach(d => {
                 const duration = parseDuration(d.fields.duration);
                 if (duration >= 1) {
+                    const rangeInfo = getRangeInfo(d.fields.startDate);
+                    const effectiveColumn = getEffectiveColumn(d);
+                    const startX = getColumnXForEra(effectiveColumn, maxColumnsInEra);
+                    const startY = yScale(d.fields.startDate);
                     const eventEndDate = parseFloat(d.fields.startDate) + duration;
                     const endY = yScale(eventEndDate);
 
-                    // Only draw line if end date is within the visible range
-                    if (eventEndDate >= startYear && eventEndDate <= endYear) {
+                    // Check if any part of the line is within the visible range
+                    const lineStartYear = parseFloat(d.fields.startDate);
+                    const lineEndYear = eventEndDate;
+                    
+                    const lineIntersectsRange = (
+                        (lineStartYear >= startYear && lineStartYear <= endYear) || // Start is visible
+                        (lineEndYear >= startYear && lineEndYear <= endYear) ||     // End is visible
+                        (lineStartYear <= startYear && lineEndYear >= endYear)     // Line spans entire range
+                    );
+
+                    if (lineIntersectsRange) {
+                        // Clamp the line to the visible range
+                        const clampedStartY = Math.max(0, Math.min(dimensions.height, startY));
+                        const clampedEndY = Math.max(0, Math.min(dimensions.height, endY));
+                        
                         lines.push({
                             x1: startX,
-                            y1: startY,
+                            y1: clampedStartY,
                             x2: startX,
-                            y2: endY,
+                            y2: clampedEndY,
                             color: rangeInfo.color
                         });
                     }
