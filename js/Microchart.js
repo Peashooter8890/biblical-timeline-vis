@@ -198,9 +198,9 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
                     .duration(200)
                     .style('opacity', .9);
                 tooltip.html(d.title)
-                    .style('left', (event.layerX + 10) + 'px')
-                    .style('top', (event.layerY - 10) + 'px');
-                
+                    .style('left', (event.layerX - 10) + 'px')
+                    .style('top', (event.layerY - 50) + 'px');
+
                 // Highlight the dot - only add black stroke, don't change size
                 d3.select(this)
                     .transition()
