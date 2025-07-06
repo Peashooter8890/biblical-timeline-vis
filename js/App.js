@@ -61,11 +61,12 @@ const App = () => {
         setScrollInfo(newScrollInfo);
     }, []);
 
-    // Handle scroll events from microchart and era scrollbar
-    const handleExternalScroll = useCallback((deltaY) => {
+    // Replace handleExternalScroll with a direct wheel handler
+    const handleTimelineScroll = useCallback((event) => {
         if (eventDisplayRef.current) {
+            event.preventDefault();
             const container = eventDisplayRef.current;
-            const scrollAmount = deltaY * 2; // Adjust scroll sensitivity
+            const scrollAmount = event.deltaY;
             container.scrollTop += scrollAmount;
         }
     }, []);
@@ -105,14 +106,13 @@ const App = () => {
                         </div>
                     </div>
                 </header>
-                <div class="timeline-container">
+                <div class="timeline-container" onWheel=${handleTimelineScroll}>
                     <div class="sidebar">
                         <div class="era-scrollbar-container">
                            <${EraScrollbar}
                                 onBrush=${handleBrush}
                                 onIndicatorChange=${handleIndicatorChange}
                                 scrollInfo=${scrollInfo}
-                                onScroll=${handleExternalScroll}
                                 externalSelection=${selection} />
                            <div class="position-indicator" style=${{top: `${indicatorY}px`}}></div>
                         </div>
@@ -121,8 +121,7 @@ const App = () => {
                                 data=${events} 
                                 selection=${selection}
                                 onIndicatorChange=${handleMicrochartIndicatorChange}
-                                scrollInfo=${scrollInfo}
-                                onScroll=${handleExternalScroll} />
+                                scrollInfo=${scrollInfo} />
                             <div class="microchart-position-indicator" style=${{top: `${microchartIndicatorY}px`}}></div>
                         </div>
                     </div>
