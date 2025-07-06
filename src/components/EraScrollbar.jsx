@@ -1,7 +1,6 @@
-import { TIME_RANGES } from './constants.js';
-
-const { useEffect, useRef, useCallback } = preactHooks;
-const html = htm.bind(preact.h);
+import React, { useEffect, useRef, useCallback } from 'react';
+import * as d3 from 'd3';
+import { TIME_RANGES } from '../constants.jsx';
 
 // year labels
 const YEAR_LABEL_INTERVAL = 500;
@@ -516,14 +515,14 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         }
     }, [onScroll]);
 
-    return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%; position: relative;" onWheel=${handleWheelScroll}>
-            <svg ref=${svgRef}></svg>
-            <div class="selection-overlay"></div>
-            <div class="top-handle"></div>
-            <div class="bottom-handle"></div>
+    return (
+        <div ref={containerRef} style={{width: '100%', height: '100%', position: 'relative'}} onWheel={handleWheelScroll}>
+            <svg ref={svgRef}></svg>
+            <div className="selection-overlay"></div>
+            <div className="top-handle"></div>
+            <div className="bottom-handle"></div>
         </div>
-    `;
+    );
 };
 
 export default EraScrollbar;

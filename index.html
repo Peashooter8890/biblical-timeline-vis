@@ -4,26 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biblical Timeline Visualization</title>
-    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Georgia&display=swap" rel="stylesheet">
     
     <!-- D3.js Library -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    
-    <!-- ADDED: Preact UMD Scripts for no-build environment -->
-    <!-- Preact Core -->
-    <script src="https://unpkg.com/preact@10.11.3/dist/preact.umd.js"></script>
-    <!-- Preact Hooks -->
-    <script src="https://unpkg.com/preact@10.11.3/hooks/dist/hooks.umd.js"></script>
-    <!-- HTM (for JSX-like syntax) -->
-    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
-
 </head>
 <body>
-    <div id="app"></div>
-    <!-- Main application logic -->
-    <script type="module" src="app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

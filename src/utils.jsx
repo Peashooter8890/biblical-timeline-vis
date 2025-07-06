@@ -1,6 +1,7 @@
-import { TIME_RANGES } from './constants.js';
+import { TIME_RANGES } from './constants.jsx';
 
 const parseDuration = (durationStr) => {
+    // make 'D' (day) into 'Y' (year) format
     if (!durationStr) return 0;
     const value = parseFloat(durationStr);
     if (durationStr.toUpperCase().includes('D')) return value / 365.25;
@@ -16,9 +17,10 @@ const getRangeInfo = (startDate) => {
 };
 
 const formatYear = (year) => {
+    // Format year as "YYYY BC" or "YYYY AD"
     if (year < 0) return `${Math.abs(year)} BC`;
-    if (year >= 0) return `${year} AD`;
-    return year;
+    if (year > 0) return `${year} AD`;
+    return 0;
 };
 
 const calculateColumns = (data) => {

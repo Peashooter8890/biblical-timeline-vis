@@ -1,7 +1,6 @@
-import { getRangeInfo, getEffectiveColumn, parseDuration } from './utils.js';
-
-const { useEffect, useRef, useCallback } = preactHooks;
-const html = htm.bind(preact.h);
+import React, { useEffect, useRef, useCallback } from 'react';
+import * as d3 from 'd3';
+import { getRangeInfo, getEffectiveColumn, parseDuration } from '../utils.jsx';
 
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
@@ -288,11 +287,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         }
     }, [onScroll]);
 
-    return html`
-        <div ref=${containerRef} style="width: 100%; height: 100%; border-left: 1px solid #ccc; position: relative;" onWheel=${handleWheel}>
-            <svg ref=${svgRef}></svg>
+    return (
+        <div ref={containerRef} style={{width: '100%', height: '100%', borderLeft: '1px solid #ccc', position: 'relative'}} onWheel={handleWheel}>
+            <svg ref={svgRef}></svg>
         </div>
-    `;
+    );
 };
 
 export default Microchart;
