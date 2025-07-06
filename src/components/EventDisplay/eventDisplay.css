@@ -1,0 +1,43 @@
+.event-display-container {
+    flex-grow: 1;
+    padding: 10px 20px;
+    overflow-y: auto;
+    /* Remove height: 100% to allow it to be sized by its flex parent */
+    box-sizing: border-box;
+    background-color: #e8e8e8; /* Changed to slightly darker gray */
+    /* Hide scrollbars */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.event-display-container::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+
+.event-group {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    /* Remove border-bottom from here */
+}
+
+.event-group h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+    color: #000;
+    font-weight: 600;
+    /* Add border below the year heading */
+    border-bottom: 1px solid black;
+    padding-bottom: 5px;
+}
+
+.event-item {
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.event-item::before {
+    content: '○';
+    margin-right: 8px;
+    color: #888;
+}

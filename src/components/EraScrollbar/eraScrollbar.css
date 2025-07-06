@@ -1,0 +1,37 @@
+.era-scrollbar-container {
+    width: 100px;
+    height: 100%;
+    box-sizing: border-box;
+    position: relative;
+    padding: 0;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
+.era-scrollbar-container svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
+.year-label {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.selection-overlay {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.selection-overlay:focus {
+    outline: none !important;
+}
+
+.brush .selection {
+    display: none !important;
+}

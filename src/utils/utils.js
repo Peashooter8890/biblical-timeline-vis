@@ -1,4 +1,4 @@
-import { TIME_RANGES } from './constants.jsx';
+import { TIME_RANGES } from './constants.js';
 
 const parseDuration = (durationStr) => {
     // make 'D' (day) into 'Y' (year) format

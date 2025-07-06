@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
-import { getRangeInfo, getEffectiveColumn, parseDuration } from '../utils.jsx';
+import { getRangeInfo, getEffectiveColumn, parseDuration } from '../../utils/utils.js';
+import './microChart.css';
 
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);

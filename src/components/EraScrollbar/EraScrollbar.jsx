@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
-import { TIME_RANGES } from '../constants.jsx';
+import { TIME_RANGES } from '../../utils/constants.js';
+import './eraScrollbar.css';
 
 // year labels
 const YEAR_LABEL_INTERVAL = 500;

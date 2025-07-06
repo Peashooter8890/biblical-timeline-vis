@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useCallback, useEffect } from 'react';
-import { formatYear } from '../utils.jsx';
+import { formatYear } from '../../utils/utils.js';
+import './eventDisplay.css';
 
 const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
     const internalRef = useRef(null);

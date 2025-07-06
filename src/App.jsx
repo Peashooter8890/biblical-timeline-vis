@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import EraScrollbar from './components/EraScrollbar.jsx';
-import Microchart from './components/Microchart.jsx';
-import EventDisplay from './components/EventDisplay.jsx';
-import { calculateColumns } from './utils.jsx';
+import EraScrollbar from './components/EraScrollbar/EraScrollbar.jsx';
+import Microchart from './components/MicroChart/Microchart.jsx';
+import EventDisplay from './components/EventDisplay/EventDisplay.jsx';
+import { calculateColumns } from './utils/utils.js';
+import './app.css'
 
 const App = () => {
     const [events, setEvents] = useState([]);
