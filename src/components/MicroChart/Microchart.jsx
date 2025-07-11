@@ -192,17 +192,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return d3.select(container)
             .append('div')
             .attr('class', 'microchart-tooltip')
-            .style('opacity', 0)
-            .style('position', 'absolute')
-            .style('background', 'rgba(0, 0, 0, 0.8)')
-            .style('color', 'white')
-            .style('padding', '8px')
-            .style('border-radius', '4px')
-            .style('font-size', '12px')
-            .style('pointer-events', 'none')
-            .style('z-index', '1000')
-            .style('max-width', '200px')
-            .style('word-wrap', 'break-word');
+            .style('opacity', 0);
     }, []);
 
     const renderChart = useCallback(() => {
@@ -352,26 +342,8 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     }, [scrollInfo, onIndicatorChange, currentViewRange]);
 
     return (
-        <div 
-            ref={containerRef} 
-            style={{
-                width: '100%', 
-                height: '100%', 
-                borderLeft: '1px solid #ccc', 
-                position: 'relative'
-            }} 
-        >
+        <div ref={containerRef} className="microchart-root">
             <svg ref={svgRef}></svg>
-            <div style={{
-                position: 'absolute',
-                bottom: '5px',
-                right: '5px',
-                fontSize: '10px',
-                color: '#666',
-                pointerEvents: 'none'
-            }}>
-                {Math.round(currentViewRange[0])} - {Math.round(currentViewRange[1])}
-            </div>
         </div>
     );
 };

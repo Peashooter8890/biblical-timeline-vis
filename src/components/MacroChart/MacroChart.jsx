@@ -135,10 +135,7 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
             .attr('x1', lineStart)
             .attr('y1', yearToPixel)
             .attr('x2', x)
-            .attr('y2', yearToPixel)
-            .attr('stroke', '#999')
-            .attr('stroke-width', 1)
-            .attr('stroke-dasharray', '2,2');
+            .attr('y2', yearToPixel);
 
         svg.selectAll('.year-label')
             .data(years)
@@ -147,10 +144,7 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
             .attr('class', 'year-label')
             .attr('x', x - LABEL_MARGIN)
             .attr('y', d => yearToPixel(d) + 5)
-            .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`)
-            .attr('font-size', '14px')
-            .attr('fill', '#333')
-            .attr('text-anchor', 'end');
+            .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
     }, [generateYearLabels]);
 
     const createBrush = useCallback((dimensions, { pixelToYear }) => {
@@ -265,18 +259,10 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
 
         const overlay = d3.select(container)
             .select('.selection-overlay')
-            .style('position', 'absolute')
-            .style('background', 'rgba(119, 119, 119, 0.3)')
-            .style('border', '3px solid #000')
-            .style('border-radius', '8px')
-            .style('pointer-events', 'auto')
-            .style('z-index', '20')
             .style('top', '0px')
             .style('left', '0px')
             .style('width', `${dimensions.width}px`)
             .style('height', `${dimensions.height}px`)
-            .style('box-sizing', 'border-box')
-            .style('cursor', 'move')
             .on('mousedown', createDragHandler(dimensions, brush, brushGroup, resizeZone))
             .on('mousemove', function(event) {
                 if (event.buttons === 0) {
@@ -293,26 +279,18 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
 
         const topHandle = d3.select(container)
             .select('.top-handle')
-            .style('position', 'absolute')
-            .style('background', '#000')
-            .style('pointer-events', 'auto')
             .style('width', `${handleWidth}px`)
             .style('height', `${HANDLE_HEIGHT}px`)
             .style('left', `${handleLeft}px`)
             .style('top', `-${HANDLE_OFFSET}px`)
-            .style('cursor', 'ns-resize')
             .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, true));
 
         const bottomHandle = d3.select(container)
             .select('.bottom-handle')
-            .style('position', 'absolute')
-            .style('background', '#000')
-            .style('pointer-events', 'auto')
             .style('width', `${handleWidth}px`)
             .style('height', `${HANDLE_HEIGHT}px`)
             .style('left', `${handleLeft}px`)
             .style('bottom', `-${HANDLE_OFFSET}px`)
-            .style('cursor', 'ns-resize')
             .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, false));
 
         return { overlay, topHandle, bottomHandle };
@@ -467,7 +445,7 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
     }, [scrollInfo, onIndicatorChange]);
 
     return (
-        <div ref={containerRef} style={{width: '100%', height: '100%', position: 'relative'}}>
+        <div ref={containerRef} className="macrochart-root">
             <svg ref={svgRef}></svg>
             <div className="selection-overlay"></div>
             <div className="top-handle"></div>

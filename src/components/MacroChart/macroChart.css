@@ -21,11 +21,22 @@
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    font-size: 14px;
+    fill: #333;
+    text-anchor: end;
 }
 
 .selection-overlay {
     outline: none !important;
     box-shadow: none !important;
+    position: absolute;
+    background: rgba(119, 119, 119, 0.3);
+    border: 3px solid #000;
+    border-radius: 8px;
+    pointer-events: auto;
+    z-index: 20;
+    box-sizing: border-box;
+    cursor: move;
 }
 
 .selection-overlay:focus {
@@ -34,4 +45,24 @@
 
 .brush .selection {
     display: none !important;
+}
+
+.macrochart-root {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.year-line {
+    stroke: #999;
+    stroke-width: 1px;
+    stroke-dasharray: 2,2;
+}
+
+.top-handle,
+.bottom-handle {
+    position: absolute;
+    background: #000;
+    pointer-events: auto;
+    cursor: ns-resize;
 }
