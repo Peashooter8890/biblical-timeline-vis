@@ -97,6 +97,7 @@ const App = () => {
                     <div className="sidebar">
                         <div className="macrochart-container">
                            <MacroChart
+                                data={events}
                                 onBrush={handleBrush}
                                 onIndicatorChange={setIndicatorY}
                                 scrollInfo={scrollInfo}

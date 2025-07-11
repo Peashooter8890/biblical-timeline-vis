@@ -9,7 +9,7 @@ const LINE_STROKE_WIDTH = 2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 const FULL_RANGE = [-4100, 150];
-const SCROLL_SENSITIVITY = 50; // Years per scroll unit
+const SCROLL_SENSITIVITY = 125;
 
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);

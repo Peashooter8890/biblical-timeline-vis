@@ -16,7 +16,7 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.025;
 const HANDLE_WIDTH_RATIO = 1/3;
 
-const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
+const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -424,25 +424,46 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
     }, [externalSelection, updateBrush, updateOverlayPositions]);
 
     useEffect(() => {
-        if (!scrollInfo || !scaleInfoRef.current || scrollInfo.topVisibleYear === undefined) return;
+        if (!scrollInfo || !scaleInfoRef.current || !data || !data.length || scrollInfo.topVisibleYear === undefined) return;
 
-        const { topVisibleYear, scrollPercentage, selectionRange } = scrollInfo;
+        const { topVisibleYear, scrollPercentage } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
         
-        const brushStart = yearToPixel(selectionRange[0]);
-        const brushEnd = yearToPixel(selectionRange[1]);
-        
-        let indicatorY;
-        if (scrollPercentage === 0) {
-            indicatorY = brushStart;
-        } else if (scrollPercentage === 1) {
-            indicatorY = brushEnd;
+        // Use all events in the dataset, not just those in selection range
+        const allEvents = data;
+
+        if (allEvents.length === 0) {
+            onIndicatorChange(null);
+            return;
+        }
+
+        let indicatorY = null;
+
+        if (scrollPercentage === 1) {
+            // Snap to the last event in the entire dataset
+            const lastEvent = allEvents[allEvents.length - 1];
+            indicatorY = yearToPixel(lastEvent.fields.startDate);
         } else {
-            indicatorY = yearToPixel(topVisibleYear);
+            // Find the closest event to topVisibleYear from all events
+            let closest = null;
+            let minDistance = Infinity;
+
+            for (let i = 0; i < allEvents.length; i++) {
+                const event = allEvents[i];
+                const distance = Math.abs(event.fields.startDate - topVisibleYear);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = event;
+                }
+            }
+
+            if (closest) {
+                indicatorY = yearToPixel(closest.fields.startDate);
+            }
         }
         
         onIndicatorChange(indicatorY);
-    }, [scrollInfo, onIndicatorChange]);
+    }, [scrollInfo, onIndicatorChange, data]);
 
     return (
         <div ref={containerRef} className="macrochart-root">
