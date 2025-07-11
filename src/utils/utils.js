@@ -1,6 +1,6 @@
 import { TIME_RANGES } from './constants.js';
 
-const parseDuration = (durationStr) => {
+export const parseDuration = (durationStr) => {
     // make 'D' (day) into 'Y' (year) format
     if (!durationStr) return 0;
     const value = parseFloat(durationStr);
@@ -9,21 +9,21 @@ const parseDuration = (durationStr) => {
     return value;
 };
 
-const getRangeInfo = (startDate) => {
+export const getRangeInfo = (startDate) => {
     const range = TIME_RANGES.find(r => startDate >= r.start && startDate <= r.end);
     if (!range) return { color: '#ccc', span: 1 };
     const span = Math.abs(range.end - range.start);
     return { ...range, span: span > 0 ? span : 1 };
 };
 
-const formatYear = (year) => {
+export const formatYear = (year) => {
     // Format year as "YYYY BC" or "YYYY AD"
     if (year < 0) return `${Math.abs(year)} BC`;
     if (year > 0) return `${year} AD`;
     return 0;
 };
 
-const calculateColumns = (data) => {
+export const calculateColumns = (data) => {
     const eventsByDate = {};
     
     data.forEach((event, index) => {
@@ -91,7 +91,7 @@ const calculateColumns = (data) => {
     return result;
 }
 
-const getEffectiveColumn = (event) => {
+export const getEffectiveColumn = (event) => {
     // First check if there's a regular column value
     if (event.fields.column && event.fields.column.trim() !== '') {
         return parseFloat(event.fields.column);
@@ -105,5 +105,3 @@ const getEffectiveColumn = (event) => {
     // Default to column 1 if no column is specified
     return 1;
 };
-
-export {parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn};

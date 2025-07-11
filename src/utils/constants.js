@@ -1,4 +1,4 @@
-const TIME_RANGES = [
+export const TIME_RANGES = [
     { start: -4100, end: -2200, color: '#5795ff' },
     { start: -2199, end: -1600, color: '#ff7f00' },
     { start: -1599, end: -1375, color: '#fc8eac' },
@@ -9,5 +9,3 @@ const TIME_RANGES = [
     { start: -430,  end: -1,    color: '#FFB6C1' },
     { start: 0,     end: 150,    color: '#C4A484' }
 ];
-
-export { TIME_RANGES };
