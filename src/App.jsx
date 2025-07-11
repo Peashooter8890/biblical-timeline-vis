@@ -37,10 +37,10 @@ const App = () => {
             .catch(err => console.error("Failed to load event data:", err));
     }, []);
 
-    const handleBrush = (domain) => {
+    const handleBrush = useCallback((domain) => {
         setSelection(domain);
         setScrollInfo(prev => ({ ...prev, selectionRange: domain }));
-    };
+    }, []);
 
     const handleTimelineScroll = useCallback((event) => {
         if (eventDisplayRef.current) {
