@@ -30,48 +30,24 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const calculateYearAtPosition = useCallback((scrollTop, elements) => {
         if (!elements.length) return groupedEvents[0]?.year || 0;
 
+        // Find the first element that extends past the scroll position
         for (let i = 0; i < elements.length; i++) {
             const element = elements[i];
-            const elementTop = element.offsetTop;
-            const elementBottom = elementTop + element.offsetHeight;
+            const elementBottom = element.offsetTop + element.offsetHeight;
             
             if (elementBottom > scrollTop) {
                 const currentYear = groupedEvents[i].year;
+                const nextYear = groupedEvents[i + 1]?.year;
                 
-                if (i === 0) {
-                    // First element
-                    if (element.offsetHeight > 0 && i + 1 < groupedEvents.length) {
-                        const scrollIntoElement = Math.max(0, scrollTop - elementTop);
-                        const progress = scrollIntoElement / element.offsetHeight;
-                        const nextYear = groupedEvents[i + 1].year;
-                        return currentYear + (progress * (nextYear - currentYear));
-                    }
-                    return currentYear;
-                }
+                // If no next year or element height is 0, return current year
+                if (!nextYear || element.offsetHeight === 0) return currentYear;
                 
-                // Check if between elements
-                const prevElement = elements[i - 1];
-                const prevBottom = prevElement.offsetTop + prevElement.offsetHeight;
+                // Calculate how far we've scrolled into this element
+                const scrollIntoElement = Math.max(0, scrollTop - element.offsetTop);
+                const progress = Math.min(1, scrollIntoElement / element.offsetHeight);
                 
-                if (scrollTop <= prevBottom && scrollTop >= elementTop) {
-                    const prevYear = groupedEvents[i - 1].year;
-                    const distance = elementTop - prevBottom;
-                    if (distance > 0) {
-                        const progress = (scrollTop - prevBottom) / distance;
-                        return prevYear + (progress * (currentYear - prevYear));
-                    }
-                    return currentYear;
-                }
-                
-                // Within this element
-                const scrollIntoElement = Math.max(0, scrollTop - elementTop);
-                const progress = element.offsetHeight > 0 ? scrollIntoElement / element.offsetHeight : 0;
-                
-                if (i + 1 < groupedEvents.length) {
-                    const nextYear = groupedEvents[i + 1].year;
-                    return currentYear + (progress * (nextYear - currentYear));
-                }
-                return currentYear;
+                // Interpolate between current and next year
+                return currentYear + (progress * (nextYear - currentYear));
             }
         }
         
@@ -102,8 +78,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     }, [groupedEvents, onScrollInfoChange, selection, calculateYearAtPosition, ref]);
 
     useEffect(() => {
-        const timer = setTimeout(handleScroll, 0);
-        return () => clearTimeout(timer);
+        handleScroll();
     }, [handleScroll, groupedEvents]);
 
     if (!data.length || !selection) {

@@ -14,6 +14,7 @@ const MIN_SELECTION_HEIGHT = 5;
 const HANDLE_HEIGHT = 8;
 const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.025;
+const HANDLE_WIDTH_RATIO = 1/3;
 
 const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
     const svgRef = useRef(null);
@@ -259,8 +260,8 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
 
     const createOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
         const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
-        const handleWidth = dimensions.width / 3;
-        const handleLeft = dimensions.width / 3;
+        const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
+        const handleLeft = dimensions.width * HANDLE_WIDTH_RATIO;
 
         const overlay = d3.select(container)
             .select('.selection-overlay')

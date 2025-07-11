@@ -3,16 +3,22 @@ import * as d3 from 'd3';
 import { getRangeInfo, getEffectiveColumn, parseDuration } from '../../utils/utils.js';
 import './microChart.css';
 
+// Constants
+const DOT_RADIUS = 3;
+const LINE_STROKE_WIDTH = 2;
+const TOOLTIP_OFFSET_X = 10;
+const TOOLTIP_OFFSET_Y = 50;
+
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
     const resizeObserverRef = useRef(null);
 
-    const getDimensions = useCallback(() => {
+    const getDimensions = () => {
         const rect = containerRef.current.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
-    }, []);
+    };
 
     const processEraData = useCallback((dataset) => {
         const byEra = {};
@@ -164,7 +170,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
             .attr('x2', d => d.x2)
             .attr('y2', d => d.y2)
             .attr('stroke', d => d.color)
-            .style('stroke-width', '2px');
+            .style('stroke-width', `${LINE_STROKE_WIDTH}px`);
 
         const tooltip = createTooltip(containerRef.current);
 
@@ -176,15 +182,15 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
             .attr('class', 'microchart-dot')
             .attr('cx', d => d.columnX)
             .attr('cy', d => d.y)
-            .attr('r', 3)
+            .attr('r', DOT_RADIUS)
             .attr('fill', d => d.color)
             .on('mouseover', function(event, d) {
                 tooltip.transition()
                     .duration(200)
                     .style('opacity', .9);
                 tooltip.html(d.title)
-                    .style('left', (event.layerX - 10) + 'px')
-                    .style('top', (event.layerY - 50) + 'px');
+                    .style('left', (event.layerX - TOOLTIP_OFFSET_X) + 'px')
+                    .style('top', (event.layerY - TOOLTIP_OFFSET_Y) + 'px');
 
                 d3.select(this)
                     .transition()

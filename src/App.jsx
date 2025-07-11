@@ -37,10 +37,10 @@ const App = () => {
             .catch(err => console.error("Failed to load event data:", err));
     }, []);
 
-    const handleBrush = useCallback((domain) => {
+    const handleBrush = (domain) => {
         setSelection(domain);
         setScrollInfo(prev => ({ ...prev, selectionRange: domain }));
-    }, []);
+    };
 
     const handleTimelineScroll = useCallback((event) => {
         if (eventDisplayRef.current) {
@@ -49,14 +49,14 @@ const App = () => {
         }
     }, []);
 
-    const handlePeriodChange = useCallback((event) => {
+    const handlePeriodChange = (event) => {
         const period = event.target.value;
         setSelectedPeriod(period);
         
         const newRange = TIME_PERIODS[period];
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
-    }, []);
+    };
 
     const periods = [
         { value: 'all', label: 'ALL' },
