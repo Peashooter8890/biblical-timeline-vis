@@ -107,7 +107,6 @@ const App = () => {
                     <div className="sidebar">
                         <div className="era-scrollbar-container">
                            <EraScrollbar
-                                data={events}
                                 onBrush={handleBrush}
                                 onIndicatorChange={handleIndicatorChange}
                                 scrollInfo={scrollInfo}
