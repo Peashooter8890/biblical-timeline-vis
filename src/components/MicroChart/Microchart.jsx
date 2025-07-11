@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { getRangeInfo, getEffectiveColumn, parseDuration } from '../../utils/utils.js';
 import './microChart.css';
@@ -8,17 +8,91 @@ const DOT_RADIUS = 3;
 const LINE_STROKE_WIDTH = 2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
+const FULL_RANGE = [-4100, 150];
+const SCROLL_SENSITIVITY = 50; // Years per scroll unit
 
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
     const resizeObserverRef = useRef(null);
+    const [scrollOffset, setScrollOffset] = useState(0);
+    const [currentViewRange, setCurrentViewRange] = useState(selection);
 
     const getDimensions = () => {
         const rect = containerRef.current.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
     };
+
+    // Calculate the actual view range based on selection and scroll offset
+    const calculateViewRange = useCallback((selectionRange, offset) => {
+        const [selStart, selEnd] = selectionRange;
+        const windowSize = selEnd - selStart;
+        const [fullStart, fullEnd] = FULL_RANGE;
+        
+        // Apply scroll offset
+        let viewStart = selStart + offset;
+        let viewEnd = selEnd + offset;
+        
+        // Clamp to full range
+        if (viewStart < fullStart) {
+            viewStart = fullStart;
+            viewEnd = fullStart + windowSize;
+        }
+        if (viewEnd > fullEnd) {
+            viewEnd = fullEnd;
+            viewStart = fullEnd - windowSize;
+        }
+        
+        return [viewStart, viewEnd];
+    }, []);
+
+    // Handle scroll events
+    useEffect(() => {
+        const handleWheel = (event) => {
+            event.preventDefault();
+            
+            const delta = event.deltaY > 0 ? SCROLL_SENSITIVITY : -SCROLL_SENSITIVITY;
+            const currentRange = calculateViewRange(selection, scrollOffset);
+            const [fullStart, fullEnd] = FULL_RANGE;
+            
+            // Check if we're at bounds and trying to scroll further in that direction
+            const atTopBound = currentRange[0] <= fullStart;
+            const atBottomBound = currentRange[1] >= fullEnd;
+            const scrollingUp = delta < 0;
+            const scrollingDown = delta > 0;
+            
+            // Don't accumulate scroll if we're at bounds and trying to scroll further
+            if ((atTopBound && scrollingUp) || (atBottomBound && scrollingDown)) {
+                return;
+            }
+            
+            const newOffset = scrollOffset + delta;
+            const testRange = calculateViewRange(selection, newOffset);
+            
+            // Only update if the new range is within bounds
+            if (testRange[0] >= fullStart && testRange[1] <= fullEnd) {
+                setScrollOffset(newOffset);
+            }
+        };
+
+        const container = containerRef.current;
+        if (container) {
+            container.addEventListener('wheel', handleWheel, { passive: false });
+            return () => container.removeEventListener('wheel', handleWheel);
+        }
+    }, [scrollOffset, selection, calculateViewRange]);
+
+    // Update current view range when selection or scroll offset changes
+    useEffect(() => {
+        const newViewRange = calculateViewRange(selection, scrollOffset);
+        setCurrentViewRange(newViewRange);
+    }, [selection, scrollOffset, calculateViewRange]);
+
+    // Reset scroll offset when selection changes significantly
+    useEffect(() => {
+        setScrollOffset(0);
+    }, [selection]);
 
     const processEraData = useCallback((dataset) => {
         const byEra = {};
@@ -72,9 +146,10 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return events.sort((a, b) => a.startDate - b.startDate);
     }, [getColumnX]);
 
-    const createLines = useCallback((yScale, dimensions, eraData, [startYear, endYear]) => {
+    const createLines = useCallback((yScale, dimensions, eraData, viewRange) => {
         const lines = [];
         const { byEra, columnCounts } = eraData;
+        const [startYear, endYear] = viewRange;
         
         Object.keys(byEra).forEach(era => {
             const maxColumns = columnCounts[era];
@@ -131,10 +206,10 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     }, []);
 
     const renderChart = useCallback(() => {
-        if (!svgRef.current || !containerRef.current || !data.length || !selection) return;
+        if (!svgRef.current || !containerRef.current || !data.length) return;
 
         const dimensions = getDimensions();
-        const [startYear, endYear] = selection;
+        const [startYear, endYear] = currentViewRange;
         const yScale = d3.scaleLinear()
             .domain([startYear, endYear])
             .range([0, dimensions.height]);
@@ -146,9 +221,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         const allEraData = processEraData(data);
 
         const events = createEvents(filtered, yScale, dimensions, filteredEraData);
-        const lines = createLines(yScale, dimensions, allEraData, selection);
+        const lines = createLines(yScale, dimensions, allEraData, currentViewRange);
 
         eventsRef.current = events;
+
+        d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
 
         const svg = d3.select(svgRef.current)
             .attr('width', dimensions.width)
@@ -211,7 +288,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return () => {
             d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
         };
-    }, [data, selection, getDimensions, processEraData, createEvents, createLines, createTooltip]);
+    }, [data, currentViewRange, getDimensions, processEraData, createEvents, createLines, createTooltip]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -234,35 +311,67 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
         const { topVisibleYear, scrollPercentage } = scrollInfo;
         const events = eventsRef.current;
+        const [viewStart, viewEnd] = currentViewRange;
 
-        let indicatorY;
+        let indicatorY = null;
 
-        if (scrollPercentage === 1) {
-            indicatorY = events[events.length - 1].y;
+        // Only show indicator if the topVisibleYear is within our current view range
+        if (topVisibleYear < viewStart || topVisibleYear > viewEnd) {
+            onIndicatorChange(null);
+            return;
+        }
+
+        if (scrollPercentage === 1 && events.length > 0) {
+            const lastEvent = events[events.length - 1];
+            // Double-check the last event is within view (should be, but being safe)
+            if (lastEvent.startDate >= viewStart && lastEvent.startDate <= viewEnd) {
+                indicatorY = lastEvent.y;
+            }
         } else {
-            let closest = events[0];
-            let minDistance = Math.abs(events[0].startDate - topVisibleYear);
+            let closest = null;
+            let minDistance = Infinity;
 
-            for (let i = 1; i < events.length; i++) {
-                const distance = Math.abs(events[i].startDate - topVisibleYear);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closest = events[i];
+            for (let i = 0; i < events.length; i++) {
+                const event = events[i];
+                // Events should all be in view, but double-checking
+                if (event.startDate >= viewStart && event.startDate <= viewEnd) {
+                    const distance = Math.abs(event.startDate - topVisibleYear);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closest = event;
+                    }
                 }
             }
 
-            indicatorY = closest.y;
+            if (closest) {
+                indicatorY = closest.y;
+            }
         }
 
         onIndicatorChange(indicatorY);
-    }, [scrollInfo, onIndicatorChange]);
+    }, [scrollInfo, onIndicatorChange, currentViewRange]);
 
     return (
         <div 
             ref={containerRef} 
-            style={{width: '100%', height: '100%', borderLeft: '1px solid #ccc', position: 'relative'}} 
+            style={{
+                width: '100%', 
+                height: '100%', 
+                borderLeft: '1px solid #ccc', 
+                position: 'relative'
+            }} 
         >
             <svg ref={svgRef}></svg>
+            <div style={{
+                position: 'absolute',
+                bottom: '5px',
+                right: '5px',
+                fontSize: '10px',
+                color: '#666',
+                pointerEvents: 'none'
+            }}>
+                {Math.round(currentViewRange[0])} - {Math.round(currentViewRange[1])}
+            </div>
         </div>
     );
 };

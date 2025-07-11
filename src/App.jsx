@@ -18,7 +18,7 @@ const App = () => {
     const [events, setEvents] = useState([]);
     const [selection, setSelection] = useState([-4100, 150]);
     const [indicatorY, setIndicatorY] = useState(0);
-    const [microchartIndicatorY, setMicrochartIndicatorY] = useState(0);
+    const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
     const [scrollInfo, setScrollInfo] = useState({ 
         topVisibleYear: -4003, 
         selectionRange: [-4003, 57] 
@@ -50,6 +50,10 @@ const App = () => {
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
     };
+
+    const handleMicrochartIndicatorChange = useCallback((y) => {
+        setMicrochartIndicatorY(y);
+    }, []);
 
     const periods = [
         { value: 'all', label: 'ALL' },
@@ -103,9 +107,18 @@ const App = () => {
                             <Microchart 
                                 data={events} 
                                 selection={selection}
-                                onIndicatorChange={setMicrochartIndicatorY}
+                                onIndicatorChange={handleMicrochartIndicatorChange}
                                 scrollInfo={scrollInfo} />
-                            <div className="microchart-position-indicator" style={{top: `${microchartIndicatorY}px`}}></div>
+                            {microchartIndicatorY !== null && (
+                                <div 
+                                    className="microchart-position-indicator" 
+                                    style={{
+                                        top: `${microchartIndicatorY}px`,
+                                        opacity: 1,
+                                        transition: 'opacity 0.3s ease'
+                                    }}
+                                ></div>
+                            )}
                         </div>
                     </div>
                     <EventDisplay 
