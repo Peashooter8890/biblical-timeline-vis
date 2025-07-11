@@ -51,6 +51,10 @@ const App = () => {
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
     };
 
+    const handleIndicatorChange = useCallback((y) => {
+        setIndicatorY(y);
+    }, []);
+
     const handleMicrochartIndicatorChange = useCallback((y) => {
         setMicrochartIndicatorY(y);
     }, []);
@@ -99,7 +103,7 @@ const App = () => {
                            <MacroChart
                                 data={events}
                                 onBrush={handleBrush}
-                                onIndicatorChange={setIndicatorY}
+                                onIndicatorChange={handleIndicatorChange}
                                 scrollInfo={scrollInfo}
                                 externalSelection={selection} />
                            <div className="position-indicator" style={{top: `${indicatorY}px`}}></div>
