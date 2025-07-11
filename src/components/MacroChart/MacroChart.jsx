@@ -11,10 +11,10 @@ const YEAR_LABEL_RANGE_END = 0;
 const LABEL_MARGIN = 15;
 const LABEL_LINE_LENGTH = 10;
 const COLOR_BAR_WIDTH_RATIO = 1/6;
-const MIN_SELECTION_HEIGHT = 5;
+const MIN_SELECTION_HEIGHT = 45;
 const HANDLE_HEIGHT = 8;
 const HANDLE_OFFSET = 4;
-const RESIZE_ZONE_RATIO = 0.025;
+const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/3;
 
 const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
