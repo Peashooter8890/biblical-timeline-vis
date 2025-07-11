@@ -11,6 +11,7 @@ const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 const FULL_RANGE = [-4100, 150];
 const SCROLL_SENSITIVITY = 125;
+const STATIC_COLUMN_COUNT = 10; // Static number of columns
 
 const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
@@ -181,23 +182,19 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
     const processEraData = useCallback((dataset) => {
         const byEra = {};
-        const columnCounts = {};
         
         dataset.forEach(d => {
             const rangeInfo = getRangeInfo(d.fields.startDate);
             const era = rangeInfo.color;
-            const column = getEffectiveColumn(d);
             
             if (!byEra[era]) {
                 byEra[era] = [];
-                columnCounts[era] = 0;
             }
             
             byEra[era].push(d);
-            columnCounts[era] = Math.max(columnCounts[era], column);
         });
 
-        return { byEra, columnCounts };
+        return { byEra };
     }, []);
 
     const getColumnX = useCallback((columnNum, maxColumns, width) => {
@@ -207,11 +204,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
     const createEvents = useCallback((filtered, yScale, dimensions, eraData) => {
         const events = [];
-        const { byEra, columnCounts } = eraData;
+        const { byEra } = eraData;
         
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => filtered.includes(d));
-            const maxColumns = columnCounts[era];
+            const maxColumns = STATIC_COLUMN_COUNT;
             
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
@@ -231,13 +228,14 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return events.sort((a, b) => a.startDate - b.startDate);
     }, [getColumnX]);
 
+    // Fixed createLines function - now uses consistent era data and better clipping
     const createLines = useCallback((yScale, dimensions, eraData, viewRange) => {
         const lines = [];
-        const { byEra, columnCounts } = eraData;
+        const { byEra } = eraData;
         const [startYear, endYear] = viewRange;
         
         Object.keys(byEra).forEach(era => {
-            const maxColumns = columnCounts[era];
+            const maxColumns = STATIC_COLUMN_COUNT;
             
             byEra[era].forEach(d => {
                 const duration = parseDuration(d.fields.duration);
@@ -246,12 +244,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const column = getEffectiveColumn(d);
                 const x = getColumnX(column, maxColumns, dimensions.width);
-                const startY = yScale(d.fields.startDate);
-                const endY = yScale(parseFloat(d.fields.startDate) + duration);
-
+                
                 const lineStart = parseFloat(d.fields.startDate);
                 const lineEnd = lineStart + duration;
                 
+                // Check if line intersects with view range
                 const intersects = (
                     (lineStart >= startYear && lineStart <= endYear) ||
                     (lineEnd >= startYear && lineEnd <= endYear) ||
@@ -259,11 +256,21 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
                 );
 
                 if (intersects) {
+                    // Calculate Y positions, but don't clamp them yet
+                    const startY = yScale(lineStart);
+                    const endY = yScale(lineEnd);
+                    
+                    // Only clamp to viewport if the line extends significantly beyond view
+                    // This prevents visual artifacts while still keeping lines contained
+                    const buffer = dimensions.height * 0.1; // 10% buffer
+                    const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
+                    const y2 = Math.max(-buffer, Math.min(dimensions.height + buffer, endY));
+                    
                     lines.push({
                         x1: x,
-                        y1: Math.max(0, Math.min(dimensions.height, startY)),
+                        y1: y1,
                         x2: x,
-                        y2: Math.max(0, Math.min(dimensions.height, endY)),
+                        y2: y2,
                         color: rangeInfo.color
                     });
                 }
@@ -293,10 +300,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         const filtered = data.filter(d => 
             d.fields.startDate >= startYear && d.fields.startDate <= endYear);
 
-        const filteredEraData = processEraData(filtered);
+        // FIXED: Use the same era data (allEraData) for both events and lines
+        // This ensures consistent column positioning
         const allEraData = processEraData(data);
 
-        const events = createEvents(filtered, yScale, dimensions, filteredEraData);
+        const events = createEvents(filtered, yScale, dimensions, allEraData);
         const lines = createLines(yScale, dimensions, allEraData, currentViewRange);
 
         eventsRef.current = events;

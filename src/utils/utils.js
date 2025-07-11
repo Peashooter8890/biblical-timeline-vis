@@ -39,32 +39,66 @@ export const calculateColumns = (data) => {
         const events = eventsByDate[startDate];
         
         if (events.length > 1) {
-            // Sort events by sortKey in descending order (higher sortKey = lower column number)
+            // Sort events by sortKey in descending order (higher = leftmost)
             events.sort((a, b) => {
                 return parseFloat(b.fields.sortKey) - parseFloat(a.fields.sortKey);
             });
             
-            // Find existing column assignments
-            const existingColumns = events
-                .filter(event => event.fields.column && event.fields.column.trim() !== '')
-                .map(event => parseInt(event.fields.column))
-                .sort((a, b) => a - b);
-            
-            // Assign columns
-            let nextAvailableColumn = 1;
-            
-            events.forEach(event => {
-                if (!event.fields.column || event.fields.column.trim() === '') {
-                    // Find the next available column number
-                    while (existingColumns.includes(nextAvailableColumn)) {
-                        nextAvailableColumn++;
-                    }
-                    event.fields.customColumn = nextAvailableColumn.toString();
-                    existingColumns.push(nextAvailableColumn);
-                    existingColumns.sort((a, b) => a - b);
-                    nextAvailableColumn++;
+            // Process consecutive groups of non-predefined events
+            let i = 0;
+            while (i < events.length) {
+                const event = events[i];
+                
+                if (event.fields.column && event.fields.column.trim() !== '') {
+                    // This event has a predefined column, skip it
+                    i++;
+                    continue;
                 }
-            });
+                
+                // Found a non-predefined event, find the consecutive group
+                const groupStart = i;
+                let groupEnd = i;
+                
+                while (groupEnd < events.length && 
+                       (!events[groupEnd].fields.column || events[groupEnd].fields.column.trim() === '')) {
+                    groupEnd++;
+                }
+                groupEnd--; // groupEnd is now the last index in the group
+                
+                // Find left bound
+                let leftBound = 0;
+                if (groupStart > 0) {
+                    const leftEvent = events[groupStart - 1];
+                    if (leftEvent.fields.column && leftEvent.fields.column.trim() !== '') {
+                        leftBound = parseFloat(leftEvent.fields.column);
+                    }
+                }
+                
+                // Find right bound
+                let rightBound = 10;
+                if (groupEnd < events.length - 1) {
+                    const rightEvent = events[groupEnd + 1];
+                    if (rightEvent.fields.column && rightEvent.fields.column.trim() !== '') {
+                        rightBound = parseFloat(rightEvent.fields.column);
+                    }
+                }
+                
+                // Distribute events evenly within bounds
+                const groupSize = groupEnd - groupStart + 1;
+                for (let j = groupStart; j <= groupEnd; j++) {
+                    const positionInGroup = j - groupStart;
+                    const column = leftBound + (rightBound - leftBound) * (positionInGroup + 1) / (groupSize + 1);
+                    events[j].fields.customColumn = column.toString();
+                }
+                
+                i = groupEnd + 1;
+            }
+        } else if (events.length === 1) {
+            // Single event with no predefined column should go in the middle (column 5)
+            const event = events[0];
+            if (!event.fields.column || event.fields.column.trim() === '') {
+                event.fields.customColumn = '5';
+            }
         }
     });
     
@@ -102,6 +136,6 @@ export const getEffectiveColumn = (event) => {
         return parseFloat(event.fields.customColumn);
     }
     
-    // Default to column 1 if no column is specified
-    return 1;
+    // Default to column 5 (middle) if no column is specified
+    return 5;
 };
