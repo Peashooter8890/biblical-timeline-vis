@@ -9,7 +9,7 @@ const LINE_STROKE_WIDTH = 2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 
-const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }) => {
+const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);

@@ -5,15 +5,15 @@ import './eventDisplay.css';
 const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
+    const previousSelectionRef = useRef(null);
 
     const groupedEvents = useMemo(() => {
-        if (!data.length || !selection) return [];
+        if (!data.length) return [];
         
-        const [startYear, endYear] = selection;
-        const filtered = data.filter(d => d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+        // Always show ALL events, no filtering by selection
         const groups = {};
         
-        filtered.forEach(event => {
+        data.forEach(event => {
             const key = event.fields.startDate;
             if (!groups[key]) groups[key] = [];
             groups[key].push(event);
@@ -25,7 +25,42 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 year: Number(key),
                 events: groups[key]
             }));
-    }, [data, selection]);
+    }, [data]); // Removed selection dependency
+
+    // Jump to selection range when selection changes
+    useEffect(() => {
+        if (!selection || !ref.current || !groupedEvents.length) return;
+        
+        const [startYear, endYear] = selection;
+        
+        // Check if selection actually changed
+        if (previousSelectionRef.current) {
+            const [prevStart, prevEnd] = previousSelectionRef.current;
+            if (prevStart === startYear && prevEnd === endYear) return;
+        }
+        
+        previousSelectionRef.current = selection;
+        
+        // Find the first event group that is >= startYear
+        const targetGroup = groupedEvents.find(group => group.year >= startYear);
+        
+        if (targetGroup) {
+            const container = ref.current;
+            const elements = container.querySelectorAll('.event-group');
+            
+            // Find the corresponding DOM element
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                const groupYear = groupedEvents[i].year;
+                
+                if (groupYear === targetGroup.year) {
+                    // Scroll to this element
+                    container.scrollTop = element.offsetTop;
+                    break;
+                }
+            }
+        }
+    }, [selection, groupedEvents, ref]);
 
     const calculateYearAtPosition = useCallback((scrollTop, elements) => {
         if (!elements.length) return groupedEvents[0]?.year || 0;
@@ -55,7 +90,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     }, [groupedEvents]);
 
     const handleScroll = useCallback(() => {
-        if (!ref.current || !groupedEvents.length) return;
+        if (!ref.current || !groupedEvents.length || !selection) return;
 
         const container = ref.current;
         const { scrollTop, scrollHeight, clientHeight } = container;
@@ -81,14 +116,14 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         handleScroll();
     }, [handleScroll, groupedEvents]);
 
-    if (!data.length || !selection) {
+    if (!data.length) {
         return <div className="event-display-container">Loading events...</div>;
     }
 
     return (
         <div className="event-display-container" ref={ref} onScroll={handleScroll}>
             {groupedEvents.length === 0 ? (
-                <p>No events in the selected time range.</p>
+                <p>No events to display.</p>
             ) : (
                 groupedEvents.map(group => (
                     <div className="event-group" key={group.year}>
