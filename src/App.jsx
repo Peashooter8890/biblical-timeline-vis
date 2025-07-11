@@ -6,7 +6,7 @@ import { calculateColumns } from './utils/utils.js';
 import './app.css'
 
 const TIME_PERIODS = {
-    'all': [-4003, 57],
+    'all': [-4100, 150],
     'period1': [-4003, -3001],
     'period2': [-3000, -2001], 
     'period3': [-2000, -1001],
