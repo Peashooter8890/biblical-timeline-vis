@@ -9,3 +9,6 @@ export const TIME_RANGES = [
     { start: -430,  end: -1,    color: '#FFB6C1' },
     { start: 0,     end: 150,    color: '#C4A484' }
 ];
+
+export const EQUAL_DISTRIBUTION_AREA = 0.5;
+export const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;

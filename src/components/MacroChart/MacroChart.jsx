@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import { TIME_RANGES } from '../../utils/constants.js';
 import './macroChart.css';
+import { EQUAL_DISTRIBUTION_AREA, PROPORTIONATE_DISTRIBUTION_AREA } from '../../utils/constants.js';
 
 // Constants
 const YEAR_LABEL_INTERVAL = 500;
@@ -37,9 +38,17 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, onScroll, ex
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
         
+        const numRanges = TIME_RANGES.length;
+        const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
+        const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
+
+        const equalHeightPerRange = equalPortionHeight / numRanges;
+        
         const heights = TIME_RANGES.map(range => {
             const span = Math.abs(range.end - range.start);
-            return (span / totalSpan) * dimensions.height;
+            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
+            
+            return equalHeightPerRange + proportionalHeight;
         });
 
         const positions = [];

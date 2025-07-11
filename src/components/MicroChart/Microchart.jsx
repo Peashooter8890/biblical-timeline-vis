@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { getRangeInfo, getEffectiveColumn, parseDuration } from '../../utils/utils.js';
+import { TIME_RANGES, EQUAL_DISTRIBUTION_AREA, PROPORTIONATE_DISTRIBUTION_AREA } from '../../utils/constants.js';
 import './microChart.css';
 
 // Constants
@@ -23,6 +24,90 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         const rect = containerRef.current.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
     };
+
+    // Calculate era heights using the same logic as MacroChart
+    const calculateEraLayout = useCallback((dimensions, viewRange) => {
+        const [startYear, endYear] = viewRange;
+        
+        // Find which TIME_RANGES intersect with our view range
+        const relevantRanges = TIME_RANGES.filter(range => 
+            !(range.end < startYear || range.start > endYear)
+        );
+        
+        if (relevantRanges.length === 0) {
+            // Fallback to simple linear scale if no ranges found
+            return {
+                ranges: [],
+                heights: [],
+                positions: [],
+                yScale: d3.scaleLinear().domain([startYear, endYear]).range([0, dimensions.height])
+            };
+        }
+        
+        // Calculate the actual span of each relevant range within our view
+        const actualSpans = relevantRanges.map(range => {
+            const actualStart = Math.max(range.start, startYear);
+            const actualEnd = Math.min(range.end, endYear);
+            return actualEnd - actualStart;
+        });
+        
+        const totalSpan = actualSpans.reduce((sum, span) => sum + span, 0);
+        const numRanges = relevantRanges.length;
+        
+        // Apply the same 75%/25% logic
+        const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
+        const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
+        const equalHeightPerRange = equalPortionHeight / numRanges;
+        
+        const heights = actualSpans.map(span => {
+            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
+            return equalHeightPerRange + proportionalHeight;
+        });
+        
+        // Calculate positions
+        const positions = [];
+        let currentY = 0;
+        for (const height of heights) {
+            positions.push(currentY);
+            currentY += height;
+        }
+        
+        // Create a custom scale function
+        const yScale = (year) => {
+            // Find which range this year belongs to
+            const rangeIndex = relevantRanges.findIndex(range => 
+                year >= Math.max(range.start, startYear) && 
+                year <= Math.min(range.end, endYear)
+            );
+            
+            if (rangeIndex === -1) {
+                // Year is outside our ranges, use linear interpolation
+                if (year < startYear) return 0;
+                if (year > endYear) return dimensions.height;
+                
+                // Fallback linear scale
+                const progress = (year - startYear) / (endYear - startYear);
+                return progress * dimensions.height;
+            }
+            
+            const range = relevantRanges[rangeIndex];
+            const rangeStart = Math.max(range.start, startYear);
+            const rangeEnd = Math.min(range.end, endYear);
+            const rangeSpan = rangeEnd - rangeStart;
+            
+            if (rangeSpan <= 0) return positions[rangeIndex];
+            
+            const positionInRange = (year - rangeStart) / rangeSpan;
+            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
+        };
+        
+        return {
+            ranges: relevantRanges,
+            heights,
+            positions,
+            yScale
+        };
+    }, []);
 
     // Calculate the actual view range based on selection and scroll offset
     const calculateViewRange = useCallback((selectionRange, offset) => {
@@ -200,9 +285,10 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
         const dimensions = getDimensions();
         const [startYear, endYear] = currentViewRange;
-        const yScale = d3.scaleLinear()
-            .domain([startYear, endYear])
-            .range([0, dimensions.height]);
+        
+        // Use the new era layout calculation
+        const eraLayout = calculateEraLayout(dimensions, currentViewRange);
+        const yScale = eraLayout.yScale;
 
         const filtered = data.filter(d => 
             d.fields.startDate >= startYear && d.fields.startDate <= endYear);
@@ -278,7 +364,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return () => {
             d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
         };
-    }, [data, currentViewRange, getDimensions, processEraData, createEvents, createLines, createTooltip]);
+    }, [data, currentViewRange, getDimensions, calculateEraLayout, processEraData, createEvents, createLines, createTooltip]);
 
     useEffect(() => {
         if (!containerRef.current) return;
