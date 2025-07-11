@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import EraScrollbar from './components/EraScrollbar/EraScrollbar.jsx';
-import Microchart from './components/MicroChart/Microchart.jsx';
+import MacroChart from './components/MacroChart/MacroChart.jsx';
+import Microchart from './components/MicroChart/MicroChart.jsx';
 import EventDisplay from './components/EventDisplay/EventDisplay.jsx';
 import { calculateColumns } from './utils/utils.js';
 import './app.css'
@@ -98,8 +98,8 @@ const App = () => {
                 </header>
                 <div className="timeline-container" onWheel={handleTimelineScroll}>
                     <div className="sidebar">
-                        <div className="era-scrollbar-container">
-                           <EraScrollbar
+                        <div className="macrochart-container">
+                           <MacroChart
                                 onBrush={handleBrush}
                                 onIndicatorChange={setIndicatorY}
                                 scrollInfo={scrollInfo}

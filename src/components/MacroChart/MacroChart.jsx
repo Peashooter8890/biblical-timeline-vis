@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import { TIME_RANGES } from '../../utils/constants.js';
-import './eraScrollbar.css';
+import './macroChart.css';
 
 // Constants
 const YEAR_LABEL_INTERVAL = 500;
@@ -16,7 +16,7 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.025;
 const HANDLE_WIDTH_RATIO = 1/3;
 
-const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
+const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -483,4 +483,4 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
     );
 };
 
-export default EraScrollbar;
+export default MacroChart;

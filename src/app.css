@@ -113,7 +113,7 @@
     background-color: #f0f0f0;
 }
 
-.era-scrollbar-container, .microchart-container {
+.macrochart-container, .microchart-container {
     width: 100px;
     height: 100%;
     box-sizing: border-box;
