@@ -7,7 +7,7 @@ import './app.css'
 
 const App = () => {
     const [events, setEvents] = useState([]);
-    const [selection, setSelection] = useState([-4004, 57]);
+    const [selection, setSelection] = useState([-4100, 150]);
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(0);
     const [scrollInfo, setScrollInfo] = useState({ 
@@ -107,6 +107,7 @@ const App = () => {
                     <div className="sidebar">
                         <div className="era-scrollbar-container">
                            <EraScrollbar
+                                data={events}
                                 onBrush={handleBrush}
                                 onIndicatorChange={handleIndicatorChange}
                                 scrollInfo={scrollInfo}

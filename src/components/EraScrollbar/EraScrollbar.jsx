@@ -18,7 +18,7 @@ const HANDLE_HEIGHT = 8;
 const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.025; // add a small resize zone at the top and bottom of the selection overlay for better UX
 
-const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
+const EraScrollbar = ({ data, onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -29,6 +29,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
     const isExternalUpdateRef = useRef(false);
     const isUserInteractingRef = useRef(false);
     const resizeObserverRef = useRef(null);
+    const eventsRef = useRef([]); // Add this new ref near the top with other refs
 
     const calculateContainerDimensions = useCallback((container) => {
         const rect = container.getBoundingClientRect();
@@ -347,12 +348,31 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         bottomResizeHandle.style('top', `${bottomY - HANDLE_OFFSET}px`);
     }, []);
 
+    // Update the storeFilteredEvents function to also update when selection changes
+    const storeFilteredEvents = useCallback((data, selection) => {
+        if (!data.length || !selection) return;
+        
+        const [startYear, endYear] = selection;
+        const filteredData = data.filter(d => d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+        
+        // Sort events by year for consistent positioning
+        const sortedEvents = filteredData.sort((a, b) => a.fields.startDate - b.fields.startDate);
+        eventsRef.current = sortedEvents;
+    }, []);
+
     const renderScrollbar = useCallback(() => {
         if (!svgRef.current || !containerRef.current) return;
 
         const containerDimensions = calculateContainerDimensions(containerRef.current);
         const timeRangeLayout = calculateTimeRangeLayout(containerDimensions);
         const conversionFunctions = createYearPixelConversionFunctions(containerDimensions, timeRangeLayout);
+
+        // Store filtered events for indicator positioning
+        // Note: You'll need to pass the data prop to EraScrollbar component
+        if (data && data.length) {
+            const [startYear, endYear] = externalSelection || [-4100, 150];
+            storeFilteredEvents(data, [startYear, endYear]);
+        }
 
         // Store the OLD scale info before updating it
         const oldScaleInfo = scaleInfoRef.current;
@@ -434,7 +454,7 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         });
     }, [calculateContainerDimensions, calculateTimeRangeLayout, createYearPixelConversionFunctions, 
         createEraColorBars, createYearMarkerLabels, createBrushSelectionBehavior, createSelectionOverlayElements, 
-        updateSelectionOverlayPositions, onBrush]);
+        updateSelectionOverlayPositions, onBrush, storeFilteredEvents]);
 
     // Set up ResizeObserver to watch for container size changes
     useEffect(() => {
@@ -487,27 +507,48 @@ const EraScrollbar = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, extern
         
     }, [externalSelection, updateBrushSelectionPosition, updateSelectionOverlayPositions]);
 
+    // Replace the entire scrollInfo useEffect with this Microchart-style version
     useEffect(() => {
-        if (!scrollInfo || !scaleInfoRef.current || scrollInfo.topVisibleYear === undefined) return;
+        if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange || !scaleInfoRef.current) return;
 
-        const { topVisibleYear, scrollPercentage, selectionRange } = scrollInfo;
+        const { topVisibleYear, scrollPercentage } = scrollInfo;
         const { convertYearToPixel } = scaleInfoRef.current;
-        
-        // Calculate indicator position with edge behavior for scroll bounds
-        const currentBrushStartY = convertYearToPixel(selectionRange[0]); // renamed from currentBrushStart
-        const currentBrushEndY = convertYearToPixel(selectionRange[1]); // renamed from currentBrushEnd
-        
-        let scrollIndicatorY; // renamed from indicatorY
-        if (scrollPercentage === 0) {
-            scrollIndicatorY = currentBrushStartY;
-        } else if (scrollPercentage === 1) {
-            scrollIndicatorY = currentBrushEndY;
+        const events = eventsRef.current;
+
+        let indicatorY;
+
+        if (scrollPercentage === 1) {
+            // Fully scrolled to bottom or no scrolling available - position at last event
+            const lastEvent = events[events.length - 1];
+            indicatorY = convertYearToPixel(lastEvent.fields.startDate);
         } else {
-            scrollIndicatorY = convertYearToPixel(topVisibleYear);
+            // Find the closest event to the top visible year
+            let closestEvent = events[0];
+            let minDistance = Math.abs(events[0].fields.startDate - topVisibleYear);
+
+            for (let i = 1; i < events.length; i++) {
+                const distance = Math.abs(events[i].fields.startDate - topVisibleYear);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEvent = events[i];
+                }
+            }
+
+            indicatorY = convertYearToPixel(closestEvent.fields.startDate);
         }
-        
-        onIndicatorChange(scrollIndicatorY);
+
+        onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
+
+    // Add an initialization effect to position the indicator at the first event when the component mounts
+    useEffect(() => {
+        if (eventsRef.current.length && scaleInfoRef.current && onIndicatorChange && !scrollInfo) {
+            const { convertYearToPixel } = scaleInfoRef.current;
+            const firstEvent = eventsRef.current[0];
+            const initialIndicatorY = convertYearToPixel(firstEvent.fields.startDate);
+            onIndicatorChange(initialIndicatorY);
+        }
+    }, [eventsRef.current, scaleInfoRef.current, onIndicatorChange, scrollInfo]);
 
     const handleWheelScroll = useCallback((event) => { // renamed from handleWheel
         if (onScroll) {
