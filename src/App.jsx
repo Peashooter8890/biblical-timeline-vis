@@ -42,13 +42,6 @@ const App = () => {
         setScrollInfo(prev => ({ ...prev, selectionRange: domain }));
     }, []);
 
-    const handleTimelineScroll = useCallback((event) => {
-        if (eventDisplayRef.current) {
-            event.preventDefault();
-            eventDisplayRef.current.scrollTop += event.deltaY;
-        }
-    }, []);
-
     const handlePeriodChange = (event) => {
         const period = event.target.value;
         setSelectedPeriod(period);
@@ -96,7 +89,7 @@ const App = () => {
                         </div>
                     </div>
                 </header>
-                <div className="timeline-container" onWheel={handleTimelineScroll}>
+                <div className="timeline-container">
                     <div className="sidebar">
                         <div className="macrochart-container">
                            <MacroChart

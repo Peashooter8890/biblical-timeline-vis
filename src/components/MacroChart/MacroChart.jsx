@@ -466,15 +466,8 @@ const MacroChart = ({ onBrush, onIndicatorChange, scrollInfo, onScroll, external
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    const handleWheel = useCallback((event) => {
-        if (onScroll) {
-            event.preventDefault();
-            onScroll(event.deltaY);
-        }
-    }, [onScroll]);
-
     return (
-        <div ref={containerRef} style={{width: '100%', height: '100%', position: 'relative'}} onWheel={handleWheel}>
+        <div ref={containerRef} style={{width: '100%', height: '100%', position: 'relative'}}>
             <svg ref={svgRef}></svg>
             <div className="selection-overlay"></div>
             <div className="top-handle"></div>

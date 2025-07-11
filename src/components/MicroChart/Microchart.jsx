@@ -257,18 +257,10 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    const handleWheel = useCallback((event) => {
-        if (onScroll) {
-            event.preventDefault();
-            onScroll(event.deltaY);
-        }
-    }, [onScroll]);
-
     return (
         <div 
             ref={containerRef} 
             style={{width: '100%', height: '100%', borderLeft: '1px solid #ccc', position: 'relative'}} 
-            onWheel={handleWheel}
         >
             <svg ref={svgRef}></svg>
         </div>
