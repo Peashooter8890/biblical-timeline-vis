@@ -9,168 +9,106 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
     const eventsRef = useRef([]);
     const resizeObserverRef = useRef(null);
 
-    const renderChart = useCallback(() => {
-        if (!svgRef.current || !containerRef.current || !data.length || !selection) return;
+    const getDimensions = useCallback(() => {
+        const rect = containerRef.current.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+    }, []);
 
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const dimensions = { 
-            width: containerRect.width, 
-            height: containerRect.height 
-        };
-
-        const [startYear, endYear] = selection;
-
-        const yScale = d3.scaleLinear()
-            .domain([startYear, endYear])
-            .range([0, dimensions.height]);
-
-        const filteredData = data.filter(d => d.fields.startDate >= startYear && d.fields.startDate <= endYear);
-
-        // Create a map for quick lookup of events by start date and column
-        const eventMap = new Map();
-        filteredData.forEach(d => {
-            const key = `${d.fields.startDate}|${getEffectiveColumn(d)}`;
-            if (!eventMap.has(key)) {
-                eventMap.set(key, []);
-            }
-            eventMap.get(key).push(d);
-        });
-
-        // Group events by era and calculate column distribution for each era
-        const eventsByEra = {};
-        const eraColumnCounts = {};
+    const processEraData = useCallback((dataset) => {
+        const byEra = {};
+        const columnCounts = {};
         
-        filteredData.forEach(d => {
+        dataset.forEach(d => {
             const rangeInfo = getRangeInfo(d.fields.startDate);
-            const era = rangeInfo.color; // Using color as era identifier
-            const effectiveColumn = getEffectiveColumn(d);
+            const era = rangeInfo.color;
+            const column = getEffectiveColumn(d);
             
-            if (!eventsByEra[era]) {
-                eventsByEra[era] = [];
-                eraColumnCounts[era] = 0;
+            if (!byEra[era]) {
+                byEra[era] = [];
+                columnCounts[era] = 0;
             }
             
-            eventsByEra[era].push(d);
-            eraColumnCounts[era] = Math.max(eraColumnCounts[era], effectiveColumn);
+            byEra[era].push(d);
+            columnCounts[era] = Math.max(columnCounts[era], column);
         });
 
-        const getColumnXForEra = (columnNum, maxColumnsInEra) => {
-            // Distribute columns evenly across the full width based on era's max columns
-            const columnWidth = dimensions.width / maxColumnsInEra;
-            return (columnNum - 1) * columnWidth + (columnWidth / 2);
-        };
+        return { byEra, columnCounts };
+    }, []);
 
+    const getColumnX = useCallback((columnNum, maxColumns, width) => {
+        const columnWidth = width / maxColumns;
+        return (columnNum - 1) * columnWidth + (columnWidth / 2);
+    }, []);
+
+    const createEvents = useCallback((filtered, yScale, dimensions, eraData) => {
         const events = [];
-        const lines = [];
+        const { byEra, columnCounts } = eraData;
         
-        // First pass: collect all events (visible ones for dots)
-        Object.keys(eventsByEra).forEach(era => {
-            const eraEvents = eventsByEra[era];
-            const maxColumnsInEra = eraColumnCounts[era];
+        Object.keys(byEra).forEach(era => {
+            const eraEvents = byEra[era].filter(d => filtered.includes(d));
+            const maxColumns = columnCounts[era];
             
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
-                const effectiveColumn = getEffectiveColumn(d);
-                const startX = getColumnXForEra(effectiveColumn, maxColumnsInEra);
-                const startY = yScale(d.fields.startDate);
+                const column = getEffectiveColumn(d);
+                const x = getColumnX(column, maxColumns, dimensions.width);
+                const y = yScale(d.fields.startDate);
 
                 events.push({
                     ...d.fields,
                     color: rangeInfo.color,
-                    columnX: startX,
-                    y: startY
+                    columnX: x,
+                    y
                 });
             });
         });
 
-        // Second pass: collect lines from ALL events in the dataset (not just filtered ones)
-        // This ensures lines are drawn even when their start dot is outside the visible range
-        const allEventsByEra = {};
-        const allEraColumnCounts = {};
+        return events.sort((a, b) => a.startDate - b.startDate);
+    }, [getColumnX]);
+
+    const createLines = useCallback((yScale, dimensions, eraData, [startYear, endYear]) => {
+        const lines = [];
+        const { byEra, columnCounts } = eraData;
         
-        data.forEach(d => {
-            const rangeInfo = getRangeInfo(d.fields.startDate);
-            const era = rangeInfo.color;
-            const effectiveColumn = getEffectiveColumn(d);
+        Object.keys(byEra).forEach(era => {
+            const maxColumns = columnCounts[era];
             
-            if (!allEventsByEra[era]) {
-                allEventsByEra[era] = [];
-                allEraColumnCounts[era] = 0;
-            }
-            
-            allEventsByEra[era].push(d);
-            allEraColumnCounts[era] = Math.max(allEraColumnCounts[era], effectiveColumn);
-        });
-
-        Object.keys(allEventsByEra).forEach(era => {
-            const eraEvents = allEventsByEra[era];
-            const maxColumnsInEra = allEraColumnCounts[era];
-            
-            eraEvents.forEach(d => {
+            byEra[era].forEach(d => {
                 const duration = parseDuration(d.fields.duration);
-                if (duration >= 1) {
-                    const rangeInfo = getRangeInfo(d.fields.startDate);
-                    const effectiveColumn = getEffectiveColumn(d);
-                    const startX = getColumnXForEra(effectiveColumn, maxColumnsInEra);
-                    const startY = yScale(d.fields.startDate);
-                    const eventEndDate = parseFloat(d.fields.startDate) + duration;
-                    const endY = yScale(eventEndDate);
+                if (duration < 1) return;
 
-                    // Check if any part of the line is within the visible range
-                    const lineStartYear = parseFloat(d.fields.startDate);
-                    const lineEndYear = eventEndDate;
-                    
-                    const lineIntersectsRange = (
-                        (lineStartYear >= startYear && lineStartYear <= endYear) || // Start is visible
-                        (lineEndYear >= startYear && lineEndYear <= endYear) ||     // End is visible
-                        (lineStartYear <= startYear && lineEndYear >= endYear)     // Line spans entire range
-                    );
+                const rangeInfo = getRangeInfo(d.fields.startDate);
+                const column = getEffectiveColumn(d);
+                const x = getColumnX(column, maxColumns, dimensions.width);
+                const startY = yScale(d.fields.startDate);
+                const endY = yScale(parseFloat(d.fields.startDate) + duration);
 
-                    if (lineIntersectsRange) {
-                        // Clamp the line to the visible range
-                        const clampedStartY = Math.max(0, Math.min(dimensions.height, startY));
-                        const clampedEndY = Math.max(0, Math.min(dimensions.height, endY));
-                        
-                        lines.push({
-                            x1: startX,
-                            y1: clampedStartY,
-                            x2: startX,
-                            y2: clampedEndY,
-                            color: rangeInfo.color
-                        });
-                    }
+                const lineStart = parseFloat(d.fields.startDate);
+                const lineEnd = lineStart + duration;
+                
+                const intersects = (
+                    (lineStart >= startYear && lineStart <= endYear) ||
+                    (lineEnd >= startYear && lineEnd <= endYear) ||
+                    (lineStart <= startYear && lineEnd >= endYear)
+                );
+
+                if (intersects) {
+                    lines.push({
+                        x1: x,
+                        y1: Math.max(0, Math.min(dimensions.height, startY)),
+                        x2: x,
+                        y2: Math.max(0, Math.min(dimensions.height, endY)),
+                        color: rangeInfo.color
+                    });
                 }
             });
         });
 
-        // Sort events by year and store for indicator positioning
-        events.sort((a, b) => a.startDate - b.startDate);
-        eventsRef.current = events;
+        return lines;
+    }, [getColumnX]);
 
-        const svg = d3.select(svgRef.current)
-            .attr('width', dimensions.width)
-            .attr('height', dimensions.height)
-            .style('overflow', 'visible'); // Added to allow dots to overflow
-
-        svg.selectAll('*').remove();
-
-        const g = svg.append('g');
-
-        // Draw lines first so dots are on top
-        g.selectAll('.microchart-line')
-            .data(lines)
-            .enter()
-            .append('line')
-            .attr('class', 'microchart-line')
-            .attr('x1', d => d.x1)
-            .attr('y1', d => d.y1)
-            .attr('x2', d => d.x2)
-            .attr('y2', d => d.y2)
-            .attr('stroke', d => d.color)
-            .style('stroke-width', '2px');
-
-        // Create tooltip div
-        const tooltip = d3.select(containerRef.current)
+    const createTooltip = useCallback((container) => {
+        return d3.select(container)
             .append('div')
             .attr('class', 'microchart-tooltip')
             .style('opacity', 0)
@@ -184,7 +122,53 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
             .style('z-index', '1000')
             .style('max-width', '200px')
             .style('word-wrap', 'break-word');
+    }, []);
 
+    const renderChart = useCallback(() => {
+        if (!svgRef.current || !containerRef.current || !data.length || !selection) return;
+
+        const dimensions = getDimensions();
+        const [startYear, endYear] = selection;
+        const yScale = d3.scaleLinear()
+            .domain([startYear, endYear])
+            .range([0, dimensions.height]);
+
+        const filtered = data.filter(d => 
+            d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+
+        const filteredEraData = processEraData(filtered);
+        const allEraData = processEraData(data);
+
+        const events = createEvents(filtered, yScale, dimensions, filteredEraData);
+        const lines = createLines(yScale, dimensions, allEraData, selection);
+
+        eventsRef.current = events;
+
+        const svg = d3.select(svgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
+
+        svg.selectAll('*').remove();
+
+        const g = svg.append('g');
+
+        // Draw lines first
+        g.selectAll('.microchart-line')
+            .data(lines)
+            .enter()
+            .append('line')
+            .attr('class', 'microchart-line')
+            .attr('x1', d => d.x1)
+            .attr('y1', d => d.y1)
+            .attr('x2', d => d.x2)
+            .attr('y2', d => d.y2)
+            .attr('stroke', d => d.color)
+            .style('stroke-width', '2px');
+
+        const tooltip = createTooltip(containerRef.current);
+
+        // Draw dots
         g.selectAll('.microchart-dot')
             .data(events)
             .enter()
@@ -202,42 +186,34 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
                     .style('left', (event.layerX - 10) + 'px')
                     .style('top', (event.layerY - 50) + 'px');
 
-                // Highlight the dot - only add black stroke, don't change size
                 d3.select(this)
                     .transition()
                     .duration(100)
-                    .style('stroke', '#000')
+                    .style('stroke', '#000');
             })
-            .on('mouseout', function(event, d) {
+            .on('mouseout', function() {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
                 
-                // Reset the dot - remove stroke, keep original size
                 d3.select(this)
                     .transition()
                     .duration(100)
-                    .style('stroke', '#fff')
+                    .style('stroke', '#fff');
             });
 
-        // Cleanup function to remove tooltip when component unmounts or re-renders
         return () => {
             d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
         };
-    }, [data, selection]);
+    }, [data, selection, getDimensions, processEraData, createEvents, createLines, createTooltip]);
 
-    // Set up ResizeObserver to watch for container size changes
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const resizeObserver = new ResizeObserver(() => {
-            renderChart();
-        });
-
+        const resizeObserver = new ResizeObserver(() => renderChart());
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
 
-        // Initial render
         renderChart();
 
         return () => {
@@ -247,7 +223,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         };
     }, [renderChart]);
 
-    // Handle indicator positioning based on scroll info
     useEffect(() => {
         if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange) return;
 
@@ -257,30 +232,25 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
         let indicatorY;
 
         if (scrollPercentage === 1) {
-            // Fully scrolled to bottom or no scrolling available - position at last event
-            const lastEvent = events[events.length - 1];
-            indicatorY = lastEvent.y;
+            indicatorY = events[events.length - 1].y;
         } else {
-            // Find the event that corresponds to the top visible year
-            // Find the closest event to the top visible year
-            let closestEvent = events[0];
+            let closest = events[0];
             let minDistance = Math.abs(events[0].startDate - topVisibleYear);
 
             for (let i = 1; i < events.length; i++) {
                 const distance = Math.abs(events[i].startDate - topVisibleYear);
                 if (distance < minDistance) {
                     minDistance = distance;
-                    closestEvent = events[i];
+                    closest = events[i];
                 }
             }
 
-            indicatorY = closestEvent.y;
+            indicatorY = closest.y;
         }
 
         onIndicatorChange(indicatorY);
     }, [scrollInfo, onIndicatorChange]);
 
-    // Add wheel event handler
     const handleWheel = useCallback((event) => {
         if (onScroll) {
             event.preventDefault();
@@ -289,7 +259,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo, onScroll }
     }, [onScroll]);
 
     return (
-        <div ref={containerRef} style={{width: '100%', height: '100%', borderLeft: '1px solid #ccc', position: 'relative'}} onWheel={handleWheel}>
+        <div 
+            ref={containerRef} 
+            style={{width: '100%', height: '100%', borderLeft: '1px solid #ccc', position: 'relative'}} 
+            onWheel={handleWheel}
+        >
             <svg ref={svgRef}></svg>
         </div>
     );
