@@ -472,7 +472,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
         }
         
         onIndicatorChange(indicatorY);
-    }, [scrollInfo, onIndicatorChange, data]);
+    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, data, onIndicatorChange]);
 
     return (
         <div ref={containerRef} className="macrochart-root">

@@ -433,7 +433,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         }
 
         onIndicatorChange(indicatorY);
-    }, [scrollInfo, onIndicatorChange, currentViewRange]);
+    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, onIndicatorChange, currentViewRange]);
 
     return (
         <div ref={containerRef} className="microchart-root">
