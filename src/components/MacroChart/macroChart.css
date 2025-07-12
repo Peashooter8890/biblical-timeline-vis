@@ -30,8 +30,8 @@
     outline: none !important;
     box-shadow: none !important;
     position: absolute;
-    background: rgba(119, 119, 119, 0.3);
-    border: 3px solid #000;
+    background: rgba(119, 119, 119, 0.5);
+    border: 1px solid #000;
     border-radius: 8px;
     pointer-events: auto;
     z-index: 20;

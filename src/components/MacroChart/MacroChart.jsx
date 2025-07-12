@@ -17,7 +17,7 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/3;
 
-const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, onScroll, externalSelection }) => {
+const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
