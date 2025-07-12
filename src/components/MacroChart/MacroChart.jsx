@@ -17,6 +17,12 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/2;
 
+// Helper function to format years for display
+const formatYear = (year) => {
+    if (year === 0) return 'BC|AD';
+    return year < 0 ? `${Math.abs(year) + 1} BC` : `${year} AD`;
+};
+
 const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSelection }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
@@ -264,7 +270,6 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     const createOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
         const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
         const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
-        // Center the handle on the selection overlay
         const overlayWidth = dimensions.width;
         const handleLeft = (overlayWidth - handleWidth) / 2;
 
@@ -304,20 +309,48 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('bottom', `-${HANDLE_OFFSET}px`)
             .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, false));
 
-        return { overlay, topHandle, bottomHandle };
+        // Create text elements for the handles - only dynamic positioning inline
+        const topHandleText = d3.select(container)
+            .select('.top-handle-text')
+            .style('width', `${handleWidth}px`)
+            .style('left', `${handleLeft}px`)
+            .style('line-height', `${HANDLE_HEIGHT}px`);
+
+        const bottomHandleText = d3.select(container)
+            .select('.bottom-handle-text')
+            .style('width', `${handleWidth}px`)
+            .style('left', `${handleLeft}px`)
+            .style('line-height', `${HANDLE_HEIGHT}px`);
+
+        return { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText };
     }, [createDragHandler, createHandleMouseDown]);
 
     const updateOverlayPositions = useCallback((elements, dimensions, y0, y1) => {
-        const { overlay, topHandle, bottomHandle } = elements;
+        const { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText } = elements;
         
         overlay
             .style('top', `${y0}px`)
             .style('height', `${y1 - y0}px`)
             .style('width', `${dimensions.width}px`);
         
-        // Center the handles on the overlay edges
+        // Update handle positions
         topHandle.style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`);
         bottomHandle.style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`);
+        
+        // Update text positions and content
+        if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
+            const { pixelToYear } = scaleInfoRef.current;
+            const topYear = pixelToYear(y0);
+            const bottomYear = pixelToYear(y1);
+            
+            topHandleText
+                .style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`)
+                .text(formatYear(Math.round(topYear)));
+            
+            bottomHandleText
+                .style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`)
+                .text(formatYear(Math.round(bottomYear)));
+        }
     }, []);
 
     const render = useCallback(() => {
@@ -483,6 +516,8 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             <div className="selection-overlay"></div>
             <div className="top-handle"></div>
             <div className="bottom-handle"></div>
+            <div className="top-handle-text"></div>
+            <div className="bottom-handle-text"></div>
         </div>
     );
 };
