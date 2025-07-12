@@ -12,17 +12,3 @@ export const TIME_RANGES = [
 
 export const EQUAL_DISTRIBUTION_AREA = 0.5;
 export const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
-
-export const SPECIAL_RULES = {
-    // Make -430 to -15 exactly 5% of total area (there are no events in this range)
-    fixedPercentage: {
-        start: -430,
-        end: -15,
-        percentage: 0.05
-    },
-    // Redistribute the lost area to -15 to 60 (extremely many events in this range)
-    redistributeTo: {
-        start: -15,
-        end: 60
-    }
-};
