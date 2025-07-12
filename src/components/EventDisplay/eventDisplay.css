@@ -1,12 +1,13 @@
 .event-display-container {
     flex-grow: 1;
-    padding: 10px 20px;
+    padding: 0 20px 10px 20px;
     overflow-y: auto;
     box-sizing: border-box;
     background-color: #e8e8e8;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
+
 .event-display-container::-webkit-scrollbar {
     display: none;
 }
@@ -14,7 +15,7 @@
 .event-year-header {
     position: -webkit-sticky;
     position: sticky;
-    top: -10px;
+    top: 0;
     z-index: 1;
     background-color: #e8e8e8;
     margin: 0;
