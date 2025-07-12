@@ -73,7 +73,7 @@ const App = () => {
         <div className="page-container">
             <div className="content-wrapper">
                 <header className="header">
-                    <h1><i>Timeline of the Bible</i></h1>
+                    <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
                     <div className="header-controls">
                         <div className="order-1">
                             <form>

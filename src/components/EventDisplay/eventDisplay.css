@@ -34,6 +34,7 @@
     margin-bottom: 5px;
     display: flex;
     align-items: center;
+    color: black;
 }
 
 .event-item::before {
