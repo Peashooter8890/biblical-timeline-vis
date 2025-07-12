@@ -2,32 +2,27 @@
     flex-grow: 1;
     padding: 10px 20px;
     overflow-y: auto;
-    /* Remove height: 100% to allow it to be sized by its flex parent */
     box-sizing: border-box;
-    background-color: #e8e8e8; /* Changed to slightly darker gray */
-    /* Hide scrollbars */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    background-color: #e8e8e8;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-
 .event-display-container::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
+    display: none;
 }
 
-.event-group {
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    /* Remove border-bottom from here */
-}
-
-.event-group h3 {
-    margin: 0 0 10px 0;
+.event-year-header {
+    position: -webkit-sticky;
+    position: sticky;
+    top: -10px;
+    z-index: 1;
+    background-color: #e8e8e8;
+    margin: 0;
+    padding: 10px 0 5px 0;
     font-size: 1.1em;
     color: #000;
     font-weight: 600;
-    /* Add border below the year heading */
     border-bottom: 1px solid black;
-    padding-bottom: 5px;
 }
 
 .event-item {
@@ -35,6 +30,10 @@
     display: flex;
     align-items: center;
     color: black;
+}
+
+.event-item:last-of-type {
+    margin-bottom: 20px;
 }
 
 .event-item::before {

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback, useEffect } from 'react';
+import React, { Fragment, useRef, useMemo, useCallback, useEffect } from 'react';
 import { formatYear } from '../../utils/utils.js';
 import './eventDisplay.css';
 
@@ -6,12 +6,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
     const previousSelectionRef = useRef(null);
-    const eventTopPadding = 10;
 
     const groupedEvents = useMemo(() => {
         if (!data.length) return [];
         
-        // Always show ALL events, no filtering by selection
         const groups = {};
         
         data.forEach(event => {
@@ -26,15 +24,13 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 year: Number(key),
                 events: groups[key]
             }));
-    }, [data]); // Removed selection dependency
+    }, [data]);
 
-    // Jump to selection range when selection changes
     useEffect(() => {
         if (!selection || !ref.current || !groupedEvents.length) return;
         
         const [startYear, endYear] = selection;
         
-        // Check if selection actually changed
         if (previousSelectionRef.current) {
             const [prevStart, prevEnd] = previousSelectionRef.current;
             if (prevStart === startYear && prevEnd === endYear) return;
@@ -42,12 +38,12 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         
         previousSelectionRef.current = selection;
         
-        // Find the first event group that is >= startYear
         const targetGroup = groupedEvents.find(group => group.year >= startYear);
         
         if (targetGroup) {
             const container = ref.current;
-            const elements = container.querySelectorAll('.event-group');
+            const elements = container.querySelectorAll('.event-year-header'); 
+            
             for (let i = 0; i < elements.length; i++) {
                 const element = elements[i];
                 const groupYear = groupedEvents[i].year;
@@ -56,32 +52,38 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                     const containerRect = container.getBoundingClientRect();
                     const elementRect = element.getBoundingClientRect();
                     const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
-                    container.scrollTop = relativeTop - eventTopPadding;
+                    container.scrollTop = relativeTop;
                     break;
                 }
             }
         }
     }, [selection, groupedEvents, ref]);
 
-    const calculateYearAtPosition = useCallback((scrollTop, elements) => {
-        if (!elements.length) return groupedEvents[0]?.year || 0;
+    const calculateYearAtPosition = useCallback((scrollTop, headers, scrollHeight) => {
+        if (!headers.length) return groupedEvents[0]?.year || 0;
 
-        // Find the first element that extends past the scroll position
-        for (let i = 0; i < elements.length; i++) {
-            const element = elements[i];
-            const elementBottom = element.offsetTop + element.offsetHeight;
-            
-            if (elementBottom > scrollTop) {
+        // Find which year's "section" the scrollTop is in
+        for (let i = 0; i < headers.length; i++) {
+            const currentHeader = headers[i];
+            const nextHeader = headers[i + 1];
+
+            const sectionTop = currentHeader.offsetTop;
+            // The bottom of the section is the top of the next header, or the total scroll height for the last one
+            const sectionBottom = nextHeader ? nextHeader.offsetTop : scrollHeight;
+
+            if (scrollTop >= sectionTop && scrollTop < sectionBottom) {
                 const currentYear = groupedEvents[i].year;
                 const nextYear = groupedEvents[i + 1]?.year;
-                
-                // If no next year or element height is 0, return current year
-                if (!nextYear || element.offsetHeight === 0) return currentYear;
-                
-                // Calculate how far we've scrolled into this element
-                const scrollIntoElement = Math.max(0, scrollTop - element.offsetTop);
-                const progress = Math.min(1, scrollIntoElement / element.offsetHeight);
-                
+
+                if (!nextYear) return currentYear; // We are in the last section
+
+                const sectionHeight = sectionBottom - sectionTop;
+                if (sectionHeight === 0) return currentYear;
+
+                // Calculate how far we've scrolled into this section
+                const scrollIntoSection = scrollTop - sectionTop;
+                const progress = Math.min(1, scrollIntoSection / sectionHeight);
+
                 // Interpolate between current and next year
                 return currentYear + (progress * (nextYear - currentYear));
             }
@@ -95,16 +97,16 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 
         const container = ref.current;
         const { scrollTop, scrollHeight, clientHeight } = container;
-        const elements = container.querySelectorAll('.event-group');
         
-        if (!elements.length) return;
+        const headers = container.querySelectorAll('.event-year-header');
+        
+        if (!headers.length) return;
 
-        // Calculate scroll percentage
         const maxScroll = scrollHeight - clientHeight;
         const scrollPercentage = maxScroll > 0 ? 
             Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
 
-        const topVisibleYear = calculateYearAtPosition(scrollTop, elements);
+        const topVisibleYear = calculateYearAtPosition(scrollTop, headers, scrollHeight);
         
         onScrollInfoChange({
             topVisibleYear,
@@ -121,20 +123,23 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         return <div className="event-display-container">Loading events...</div>;
     }
 
+    // JSX remains the same as the previous step (using Fragment)
     return (
         <div className="event-display-container" ref={ref} onScroll={handleScroll}>
             {groupedEvents.length === 0 ? (
                 <p>No events to display.</p>
             ) : (
                 groupedEvents.map(group => (
-                    <div className="event-group" key={group.year}>
-                        <h3>{formatYear(group.year)}</h3>
+                    <Fragment key={group.year}>
+                        <h3 className="event-year-header">
+                            {formatYear(group.year)}
+                        </h3>
                         {group.events.map(event => (
                             <div className="event-item" key={event.fields.title}>
                                 {event.fields.title}
                             </div>
                         ))}
-                    </div>
+                    </Fragment>
                 ))
             )}
         </div>
