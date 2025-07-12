@@ -65,4 +65,5 @@
     background: #000;
     pointer-events: auto;
     cursor: ns-resize;
+    z-index: 21;
 }
