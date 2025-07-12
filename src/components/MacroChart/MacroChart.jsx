@@ -12,10 +12,10 @@ const LABEL_MARGIN = 15;
 const LABEL_LINE_LENGTH = 10;
 const COLOR_BAR_WIDTH_RATIO = 1/6;
 const MIN_SELECTION_HEIGHT = 45;
-const HANDLE_HEIGHT = 8;
+const HANDLE_HEIGHT = 14;
 const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
-const HANDLE_WIDTH_RATIO = 1/3;
+const HANDLE_WIDTH_RATIO = 1/2;
 
 const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSelection }) => {
     const svgRef = useRef(null);
@@ -264,7 +264,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     const createOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
         const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
         const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
-        const handleLeft = dimensions.width * HANDLE_WIDTH_RATIO;
+        // Center the handle on the selection overlay
+        const overlayWidth = dimensions.width;
+        const handleLeft = (overlayWidth - handleWidth) / 2;
 
         const overlay = d3.select(container)
             .select('.selection-overlay')
@@ -313,8 +315,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('height', `${y1 - y0}px`)
             .style('width', `${dimensions.width}px`);
         
-        topHandle.style('top', `${y0 - HANDLE_OFFSET}px`);
-        bottomHandle.style('top', `${y1 - HANDLE_OFFSET}px`);
+        // Center the handles on the overlay edges
+        topHandle.style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`);
+        bottomHandle.style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`);
     }, []);
 
     const render = useCallback(() => {
