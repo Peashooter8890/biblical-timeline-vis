@@ -12,3 +12,4 @@ export const TIME_RANGES = [
 
 export const EQUAL_DISTRIBUTION_AREA = 0.5;
 export const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
+export const EVENTS_BOUND = [-4003, 57];

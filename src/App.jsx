@@ -3,15 +3,16 @@ import MacroChart from './components/MacroChart/MacroChart.jsx';
 import Microchart from './components/MicroChart/MicroChart.jsx';
 import EventDisplay from './components/EventDisplay/EventDisplay.jsx';
 import { calculateColumns } from './utils/utils.js';
+import { EVENTS_BOUND } from './utils/constants.js';
 import './app.css'
 
 const TIME_PERIODS = {
     'all': [-4100, 150],
-    'period1': [-4003, -3001],
-    'period2': [-3000, -2001], 
-    'period3': [-2000, -1001],
-    'period4': [-1000, 0],
-    'period5': [0, 57]
+    'period1': [-4100, -3000],
+    'period2': [-2999, -2000], 
+    'period3': [-1999, -1000],
+    'period4': [-999, 0],
+    'period5': [1, 150]
 };
 
 const App = () => {
@@ -20,8 +21,8 @@ const App = () => {
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
     const [scrollInfo, setScrollInfo] = useState({ 
-        topVisibleYear: -4003, 
-        selectionRange: [-4003, 57] 
+        topVisibleYear: EVENTS_BOUND[0], 
+        selectionRange: EVENTS_BOUND
     });
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const eventDisplayRef = useRef(null);
@@ -61,11 +62,11 @@ const App = () => {
 
     const periods = [
         { value: 'all', label: 'ALL' },
-        { value: 'period1', label: '4003 BC - 3001 BC' },
+        { value: 'period1', label: '4101 BC - 3001 BC' },
         { value: 'period2', label: '3000 BC - 2001 BC' },
         { value: 'period3', label: '2000 BC - 1001 BC' },
-        { value: 'period4', label: '1000 BC - 0' },
-        { value: 'period5', label: '0 - 57 AD' }
+        { value: 'period4', label: '1000 BC - 1 BC' },
+        { value: 'period5', label: '1 AD - 150 AD' }
     ];
 
     return (
