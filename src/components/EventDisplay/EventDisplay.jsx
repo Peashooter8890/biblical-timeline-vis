@@ -6,6 +6,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
     const previousSelectionRef = useRef(null);
+    const eventTopPadding = 10;
 
     const groupedEvents = useMemo(() => {
         if (!data.length) return [];
@@ -47,15 +48,15 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         if (targetGroup) {
             const container = ref.current;
             const elements = container.querySelectorAll('.event-group');
-            
-            // Find the corresponding DOM element
             for (let i = 0; i < elements.length; i++) {
                 const element = elements[i];
                 const groupYear = groupedEvents[i].year;
                 
                 if (groupYear === targetGroup.year) {
-                    // Scroll to this element
-                    container.scrollTop = element.offsetTop;
+                    const containerRect = container.getBoundingClientRect();
+                    const elementRect = element.getBoundingClientRect();
+                    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+                    container.scrollTop = relativeTop - eventTopPadding;
                     break;
                 }
             }
