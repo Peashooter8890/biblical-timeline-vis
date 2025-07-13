@@ -40,13 +40,12 @@ function csvToJson(csvFilePath, outputPath = 'events.json') {
             }
         }
         
-        // Transform data to required format without calculating columns
+        // Transform data to required format keeping all fields
         const jsonData = rawData.map(row => {
             const fields = {};
             
-            // Only include specified fields
-            const includedFields = ['title', 'startDate', 'duration', 'column', 'sortKey'];
-            includedFields.forEach(field => {
+            // Include all fields from the CSV
+            Object.keys(row).forEach(field => {
                 if (row[field] !== undefined) {
                     fields[field] = row[field];
                 }
@@ -60,13 +59,6 @@ function csvToJson(csvFilePath, outputPath = 'events.json') {
         fs.writeFileSync(outputPath, jsonString, 'utf8');
         
         console.log(`✅ Successfully converted CSV to JSON!`);
-        console.log(`📁 Input: ${csvFilePath}`);
-        console.log(`📁 Output: ${outputPath}`);
-        console.log(`📊 Total records: ${jsonData.length}`);
-        
-        // Also output to console
-        console.log('\n📋 JSON Output:');
-        console.log(jsonString);
         
         return jsonData;
         
