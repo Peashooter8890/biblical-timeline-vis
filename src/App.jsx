@@ -229,6 +229,7 @@ const App = () => {
         
         const newRange = TIME_PERIODS[period];
         
+        // Set selection state (this will cause MacroChart to re-render with new default)
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
         
@@ -320,11 +321,11 @@ const App = () => {
                                 onBrush={handleBrush}
                                 onIndicatorChange={handleIndicatorChange}
                                 scrollInfo={scrollInfo}
-                                externalSelection={selection} />
+                            />
                            <div className="position-indicator" style={macroIndicatorStyle}></div>
                         </div>
                         <div className="microchart-container">
-                            <Microchart 
+                            <Microchart
                                 data={events} 
                                 selection={selection}
                                 onIndicatorChange={handleMicrochartIndicatorChange}
