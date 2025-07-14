@@ -26,25 +26,46 @@ const PERIODS = [
 
 const parseUrlParams = () => {
     const params = new URLSearchParams(window.location.search);
-    const startYear = params.get('startYear');
-    const endYear = params.get('endYear');
+    const startYearParam = params.get('startYear');
+    const endYearParam = params.get('endYear');
     
-    if (!startYear || !endYear) {
+    // If neither parameter is provided, return null (use default behavior)
+    if (!startYearParam && !endYearParam) {
         return null;
     }
     
-    const start = Math.round(parseFloat(startYear));
-    const end = Math.round(parseFloat(endYear));
+    const minYear = TIME_PERIODS.all[0]; // -4100
+    const maxYear = TIME_PERIODS.all[1]; // 150
     
-    if (isNaN(start) || isNaN(end) || start >= end) {
+    // Parse provided parameters or use defaults
+    let startYear, endYear;
+    
+    if (startYearParam) {
+        startYear = Math.round(parseFloat(startYearParam));
+        if (isNaN(startYear)) {
+            return null;
+        }
+    } else {
+        startYear = minYear; // Default to minimum if not provided
+    }
+    
+    if (endYearParam) {
+        endYear = Math.round(parseFloat(endYearParam));
+        if (isNaN(endYear)) {
+            return null;
+        }
+    } else {
+        endYear = maxYear; // Default to maximum if not provided
+    }
+    
+    // Validate range
+    if (startYear >= endYear) {
         return null;
     }
     
-    const minYear = TIME_PERIODS.all[0];
-    const maxYear = TIME_PERIODS.all[1];
-    
-    const clampedStart = Math.max(minYear, Math.min(maxYear, start));
-    const clampedEnd = Math.max(minYear, Math.min(maxYear, end));
+    // Clamp to bounds
+    const clampedStart = Math.max(minYear, Math.min(maxYear, startYear));
+    const clampedEnd = Math.max(minYear, Math.min(maxYear, endYear));
     
     if (clampedStart >= clampedEnd) {
         return null;
