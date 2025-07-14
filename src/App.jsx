@@ -6,7 +6,6 @@ import { calculateColumns } from './utils/utils.js';
 import { EVENTS_BOUND } from './utils/constants.js';
 import './app.css'
 
-// Move TIME_PERIODS outside component to prevent recreation
 const TIME_PERIODS = {
     'all': [-4100, 150],
     'period1': [-4100, -3000],
@@ -16,7 +15,6 @@ const TIME_PERIODS = {
     'period5': [1, 150]
 };
 
-// Move periods array outside component to prevent recreation
 const PERIODS = [
     { value: 'all', label: 'ALL' },
     { value: 'period1', label: '4101 BC - 3001 BC' },
@@ -26,95 +24,97 @@ const PERIODS = [
     { value: 'period5', label: '1 AD - 150 AD' }
 ];
 
+const parseUrlParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    const startYear = params.get('startYear');
+    const endYear = params.get('endYear');
+    
+    if (!startYear || !endYear) {
+        return null;
+    }
+    
+    const start = Math.round(parseFloat(startYear));
+    const end = Math.round(parseFloat(endYear));
+    
+    if (isNaN(start) || isNaN(end) || start >= end) {
+        return null;
+    }
+    
+    const minYear = TIME_PERIODS.all[0];
+    const maxYear = TIME_PERIODS.all[1];
+    
+    const clampedStart = Math.max(minYear, Math.min(maxYear, start));
+    const clampedEnd = Math.max(minYear, Math.min(maxYear, end));
+    
+    if (clampedStart >= clampedEnd) {
+        return null;
+    }
+    
+    return [clampedStart, clampedEnd];
+};
+
+const findMatchingPeriod = (range) => {
+    const entry = Object.entries(TIME_PERIODS).find(([key, periodRange]) => {
+        return periodRange[0] === range[0] && periodRange[1] === range[1];
+    });
+    return entry ? entry[0] : null;
+};
+
+const updateUrl = (range) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('startYear', range[0].toString());
+    url.searchParams.set('endYear', range[1].toString());
+    window.history.replaceState({}, '', url);
+};
+
 const App = () => {
     const [events, setEvents] = useState([]);
-    const [selection, setSelection] = useState([-4100, 150]);
+    const [selection, setSelection] = useState(TIME_PERIODS.all);
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
     const [scrollInfo, setScrollInfo] = useState({ 
         topVisibleYear: EVENTS_BOUND[0], 
-        selectionRange: EVENTS_BOUND
+        selectionRange: TIME_PERIODS.all
     });
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const eventDisplayRef = useRef(null);
+    const isInitialLoad = useRef(true);
 
-    // Memoize URL parameter functions
-    const getUrlParams = useCallback(() => {
-        const params = new URLSearchParams(window.location.search);
-        return {
-            startYear: params.get('startYear'),
-            endYear: params.get('endYear')
-        };
-    }, []);
-    
-    const updateUrl = useCallback((range) => {
-        const url = new URL(window.location.href);
+    useEffect(() => {
+        const urlRange = parseUrlParams();
         
-        url.searchParams.set('startYear', range[0].toString());
-        url.searchParams.set('endYear', range[1].toString());
-
-        window.history.replaceState({}, '', url);
-    }, []);
-
-    // Memoize the initial range calculation
-    const getInitialRangeFromUrl = useCallback(() => {
-        const { startYear, endYear } = getUrlParams();
-        
-        if (startYear && endYear) {
-            let start = Math.round(parseFloat(startYear));
-            let end = Math.round(parseFloat(endYear));
+        if (urlRange) {
+            const matchingPeriod = findMatchingPeriod(urlRange);
             
-            if (!isNaN(start) && !isNaN(end) && start < end) {
-                const minYear = TIME_PERIODS.all[0]; 
-                const maxYear = TIME_PERIODS.all[1]; 
-                
-                start = Math.max(minYear, Math.min(maxYear, start));
-                end = Math.max(minYear, Math.min(maxYear, end));
-                
-                if (start >= end) {
-                    end = Math.min(maxYear, start + 1);
-                }
-                
-                const exactMatch = Object.entries(TIME_PERIODS).find(([key, range]) => {
-                    return range[0] === start && range[1] === end;
-                });
-                
-                return {
-                    period: exactMatch ? exactMatch[0] : null,
-                    range: [start, end],
-                    isCustom: !exactMatch
-                };
+            setSelection(urlRange);
+            setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
+            
+            if (matchingPeriod) {
+                setSelectedPeriod(matchingPeriod);
+                setIsCustomRange(false);
+            } else {
+                setSelectedPeriod(null);
+                setIsCustomRange(true);
             }
+        } else {
+            const defaultRange = TIME_PERIODS.all;
+            
+            setSelection(defaultRange);
+            setScrollInfo(prev => ({ ...prev, selectionRange: defaultRange }));
+            setSelectedPeriod('all');
+            setIsCustomRange(false);
+            updateUrl(defaultRange);
         }
         
-        return {
-            period: 'all',
-            range: TIME_PERIODS.all,
-            isCustom: false
-        };
-    }, [getUrlParams]);
-
-    // Initialize from URL parameters
-    useEffect(() => {
-        const { period, range, isCustom } = getInitialRangeFromUrl();
-        
-        setSelectedPeriod(period);
-        setSelection(range);
-        setIsCustomRange(isCustom);
-        setScrollInfo(prev => ({ ...prev, selectionRange: range }));
         setIsInitialized(true);
         
-        // Use setTimeout to avoid race conditions with URL updates
-        const timeoutId = setTimeout(() => {
-            updateUrl(range);
-        }, 0);
+        setTimeout(() => {
+            isInitialLoad.current = false;
+        }, 100);
+    }, []);
 
-        return () => clearTimeout(timeoutId);
-    }, [getInitialRangeFromUrl, updateUrl]);
-
-    // Load events data
     useEffect(() => {
         let isMounted = true;
 
@@ -138,8 +138,11 @@ const App = () => {
         };
     }, []);
 
-    // Memoize brush handler to prevent recreation
     const handleBrush = useCallback((domain) => {
+        if (isInitialLoad.current) {
+            return;
+        }
+        
         const roundedDomain = [Math.round(domain[0]), Math.round(domain[1])];
         
         const minYear = TIME_PERIODS.all[0]; 
@@ -157,12 +160,10 @@ const App = () => {
         setSelection(boundedDomain);
         setScrollInfo(prev => ({ ...prev, selectionRange: boundedDomain }));
         
-        const exactMatch = Object.entries(TIME_PERIODS).find(([key, range]) => {
-            return range[0] === boundedDomain[0] && range[1] === boundedDomain[1];
-        });
+        const matchingPeriod = findMatchingPeriod(boundedDomain);
         
-        if (exactMatch) {
-            setSelectedPeriod(exactMatch[0]);
+        if (matchingPeriod) {
+            setSelectedPeriod(matchingPeriod);
             setIsCustomRange(false);
         } else {
             setSelectedPeriod(null); 
@@ -170,11 +171,14 @@ const App = () => {
         }
         
         updateUrl(boundedDomain);
-    }, [updateUrl]);
+    }, []);
 
-    // Memoize period change handler
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
+        
+        if (isInitialLoad.current) {
+            return;
+        }
         
         if (!TIME_PERIODS[period]) {
             return;
@@ -184,13 +188,13 @@ const App = () => {
         setIsCustomRange(false);
         
         const newRange = TIME_PERIODS[period];
+        
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
         
         updateUrl(newRange);
-    }, [updateUrl]);
+    }, []);
 
-    // Memoize indicator change handlers
     const handleIndicatorChange = useCallback((y) => {
         setIndicatorY(y);
     }, []);
@@ -199,21 +203,32 @@ const App = () => {
         setMicrochartIndicatorY(y);
     }, []);
 
-    // Handle browser back/forward navigation
     useEffect(() => {
         const handlePopState = () => {
-            const { period, range, isCustom } = getInitialRangeFromUrl();
-            setSelectedPeriod(period);
-            setSelection(range);
-            setIsCustomRange(isCustom);
-            setScrollInfo(prev => ({ ...prev, selectionRange: range }));
+            const urlRange = parseUrlParams();
+            
+            if (urlRange) {
+                const matchingPeriod = findMatchingPeriod(urlRange);
+                
+                setSelection(urlRange);
+                setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
+                
+                if (matchingPeriod) {
+                    setSelectedPeriod(matchingPeriod);
+                    setIsCustomRange(false);
+                } else {
+                    setSelectedPeriod(null);
+                    setIsCustomRange(true);
+                }
+            }
         };
 
         window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [getInitialRangeFromUrl]);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
 
-    // Memoize indicator styles to prevent object recreation
     const microchartIndicatorStyle = useMemo(() => ({
         top: `${microchartIndicatorY}px`,
         opacity: microchartIndicatorY !== null ? 1 : 0,
@@ -224,7 +239,6 @@ const App = () => {
         top: `${indicatorY}px`
     }), [indicatorY]);
 
-    // Show loading state
     if (!isInitialized) {
         return <div className="page-container">Loading...</div>;
     }
