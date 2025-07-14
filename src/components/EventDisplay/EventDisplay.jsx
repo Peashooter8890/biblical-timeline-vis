@@ -59,58 +59,56 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         return duration;
     }, []);
 
-    // Memoize formatting functions to prevent recreation on every render
-    const formatParticipants = useMemo(() => 
-        (participants) => {
-            if (!participants || !peopleData.length) return participants;
+    // Move formatParticipants and formatLocations to useCallback to prevent recreation
+    const formatParticipants = useCallback((participants) => {
+        if (!participants || !peopleData.length) return participants;
+        
+        const participantIds = participants.split(',').map(id => id.trim());
+        
+        return participantIds.map((id, index) => {
+            const person = peopleData.find(p => p.fields.personLookup === id);
+            const displayName = person ? person.fields.displayTitle : id;
             
-            const participantIds = participants.split(',').map(id => id.trim());
-            
-            return participantIds.map((id, index) => {
-                const person = peopleData.find(p => p.fields.personLookup === id);
-                const displayName = person ? person.fields.displayTitle : id;
-                
-                return (
-                    <span key={index}>
-                        <a 
-                            href={`https://theographic.netlify.app/person/${id}`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="event-link"
-                        >
-                            {displayName}
-                        </a>
-                        {index < participantIds.length - 1 ? ', ' : ''}
-                    </span>
-                );
-            });
-        }, [peopleData]);
+            return (
+                <span key={index}>
+                    <a 
+                        href={`https://theographic.netlify.app/person/${id}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="event-link"
+                    >
+                        {displayName}
+                    </a>
+                    {index < participantIds.length - 1 ? ', ' : ''}
+                </span>
+            );
+        });
+    }, [peopleData]);
 
-    const formatLocations = useMemo(() => 
-        (locations) => {
-            if (!locations || !placesData.length) return locations;
+    const formatLocations = useCallback((locations) => {
+        if (!locations || !placesData.length) return locations;
+        
+        const locationIds = locations.split(',').map(id => id.trim());
+        
+        return locationIds.map((id, index) => {
+            const place = placesData.find(p => p.fields.placeLookup === id);
+            const displayName = place ? place.fields.displayTitle : id;
             
-            const locationIds = locations.split(',').map(id => id.trim());
-            
-            return locationIds.map((id, index) => {
-                const place = placesData.find(p => p.fields.placeLookup === id);
-                const displayName = place ? place.fields.displayTitle : id;
-                
-                return (
-                    <span key={index}>
-                        <a 
-                            href={`https://theographic.netlify.app/place/${id}`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="event-link"
-                        >
-                            {displayName}
-                        </a>
-                        {index < locationIds.length - 1 ? ', ' : ''}
-                    </span>
-                );
-            });
-        }, [placesData]);
+            return (
+                <span key={index}>
+                    <a 
+                        href={`https://theographic.netlify.app/place/${id}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="event-link"
+                    >
+                        {displayName}
+                    </a>
+                    {index < locationIds.length - 1 ? ', ' : ''}
+                </span>
+            );
+        });
+    }, [placesData]);
 
     const formatVerses = useCallback((verses) => {
         if (!verses) return verses;
@@ -234,7 +232,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 selectionRange: selection
             };
 
-            // FIXED: Only update if values have actually changed
+            // Only update if values have actually changed
             const prev = previousScrollInfoRef.current;
             if (!prev || 
                 prev.topVisibleYear !== newScrollInfo.topVisibleYear ||
@@ -242,7 +240,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 prev.isAtBottom !== newScrollInfo.isAtBottom ||
                 prev.selectionRange[0] !== newScrollInfo.selectionRange[0] ||
                 prev.selectionRange[1] !== newScrollInfo.selectionRange[1]) {
-                
+            
                 previousScrollInfoRef.current = newScrollInfo;
                 onScrollInfoChange(newScrollInfo);
             }
@@ -314,7 +312,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             
             return () => clearTimeout(timeoutId);
         }
-    }, [groupedEvents.length > 0, selection, handleScroll]);
+    }, [groupedEvents.length, selection]); // Remove handleScroll from dependencies
 
     if (!data.length) {
         return <div className="event-display-container">Loading events...</div>;
