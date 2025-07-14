@@ -370,7 +370,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .attr('width', dimensions.width)
             .attr('height', dimensions.height)
             .style('overflow', 'visible');
-        
+
         svg.selectAll('*').remove();
 
         const colorBarLayout = createColorBars(svg, dimensions, layout);
@@ -378,16 +378,16 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
 
         const brush = createBrush(dimensions, converters);
         const brushGroup = svg.append('g').attr('class', 'brush').call(brush);
-        
+
         brushRef.current = brush;
         brushGroupRef.current = brushGroup;
-        
+
         svg.selectAll('.brush .selection').style('display', 'none');
         svg.selectAll('.brush .overlay').style('pointer-events', 'none');
 
         const currentBounds = brushBoundsRef.current;
         let newY0, newY1;
-        
+
         if (currentBounds[0] === 0 && currentBounds[1] === 0) {
             newY0 = 0;
             newY1 = dimensions.height;
@@ -395,7 +395,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             if (oldScaleInfo && oldScaleInfo.pixelToYear) {
                 const startYear = oldScaleInfo.pixelToYear(currentBounds[0]);
                 const endYear = oldScaleInfo.pixelToYear(currentBounds[1]);
-                
+
                 newY0 = converters.yearToPixel(startYear);
                 newY1 = converters.yearToPixel(endYear);
             } else {
@@ -405,9 +405,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
                 newY1 = currentBounds[1] * ratio;
             }
         }
-        
+
         scaleInfoRef.current = { ...converters, dimensions };
-        
+
         brush.move(brushGroup, [newY0, newY1]);
         brushBoundsRef.current = [newY0, newY1];
 
@@ -420,9 +420,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             if (event.selection) {
                 const [y0, y1] = event.selection;
                 brushBoundsRef.current = [y0, y1];
-                
+
                 updateOverlayPositions(overlayElements, dimensions, y0, y1);
-                
+
                 if (!isExternalUpdateRef.current) {
                     const startYear = converters.pixelToYear(y0);
                     const endYear = converters.pixelToYear(y1);
@@ -430,8 +430,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
                 }
             }
         });
-    }, [calculateDimensions, calculateLayout, createConverters, createColorBars, 
-        createYearMarkers, createBrush, createOverlayElements, updateOverlayPositions, onBrush]);
+    }, [calculateDimensions, calculateLayout, createConverters, createColorBars, createYearMarkers, createBrush, createOverlayElements, updateOverlayPositions, onBrush]);
 
     // Setup resize observer and initial render
     useEffect(() => {
