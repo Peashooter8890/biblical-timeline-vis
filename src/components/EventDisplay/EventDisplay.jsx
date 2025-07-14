@@ -274,8 +274,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     }, []);
 
     useEffect(() => {
-        handleScroll();
-    }, [handleScroll, groupedEvents]);
+        if (groupedEvents.length > 0) {
+            handleScroll();
+        }
+    }, [groupedEvents]);
 
     if (!data.length) {
         return <div className="event-display-container">Loading events...</div>;
