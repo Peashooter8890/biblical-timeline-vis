@@ -18,7 +18,7 @@ export const getRangeInfo = (startDate) => {
 
 export const formatYear = (year) => {
     // Format year as "YYYY BC" or "YYYY AD"
-    if (year < 0) return `${Math.abs(year)} BC`;
+    if (year < 0) return `${Math.abs(year) + 1} BC`;
     if (year > 0) return `${year} AD`;
     return 0;
 };
