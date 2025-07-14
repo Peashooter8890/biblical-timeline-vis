@@ -60,30 +60,100 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         if (!participants || !peopleData.length) return participants;
         
         const participantIds = participants.split(',').map(id => id.trim());
-        const names = participantIds.map(id => {
-            const person = peopleData.find(p => p.fields.personLookup === id);
-            return person ? person.fields.displayTitle : id;
-        });
         
-        return names.join(', ');
+        return participantIds.map((id, index) => {
+            const person = peopleData.find(p => p.fields.personLookup === id);
+            const displayName = person ? person.fields.displayTitle : id;
+            
+            return (
+                <span key={index}>
+                    <a 
+                        href={`https://theographic.netlify.app/person/${id}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ 
+                            color: 'blue',
+                            textDecoration: 'underline',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {displayName}
+                    </a>
+                    {index < participantIds.length - 1 ? ', ' : ''}
+                </span>
+            );
+        });
     }, [peopleData]);
 
     const formatLocations = useCallback((locations) => {
         if (!locations || !placesData.length) return locations;
         
         const locationIds = locations.split(',').map(id => id.trim());
-        const names = locationIds.map(id => {
-            const place = placesData.find(p => p.fields.placeLookup === id);
-            return place ? place.fields.displayTitle : id;
-        });
         
-        return names.join(', ');
+        return locationIds.map((id, index) => {
+            const place = placesData.find(p => p.fields.placeLookup === id);
+            const displayName = place ? place.fields.displayTitle : id;
+            
+            return (
+                <span key={index}>
+                    <a 
+                        href={`https://theographic.netlify.app/place/${id}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ 
+                            color: 'blue',
+                            textDecoration: 'underline',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {displayName}
+                    </a>
+                    {index < locationIds.length - 1 ? ', ' : ''}
+                </span>
+            );
+        });
     }, [placesData]);
 
     const formatVerses = useCallback((verses) => {
         if (!verses) return verses;
         
-        return verses.split(',').map(verse => verse.trim()).join(', ');
+        return verses.split(',').map((verse, index) => {
+            const trimmedVerse = verse.trim();
+            
+            // Check if verse matches the format VAL.x.x where VAL is a string and x are integers
+            const verseMatch = trimmedVerse.match(/^([a-zA-Z]+)\.(\d+)\.(\d+)$/);
+            
+            if (verseMatch) {
+                const [, book, chapter, verseNum] = verseMatch;
+                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
+                
+                return (
+                    <span key={index}>
+                        <a 
+                            href={url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ 
+                                color: 'blue', 
+                                textDecoration: 'underline',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {trimmedVerse}
+                        </a>
+                        {index < verses.split(',').length - 1 ? ', ' : ''}
+                    </span>
+                );
+            }
+            
+            // If it doesn't match the format, return as plain text
+            return (
+                <span key={index}>
+                    {trimmedVerse}
+                    {index < verses.split(',').length - 1 ? ', ' : ''}
+                </span>
+            );
+        });
     }, []);
 
     const groupedEvents = useMemo(() => {
