@@ -10,6 +10,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [peopleData, setPeopleData] = useState([]);
     const [placesData, setPlacesData] = useState([]);
+    const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
     const SWITCH_THRESHOLD = 20;
 
     // Load people data
@@ -223,6 +224,9 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         const topVisibleInfo = findTopVisibleYear(scrollTop, container);
         
         if (topVisibleInfo) {
+            // Update floating header
+            setFloatingHeaderYear(topVisibleInfo.year);
+            
             const newScrollInfo = {
                 topVisibleYear: topVisibleInfo.year,
                 scrollPercentage,
@@ -309,12 +313,22 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 
     return (
         <div className="event-display-container" ref={ref} onScroll={handleScroll}>
+            {floatingHeaderYear && (
+                <div className="floating-header">
+                    {formatYear(floatingHeaderYear)}
+                </div>
+            )}
             {groupedEvents.length === 0 ? (
                 <p>No events to display.</p>
             ) : (
                 groupedEvents.map(group => (
                     <Fragment key={group.year}>
-                        <h3 className="event-year-header">
+                        <h3 
+                            className="event-year-header"
+                            style={{ 
+                                display: floatingHeaderYear === group.year ? 'none' : 'block' 
+                            }}
+                        >
                             {formatYear(group.year)}
                         </h3>
                         {group.events.map(event => {
