@@ -4,7 +4,6 @@ import { TIME_RANGES } from '../../utils/constants.js';
 import './macroChart.css';
 import { EQUAL_DISTRIBUTION_AREA, PROPORTIONATE_DISTRIBUTION_AREA } from '../../utils/constants.js';
 
-// Constants
 const YEAR_LABEL_INTERVAL = 500;
 const YEAR_LABEL_RANGE_START = -4000;
 const YEAR_LABEL_RANGE_END = 0;
@@ -17,7 +16,6 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/2;
 
-// Helper function to format years for display
 const formatYear = (year) => {
     if (year === 0) return 'BC|AD';
     return year < 0 ? `${Math.abs(year) + 1} BC` : `${year} AD`;
@@ -309,7 +307,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('bottom', `-${HANDLE_OFFSET}px`)
             .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, false));
 
-        // Create text elements for the handles - only dynamic positioning inline
+        
         const topHandleText = d3.select(container)
             .select('.top-handle-text')
             .style('width', `${handleWidth}px`)
@@ -333,11 +331,11 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('height', `${y1 - y0}px`)
             .style('width', `${dimensions.width}px`);
         
-        // Update handle positions
+        
         topHandle.style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`);
         bottomHandle.style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`);
         
-        // Update text positions and content
+        
         if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
             const { pixelToYear } = scaleInfoRef.current;
             const topYear = pixelToYear(y0);
@@ -471,10 +469,10 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     useEffect(() => {
         if (!scrollInfo || !scaleInfoRef.current || !data || !data.length || scrollInfo.topVisibleYear === undefined) return;
 
-        const { topVisibleYear, scrollPercentage } = scrollInfo;
+        const { topVisibleYear, isAtBottom } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
         
-        // Use all events in the dataset, not just those in selection range
+        
         const allEvents = data;
 
         if (allEvents.length === 0) {
@@ -484,31 +482,19 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
 
         let indicatorY = null;
 
-        if (scrollPercentage === 1) {
-            // Snap to the last event in the entire dataset
+        if (isAtBottom) {
+            
             const lastEvent = allEvents[allEvents.length - 1];
             indicatorY = yearToPixel(lastEvent.fields.startDate);
+            console.log('At bottom, positioning at last event:', lastEvent.fields.startDate, 'Y:', indicatorY);
         } else {
-            // Find the closest event to topVisibleYear from all events
-            let closest = null;
-            let minDistance = Infinity;
-
-            for (let i = 0; i < allEvents.length; i++) {
-                const event = allEvents[i];
-                const distance = Math.abs(event.fields.startDate - topVisibleYear);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closest = event;
-                }
-            }
-
-            if (closest) {
-                indicatorY = yearToPixel(closest.fields.startDate);
-            }
+            
+            indicatorY = yearToPixel(topVisibleYear);
+            console.log('Positioning indicator at year:', topVisibleYear, 'Y:', indicatorY);
         }
         
         onIndicatorChange(indicatorY);
-    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, data, onIndicatorChange]);
+    }, [scrollInfo?.topVisibleYear, scrollInfo?.isAtBottom, data, onIndicatorChange]);
 
     return (
         <div ref={containerRef} className="macrochart-root">

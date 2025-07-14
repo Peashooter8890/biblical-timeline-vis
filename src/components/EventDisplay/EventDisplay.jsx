@@ -59,37 +59,49 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         }
     }, [selection, groupedEvents, ref]);
 
-    const calculateYearAtPosition = useCallback((scrollTop, headers, scrollHeight) => {
-        if (!headers.length) return groupedEvents[0]?.year || 0;
+    const findTopVisibleYear = useCallback((scrollTop, container) => {
+        if (!groupedEvents.length) return null;
 
-        // Find which year's "section" the scrollTop is in
+        const headers = container.querySelectorAll('.event-year-header');
+        if (!headers.length) return null;
+
+        // Check if we're at the very bottom of the scroll
+        const { scrollHeight, clientHeight } = container;
+        const maxScroll = scrollHeight - clientHeight;
+        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5; // 5px tolerance
+
+        if (atBottom) {
+            // Return the last year when at bottom
+            return {
+                year: groupedEvents[groupedEvents.length - 1].year,
+                isAtBottom: true
+            };
+        }
+
+        // Use getBoundingClientRect to find which header is at the top of the viewport
+        const containerRect = container.getBoundingClientRect();
+        const containerTop = containerRect.top;
+        
+        let activeHeaderIndex = 0;
+        
         for (let i = 0; i < headers.length; i++) {
-            const currentHeader = headers[i];
-            const nextHeader = headers[i + 1];
-
-            const sectionTop = currentHeader.offsetTop;
-            // The bottom of the section is the top of the next header, or the total scroll height for the last one
-            const sectionBottom = nextHeader ? nextHeader.offsetTop : scrollHeight;
-
-            if (scrollTop >= sectionTop && scrollTop < sectionBottom) {
-                const currentYear = groupedEvents[i].year;
-                const nextYear = groupedEvents[i + 1]?.year;
-
-                if (!nextYear) return currentYear; // We are in the last section
-
-                const sectionHeight = sectionBottom - sectionTop;
-                if (sectionHeight === 0) return currentYear;
-
-                // Calculate how far we've scrolled into this section
-                const scrollIntoSection = scrollTop - sectionTop;
-                const progress = Math.min(1, scrollIntoSection / sectionHeight);
-
-                // Interpolate between current and next year
-                return currentYear + (progress * (nextYear - currentYear));
+            const header = headers[i];
+            const headerRect = header.getBoundingClientRect();
+            const headerTop = headerRect.top;
+            
+            if (headerTop <= containerTop + 10) {
+                activeHeaderIndex = i;
+            } else {
+                break;
             }
         }
-        
-        return groupedEvents[groupedEvents.length - 1]?.year || 0;
+
+        console.log('Container top:', containerTop, 'Active header index:', activeHeaderIndex, 'Year:', groupedEvents[activeHeaderIndex].year);
+
+        return {
+            year: groupedEvents[activeHeaderIndex].year,
+            isAtBottom: false
+        };
     }, [groupedEvents]);
 
     const handleScroll = useCallback(() => {
@@ -98,22 +110,22 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         const container = ref.current;
         const { scrollTop, scrollHeight, clientHeight } = container;
         
-        const headers = container.querySelectorAll('.event-year-header');
-        
-        if (!headers.length) return;
-
         const maxScroll = scrollHeight - clientHeight;
         const scrollPercentage = maxScroll > 0 ? 
             Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
 
-        const topVisibleYear = calculateYearAtPosition(scrollTop, headers, scrollHeight);
+        const topVisibleInfo = findTopVisibleYear(scrollTop, container);
         
-        onScrollInfoChange({
-            topVisibleYear,
-            scrollPercentage,
-            selectionRange: selection
-        });
-    }, [groupedEvents, onScrollInfoChange, selection, calculateYearAtPosition, ref]);
+        if (topVisibleInfo) {
+            console.log('Sending scroll info:', topVisibleInfo);
+            onScrollInfoChange({
+                topVisibleYear: topVisibleInfo.year,
+                scrollPercentage,
+                isAtBottom: topVisibleInfo.isAtBottom,
+                selectionRange: selection
+            });
+        }
+    }, [groupedEvents, onScrollInfoChange, selection, findTopVisibleYear, ref]);
 
     useEffect(() => {
         handleScroll();
@@ -123,7 +135,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         return <div className="event-display-container">Loading events...</div>;
     }
 
-    // JSX remains the same as the previous step (using Fragment)
     return (
         <div className="event-display-container" ref={ref} onScroll={handleScroll}>
             {groupedEvents.length === 0 ? (
