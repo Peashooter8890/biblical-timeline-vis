@@ -18,6 +18,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
     const resizeObserverRef = useRef(null);
+    const lastIndicatorYRef = useRef(null); // Add this ref
     const [scrollOffset, setScrollOffset] = useState(0);
     const [currentViewRange, setCurrentViewRange] = useState(selection);
 
@@ -401,16 +402,9 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
         // Only show indicator if the topVisibleYear is within our current view range
         if (topVisibleYear < viewStart || topVisibleYear > viewEnd) {
-            onIndicatorChange(null);
-            return;
-        }
-
-        if (scrollPercentage === 1 && events.length > 0) {
+            indicatorY = null;
+        } else if (scrollPercentage === 1 && events.length > 0) {
             const lastEvent = events[events.length - 1];
-            // Double-check the last event is within view (should be, but being safe)
-            if (lastEvent.startDate >= viewStart && lastEvent.startDate <= viewEnd) {
-                indicatorY = lastEvent.y;
-            }
         } else {
             let closest = null;
             let minDistance = Infinity;
@@ -432,7 +426,11 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
             }
         }
 
-        onIndicatorChange(indicatorY);
+        // Only call onIndicatorChange if the value has actually changed
+        if (indicatorY !== lastIndicatorYRef.current) {
+            lastIndicatorYRef.current = indicatorY;
+            onIndicatorChange(indicatorY);
+        }
     }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, onIndicatorChange, currentViewRange]);
 
     return (
