@@ -71,11 +71,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                         href={`https://theographic.netlify.app/person/${id}`}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        style={{ 
-                            color: 'blue',
-                            textDecoration: 'underline',
-                            cursor: 'pointer'
-                        }}
+                        className="event-link"
                     >
                         {displayName}
                     </a>
@@ -100,11 +96,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                         href={`https://theographic.netlify.app/place/${id}`}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        style={{ 
-                            color: 'blue',
-                            textDecoration: 'underline',
-                            cursor: 'pointer'
-                        }}
+                        className="event-link"
                     >
                         {displayName}
                     </a>
@@ -121,7 +113,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             const trimmedVerse = verse.trim();
             
             // Check if verse matches the format VAL.x.x where VAL is a string and x are integers
-            const verseMatch = trimmedVerse.match(/^([a-zA-Z]+)\.(\d+)\.(\d+)$/);
+            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
             
             if (verseMatch) {
                 const [, book, chapter, verseNum] = verseMatch;
@@ -133,11 +125,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                             href={url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            style={{ 
-                                color: 'blue', 
-                                textDecoration: 'underline',
-                                cursor: 'pointer'
-                            }}
+                            className="event-link"
                         >
                             {trimmedVerse}
                         </a>
