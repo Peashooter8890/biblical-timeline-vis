@@ -6,6 +6,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
     const previousSelectionRef = useRef(null);
+    const previousScrollInfoRef = useRef(null);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [peopleData, setPeopleData] = useState([]);
     const [placesData, setPlacesData] = useState([]);
@@ -83,7 +84,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             });
         }, [peopleData]);
 
-    // Similar optimization for other formatting functions
     const formatLocations = useMemo(() => 
         (locations) => {
             if (!locations || !placesData.length) return locations;
@@ -116,7 +116,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         return verses.split(',').map((verse, index) => {
             const trimmedVerse = verse.trim();
             
-            // Check if verse matches the format VAL.x.x where VAL is a string and x are integers
             const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
             
             if (verseMatch) {
@@ -138,7 +137,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 );
             }
             
-            // If it doesn't match the format, return as plain text
             return (
                 <span key={index}>
                     {trimmedVerse}
@@ -154,7 +152,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         
         const groups = {};
         
-        // Use a more efficient grouping approach
         for (const event of data) {
             const key = event.fields.startDate;
             if (!groups[key]) {
@@ -163,15 +160,91 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             groups[key].push(event);
         }
         
-        // Sort keys once, then map
         const sortedKeys = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
         
         return sortedKeys.map(key => ({
             year: Number(key),
             events: groups[key]
         }));
-    }, [data]); // Only recalculate when data actually changes
+    }, [data]);
 
+    const findTopVisibleYear = useCallback((scrollTop, container) => {
+        if (!groupedEvents.length) return null;
+
+        const headers = container.querySelectorAll('.event-year-header');
+        if (!headers.length) return null;
+
+        const { scrollHeight, clientHeight } = container;
+        const maxScroll = scrollHeight - clientHeight;
+        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5;
+
+        if (atBottom) {
+            return {
+                year: groupedEvents[groupedEvents.length - 1].year,
+                isAtBottom: true
+            };
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const containerTop = containerRect.top;
+        
+        let activeHeaderIndex = 0;
+        
+        for (let i = 0; i < headers.length; i++) {
+            const header = headers[i];
+            const headerRect = header.getBoundingClientRect();
+            const headerTop = headerRect.top;
+            
+            if (headerTop <= containerTop) {
+                activeHeaderIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        return {
+            year: groupedEvents[activeHeaderIndex].year,
+            isAtBottom: false
+        };
+    }, [groupedEvents]);
+
+    // FIXED: Only call onScrollInfoChange when values actually change
+    const handleScroll = useCallback(() => {
+        if (!ref.current || !groupedEvents.length || !selection) return;
+
+        const container = ref.current;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        
+        const maxScroll = scrollHeight - clientHeight;
+        const scrollPercentage = maxScroll > 0 ? 
+            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
+
+        const topVisibleInfo = findTopVisibleYear(scrollTop, container);
+        
+        if (topVisibleInfo) {
+            const newScrollInfo = {
+                topVisibleYear: topVisibleInfo.year,
+                scrollPercentage,
+                isAtBottom: topVisibleInfo.isAtBottom,
+                selectionRange: selection
+            };
+
+            // FIXED: Only update if values have actually changed
+            const prev = previousScrollInfoRef.current;
+            if (!prev || 
+                prev.topVisibleYear !== newScrollInfo.topVisibleYear ||
+                Math.abs(prev.scrollPercentage - newScrollInfo.scrollPercentage) > 0.001 ||
+                prev.isAtBottom !== newScrollInfo.isAtBottom ||
+                prev.selectionRange[0] !== newScrollInfo.selectionRange[0] ||
+                prev.selectionRange[1] !== newScrollInfo.selectionRange[1]) {
+                
+                previousScrollInfoRef.current = newScrollInfo;
+                onScrollInfoChange(newScrollInfo);
+            }
+        }
+    }, [groupedEvents, onScrollInfoChange, selection, findTopVisibleYear, ref]);
+
+    // FIXED: Handle selection changes with proper dependency management
     useEffect(() => {
         if (!selection || !ref.current || !groupedEvents.length) return;
         
@@ -205,71 +278,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         }
     }, [selection, groupedEvents, ref]);
 
-    const findTopVisibleYear = useCallback((scrollTop, container) => {
-        if (!groupedEvents.length) return null;
-
-        const headers = container.querySelectorAll('.event-year-header');
-        if (!headers.length) return null;
-
-        // Check if we're at the very bottom of the scroll
-        const { scrollHeight, clientHeight } = container;
-        const maxScroll = scrollHeight - clientHeight;
-        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5; // 5px tolerance
-
-        if (atBottom) {
-            // Return the last year when at bottom
-            return {
-                year: groupedEvents[groupedEvents.length - 1].year,
-                isAtBottom: true
-            };
-        }
-
-        // Use getBoundingClientRect to find which header is at the top of the viewport
-        const containerRect = container.getBoundingClientRect();
-        const containerTop = containerRect.top;
-        
-        let activeHeaderIndex = 0;
-        
-        for (let i = 0; i < headers.length; i++) {
-            const header = headers[i];
-            const headerRect = header.getBoundingClientRect();
-            const headerTop = headerRect.top;
-            
-            if (headerTop <= containerTop) {
-                activeHeaderIndex = i;
-            } else {
-                break;
-            }
-        }
-
-        return {
-            year: groupedEvents[activeHeaderIndex].year,
-            isAtBottom: false
-        };
-    }, [groupedEvents]);
-
-    const handleScroll = useCallback(() => {
-        if (!ref.current || !groupedEvents.length || !selection) return;
-
-        const container = ref.current;
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        
-        const maxScroll = scrollHeight - clientHeight;
-        const scrollPercentage = maxScroll > 0 ? 
-            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
-
-        const topVisibleInfo = findTopVisibleYear(scrollTop, container);
-        
-        if (topVisibleInfo) {
-            onScrollInfoChange({
-                topVisibleYear: topVisibleInfo.year,
-                scrollPercentage,
-                isAtBottom: topVisibleInfo.isAtBottom,
-                selectionRange: selection
-            });
-        }
-    }, [groupedEvents, onScrollInfoChange, selection, findTopVisibleYear, ref]);
-
     const toggleEventExpansion = useCallback((eventTitle) => {
         setExpandedEvents(prev => {
             const newExpanded = new Set(prev);
@@ -282,11 +290,17 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         });
     }, []);
 
+    // FIXED: Only call handleScroll once when component is ready
     useEffect(() => {
-        if (groupedEvents.length > 0) {
-            handleScroll();
+        if (groupedEvents.length > 0 && selection) {
+            // Small delay to ensure DOM is ready
+            const timeoutId = setTimeout(() => {
+                handleScroll();
+            }, 0);
+            
+            return () => clearTimeout(timeoutId);
         }
-    }, [groupedEvents]);
+    }, [groupedEvents.length > 0, selection, handleScroll]);
 
     if (!data.length) {
         return <div className="event-display-container">Loading events...</div>;
