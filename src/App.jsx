@@ -102,6 +102,7 @@ const App = () => {
     const [isInitialized, setIsInitialized] = useState(false);
     const eventDisplayRef = useRef(null);
     const isInitialLoad = useRef(true);
+    const pendingSelectionRef = useRef(null); // Ref to store the pending selection
 
     useEffect(() => {
         const urlRange = parseUrlParams();
@@ -163,35 +164,53 @@ const App = () => {
         if (isInitialLoad.current) {
             return;
         }
-        
+
         const roundedDomain = [Math.round(domain[0]), Math.round(domain[1])];
-        
-        const minYear = TIME_PERIODS.all[0]; 
-        const maxYear = TIME_PERIODS.all[1]; 
-        
+
+        const minYear = TIME_PERIODS.all[0];
+        const maxYear = TIME_PERIODS.all[1];
+
         const boundedDomain = [
             Math.max(minYear, Math.min(maxYear, roundedDomain[0])),
-            Math.max(minYear, Math.min(maxYear, roundedDomain[1]))
+            Math.max(minYear, Math.min(maxYear, roundedDomain[1])),
         ];
-        
+
         if (boundedDomain[0] >= boundedDomain[1]) {
             boundedDomain[1] = Math.min(maxYear, boundedDomain[0] + 1);
         }
-        
+
         setSelection(boundedDomain);
-        setScrollInfo(prev => ({ ...prev, selectionRange: boundedDomain }));
-        
+        setScrollInfo((prev) => ({ ...prev, selectionRange: boundedDomain }));
+
         const matchingPeriod = findMatchingPeriod(boundedDomain);
-        
+
         if (matchingPeriod) {
             setSelectedPeriod(matchingPeriod);
             setIsCustomRange(false);
         } else {
-            setSelectedPeriod(null); 
+            setSelectedPeriod(null);
             setIsCustomRange(true);
         }
-        
-        updateUrl(boundedDomain);
+
+        // Store the selection in the ref for later URL update
+        pendingSelectionRef.current = boundedDomain;
+    }, []);
+
+    useEffect(() => {
+        const handleMouseUp = () => {
+            if (pendingSelectionRef.current) {
+                updateUrl(pendingSelectionRef.current); // Update the URL when the mouse is released
+                pendingSelectionRef.current = null; // Clear the ref
+            }
+        };
+
+        // Add mouseup listener to the document
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            // Clean up the listener on unmount
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
     }, []);
 
     const handlePeriodChange = useCallback((event) => {
