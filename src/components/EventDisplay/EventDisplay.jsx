@@ -8,6 +8,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const previousSelectionRef = useRef(null);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [peopleData, setPeopleData] = useState([]);
+    const [placesData, setPlacesData] = useState([]);
 
     // Load people data
     useEffect(() => {
@@ -21,6 +22,20 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             }
         };
         loadPeopleData();
+    }, []);
+
+    // Load places data
+    useEffect(() => {
+        const loadPlacesData = async () => {
+            try {
+                const response = await fetch('/data/places.json');
+                const places = await response.json();
+                setPlacesData(places);
+            } catch (error) {
+                console.error('Error loading places data:', error);
+            }
+        };
+        loadPlacesData();
     }, []);
 
     const formatDuration = useCallback((duration) => {
@@ -47,11 +62,29 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         const participantIds = participants.split(',').map(id => id.trim());
         const names = participantIds.map(id => {
             const person = peopleData.find(p => p.fields.personLookup === id);
-            return person ? person.fields.name : id;
+            return person ? person.fields.displayTitle : id;
         });
         
         return names.join(', ');
     }, [peopleData]);
+
+    const formatLocations = useCallback((locations) => {
+        if (!locations || !placesData.length) return locations;
+        
+        const locationIds = locations.split(',').map(id => id.trim());
+        const names = locationIds.map(id => {
+            const place = placesData.find(p => p.fields.placeLookup === id);
+            return place ? place.fields.displayTitle : id;
+        });
+        
+        return names.join(', ');
+    }, [placesData]);
+
+    const formatVerses = useCallback((verses) => {
+        if (!verses) return verses;
+        
+        return verses.split(',').map(verse => verse.trim()).join(', ');
+    }, []);
 
     const groupedEvents = useMemo(() => {
         if (!data.length) return [];
@@ -233,12 +266,12 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                                                 )}
                                                 {event.fields.locations && (
                                                     <div className="event-detail">
-                                                        Locations: {event.fields.locations}
+                                                        Locations: {formatLocations(event.fields.locations)}
                                                     </div>
                                                 )}
                                                 {event.fields.verses && (
                                                     <div className="event-detail">
-                                                        Verses: {event.fields.verses}
+                                                        Verses: {formatVerses(event.fields.verses)}
                                                     </div>
                                                 )}
                                                 {event.fields.partOf && (
@@ -253,7 +286,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                                                 )}
                                                 {event.fields.lag && (
                                                     <div className="event-detail">
-                                                        Lag: {event.fields.lag}
+                                                        Lag: {formatDuration(event.fields.lag)}
                                                     </div>
                                                 )}
                                                 {event.fields.lagType && (
