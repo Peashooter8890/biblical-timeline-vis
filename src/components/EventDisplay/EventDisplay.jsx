@@ -56,55 +56,59 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         return duration;
     }, []);
 
-    const formatParticipants = useCallback((participants) => {
-        if (!participants || !peopleData.length) return participants;
-        
-        const participantIds = participants.split(',').map(id => id.trim());
-        
-        return participantIds.map((id, index) => {
-            const person = peopleData.find(p => p.fields.personLookup === id);
-            const displayName = person ? person.fields.displayTitle : id;
+    // Memoize formatting functions to prevent recreation on every render
+    const formatParticipants = useMemo(() => 
+        (participants) => {
+            if (!participants || !peopleData.length) return participants;
             
-            return (
-                <span key={index}>
-                    <a 
-                        href={`https://theographic.netlify.app/person/${id}`}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="event-link"
-                    >
-                        {displayName}
-                    </a>
-                    {index < participantIds.length - 1 ? ', ' : ''}
-                </span>
-            );
-        });
-    }, [peopleData]);
+            const participantIds = participants.split(',').map(id => id.trim());
+            
+            return participantIds.map((id, index) => {
+                const person = peopleData.find(p => p.fields.personLookup === id);
+                const displayName = person ? person.fields.displayTitle : id;
+                
+                return (
+                    <span key={index}>
+                        <a 
+                            href={`https://theographic.netlify.app/person/${id}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="event-link"
+                        >
+                            {displayName}
+                        </a>
+                        {index < participantIds.length - 1 ? ', ' : ''}
+                    </span>
+                );
+            });
+        }, [peopleData]);
 
-    const formatLocations = useCallback((locations) => {
-        if (!locations || !placesData.length) return locations;
-        
-        const locationIds = locations.split(',').map(id => id.trim());
-        
-        return locationIds.map((id, index) => {
-            const place = placesData.find(p => p.fields.placeLookup === id);
-            const displayName = place ? place.fields.displayTitle : id;
+    // Similar optimization for other formatting functions
+    const formatLocations = useMemo(() => 
+        (locations) => {
+            if (!locations || !placesData.length) return locations;
             
-            return (
-                <span key={index}>
-                    <a 
-                        href={`https://theographic.netlify.app/place/${id}`}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="event-link"
-                    >
-                        {displayName}
-                    </a>
-                    {index < locationIds.length - 1 ? ', ' : ''}
-                </span>
-            );
-        });
-    }, [placesData]);
+            const locationIds = locations.split(',').map(id => id.trim());
+            
+            return locationIds.map((id, index) => {
+                const place = placesData.find(p => p.fields.placeLookup === id);
+                const displayName = place ? place.fields.displayTitle : id;
+                
+                return (
+                    <span key={index}>
+                        <a 
+                            href={`https://theographic.netlify.app/place/${id}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="event-link"
+                        >
+                            {displayName}
+                        </a>
+                        {index < locationIds.length - 1 ? ', ' : ''}
+                    </span>
+                );
+            });
+        }, [placesData]);
 
     const formatVerses = useCallback((verses) => {
         if (!verses) return verses;
@@ -144,24 +148,29 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         });
     }, []);
 
+    // Memoize the grouping logic more efficiently
     const groupedEvents = useMemo(() => {
         if (!data.length) return [];
         
         const groups = {};
         
-        data.forEach(event => {
+        // Use a more efficient grouping approach
+        for (const event of data) {
             const key = event.fields.startDate;
-            if (!groups[key]) groups[key] = [];
+            if (!groups[key]) {
+                groups[key] = [];
+            }
             groups[key].push(event);
-        });
+        }
         
-        return Object.keys(groups)
-            .sort((a, b) => Number(a) - Number(b))
-            .map(key => ({
-                year: Number(key),
-                events: groups[key]
-            }));
-    }, [data]);
+        // Sort keys once, then map
+        const sortedKeys = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
+        
+        return sortedKeys.map(key => ({
+            year: Number(key),
+            events: groups[key]
+        }));
+    }, [data]); // Only recalculate when data actually changes
 
     useEffect(() => {
         if (!selection || !ref.current || !groupedEvents.length) return;
