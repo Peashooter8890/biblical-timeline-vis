@@ -10,6 +10,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [peopleData, setPeopleData] = useState([]);
     const [placesData, setPlacesData] = useState([]);
+    const SWITCH_THRESHOLD = 20;
 
     // Load people data
     useEffect(() => {
@@ -195,7 +196,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             const headerRect = header.getBoundingClientRect();
             const headerTop = headerRect.top;
             
-            if (headerTop <= containerTop) {
+            if (headerTop <= containerTop + SWITCH_THRESHOLD) {
                 activeHeaderIndex = i;
             } else {
                 break;
