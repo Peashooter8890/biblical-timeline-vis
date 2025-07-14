@@ -277,6 +277,9 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                     const elementRect = element.getBoundingClientRect();
                     const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
                     container.scrollTop = relativeTop;
+                    
+                    // Set floating header to the target group year immediately
+                    setFloatingHeaderYear(targetGroup.year);
                     break;
                 }
             }
@@ -300,6 +303,12 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         if (groupedEvents.length > 0 && selection) {
             // Small delay to ensure DOM is ready
             const timeoutId = setTimeout(() => {
+                // Find the first visible year in the selection range
+                const [startYear] = selection;
+                const targetGroup = groupedEvents.find(group => group.year >= startYear);
+                if (targetGroup) {
+                    setFloatingHeaderYear(targetGroup.year);
+                }
                 handleScroll();
             }, 0);
             
