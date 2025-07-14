@@ -89,14 +89,12 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             const headerRect = header.getBoundingClientRect();
             const headerTop = headerRect.top;
             
-            if (headerTop <= containerTop + 10) {
+            if (headerTop <= containerTop) {
                 activeHeaderIndex = i;
             } else {
                 break;
             }
         }
-
-        console.log('Container top:', containerTop, 'Active header index:', activeHeaderIndex, 'Year:', groupedEvents[activeHeaderIndex].year);
 
         return {
             year: groupedEvents[activeHeaderIndex].year,
@@ -117,7 +115,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         const topVisibleInfo = findTopVisibleYear(scrollTop, container);
         
         if (topVisibleInfo) {
-            console.log('Sending scroll info:', topVisibleInfo);
             onScrollInfoChange({
                 topVisibleYear: topVisibleInfo.year,
                 scrollPercentage,

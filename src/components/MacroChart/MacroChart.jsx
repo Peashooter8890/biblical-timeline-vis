@@ -486,11 +486,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             
             const lastEvent = allEvents[allEvents.length - 1];
             indicatorY = yearToPixel(lastEvent.fields.startDate);
-            console.log('At bottom, positioning at last event:', lastEvent.fields.startDate, 'Y:', indicatorY);
         } else {
             
             indicatorY = yearToPixel(topVisibleYear);
-            console.log('Positioning indicator at year:', topVisibleYear, 'Y:', indicatorY);
         }
         
         onIndicatorChange(indicatorY);
