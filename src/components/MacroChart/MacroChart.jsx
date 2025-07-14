@@ -33,7 +33,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     const isUserInteractingRef = useRef(false);
     const resizeObserverRef = useRef(null);
 
+    // Memoize calculateDimensions to prevent unnecessary re-renders
     const calculateDimensions = useCallback((container) => {
+        if (!container) return { width: 0, height: 0 };
         const rect = container.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
     }, []);
@@ -181,7 +183,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     }, [onBrush]);
 
     const updateBrush = useCallback((brush, brushGroup, y0, y1) => {
-        brush.move(brushGroup, [y0, y1]);
+        if (brush && brushGroup) {
+            brush.move(brushGroup, [y0, y1]);
+        }
     }, []);
 
     const createDragHandler = useCallback((dimensions, brush, brushGroup, resizeZone) => {
@@ -307,7 +311,6 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('bottom', `-${HANDLE_OFFSET}px`)
             .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, false));
 
-        
         const topHandleText = d3.select(container)
             .select('.top-handle-text')
             .style('width', `${handleWidth}px`)
@@ -324,6 +327,8 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     }, [createDragHandler, createHandleMouseDown]);
 
     const updateOverlayPositions = useCallback((elements, dimensions, y0, y1) => {
+        if (!elements) return;
+        
         const { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText } = elements;
         
         overlay
@@ -331,10 +336,8 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .style('height', `${y1 - y0}px`)
             .style('width', `${dimensions.width}px`);
         
-        
         topHandle.style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`);
         bottomHandle.style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`);
-        
         
         if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
             const { pixelToYear } = scaleInfoRef.current;
@@ -351,10 +354,13 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
         }
     }, []);
 
+    // Optimized render function with proper memoization
     const render = useCallback(() => {
         if (!svgRef.current || !containerRef.current) return;
 
         const dimensions = calculateDimensions(containerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
         const layout = calculateLayout(dimensions);
         const converters = createConverters(dimensions, layout);
 
@@ -427,10 +433,17 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     }, [calculateDimensions, calculateLayout, createConverters, createColorBars, 
         createYearMarkers, createBrush, createOverlayElements, updateOverlayPositions, onBrush]);
 
+    // Setup resize observer and initial render
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const resizeObserver = new ResizeObserver(() => render());
+        const resizeObserver = new ResizeObserver(() => {
+            // Use requestAnimationFrame to debounce resize events
+            requestAnimationFrame(() => {
+                render();
+            });
+        });
+        
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
 
@@ -443,6 +456,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
         };
     }, [render]);
 
+    // Handle external selection updates
     useEffect(() => {
         if (isUserInteractingRef.current || !externalSelection || !scaleInfoRef.current || 
             !brushRef.current || !brushGroupRef.current || !overlayElementsRef.current) return;
@@ -466,12 +480,12 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
         
     }, [externalSelection, updateBrush, updateOverlayPositions]);
 
+    // Handle scroll info and indicator updates
     useEffect(() => {
         if (!scrollInfo || !scaleInfoRef.current || !data || !data.length || scrollInfo.topVisibleYear === undefined) return;
 
         const { topVisibleYear, isAtBottom } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
-        
         
         const allEvents = data;
 
@@ -483,11 +497,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
         let indicatorY = null;
 
         if (isAtBottom) {
-            
             const lastEvent = allEvents[allEvents.length - 1];
             indicatorY = yearToPixel(lastEvent.fields.startDate);
         } else {
-            
             indicatorY = yearToPixel(topVisibleYear);
         }
         

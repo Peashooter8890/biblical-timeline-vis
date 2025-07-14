@@ -18,14 +18,16 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
     const resizeObserverRef = useRef(null);
-    const lastIndicatorYRef = useRef(null); // Add this ref
+    const lastIndicatorYRef = useRef(null);
     const [scrollOffset, setScrollOffset] = useState(0);
     const [currentViewRange, setCurrentViewRange] = useState(selection);
 
-    const getDimensions = () => {
+    // Memoize getDimensions to prevent unnecessary re-renders
+    const getDimensions = useCallback(() => {
+        if (!containerRef.current) return { width: 0, height: 0 };
         const rect = containerRef.current.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
-    };
+    }, []);
 
     // Calculate era heights using the same logic as MacroChart
     const calculateEraLayout = useCallback((dimensions, viewRange) => {
@@ -134,53 +136,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return [viewStart, viewEnd];
     }, []);
 
-    // Handle scroll events
-    useEffect(() => {
-        const handleWheel = (event) => {
-            event.preventDefault();
-            
-            const delta = event.deltaY > 0 ? SCROLL_SENSITIVITY : -SCROLL_SENSITIVITY;
-            const currentRange = calculateViewRange(selection, scrollOffset);
-            const [fullStart, fullEnd] = FULL_RANGE;
-            
-            // Check if we're at bounds and trying to scroll further in that direction
-            const atTopBound = currentRange[0] <= fullStart;
-            const atBottomBound = currentRange[1] >= fullEnd;
-            const scrollingUp = delta < 0;
-            const scrollingDown = delta > 0;
-            
-            // Don't accumulate scroll if we're at bounds and trying to scroll further
-            if ((atTopBound && scrollingUp) || (atBottomBound && scrollingDown)) {
-                return;
-            }
-            
-            const newOffset = scrollOffset + delta;
-            const testRange = calculateViewRange(selection, newOffset);
-            
-            // Only update if the new range is within bounds
-            if (testRange[0] >= fullStart && testRange[1] <= fullEnd) {
-                setScrollOffset(newOffset);
-            }
-        };
-
-        const container = containerRef.current;
-        if (container) {
-            container.addEventListener('wheel', handleWheel, { passive: false });
-            return () => container.removeEventListener('wheel', handleWheel);
-        }
-    }, [scrollOffset, selection, calculateViewRange]);
-
-    // Update current view range when selection or scroll offset changes
-    useEffect(() => {
-        const newViewRange = calculateViewRange(selection, scrollOffset);
-        setCurrentViewRange(newViewRange);
-    }, [selection, scrollOffset, calculateViewRange]);
-
-    // Reset scroll offset when selection changes significantly
-    useEffect(() => {
-        setScrollOffset(0);
-    }, [selection]);
-
     const processEraData = useCallback((dataset) => {
         const byEra = {};
         
@@ -229,7 +184,6 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return events.sort((a, b) => a.startDate - b.startDate);
     }, [getColumnX]);
 
-    // Fixed createLines function - now uses consistent era data and better clipping
     const createLines = useCallback((yScale, dimensions, eraData, viewRange) => {
         const lines = [];
         const { byEra } = eraData;
@@ -257,13 +211,10 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
                 );
 
                 if (intersects) {
-                    // Calculate Y positions, but don't clamp them yet
                     const startY = yScale(lineStart);
                     const endY = yScale(lineEnd);
                     
-                    // Only clamp to viewport if the line extends significantly beyond view
-                    // This prevents visual artifacts while still keeping lines contained
-                    const buffer = dimensions.height * 0.1; // 10% buffer
+                    const buffer = dimensions.height * 0.1;
                     const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
                     const y2 = Math.max(-buffer, Math.min(dimensions.height + buffer, endY));
                     
@@ -288,23 +239,22 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
             .style('opacity', 0);
     }, []);
 
+    // Optimized renderChart with proper memoization
     const renderChart = useCallback(() => {
         if (!svgRef.current || !containerRef.current || !data.length) return;
 
         const dimensions = getDimensions();
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
         const [startYear, endYear] = currentViewRange;
         
-        // Use the new era layout calculation
         const eraLayout = calculateEraLayout(dimensions, currentViewRange);
         const yScale = eraLayout.yScale;
 
         const filtered = data.filter(d => 
             d.fields.startDate >= startYear && d.fields.startDate <= endYear);
 
-        // FIXED: Use the same era data (allEraData) for both events and lines
-        // This ensures consistent column positioning
         const allEraData = processEraData(data);
-
         const events = createEvents(filtered, yScale, dimensions, allEraData);
         const lines = createLines(yScale, dimensions, allEraData, currentViewRange);
 
@@ -375,10 +325,61 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         };
     }, [data, currentViewRange, getDimensions, calculateEraLayout, processEraData, createEvents, createLines, createTooltip]);
 
+    // Handle scroll events
+    useEffect(() => {
+        const handleWheel = (event) => {
+            event.preventDefault();
+            
+            const delta = event.deltaY > 0 ? SCROLL_SENSITIVITY : -SCROLL_SENSITIVITY;
+            const currentRange = calculateViewRange(selection, scrollOffset);
+            const [fullStart, fullEnd] = FULL_RANGE;
+            
+            const atTopBound = currentRange[0] <= fullStart;
+            const atBottomBound = currentRange[1] >= fullEnd;
+            const scrollingUp = delta < 0;
+            const scrollingDown = delta > 0;
+            
+            if ((atTopBound && scrollingUp) || (atBottomBound && scrollingDown)) {
+                return;
+            }
+            
+            const newOffset = scrollOffset + delta;
+            const testRange = calculateViewRange(selection, newOffset);
+            
+            if (testRange[0] >= fullStart && testRange[1] <= fullEnd) {
+                setScrollOffset(newOffset);
+            }
+        };
+
+        const container = containerRef.current;
+        if (container) {
+            container.addEventListener('wheel', handleWheel, { passive: false });
+            return () => container.removeEventListener('wheel', handleWheel);
+        }
+    }, [scrollOffset, selection, calculateViewRange]);
+
+    // Update current view range when selection or scroll offset changes
+    useEffect(() => {
+        const newViewRange = calculateViewRange(selection, scrollOffset);
+        setCurrentViewRange(newViewRange);
+    }, [selection, scrollOffset, calculateViewRange]);
+
+    // Reset scroll offset when selection changes significantly
+    useEffect(() => {
+        setScrollOffset(0);
+    }, [selection]);
+
+    // Render chart and setup resize observer
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const resizeObserver = new ResizeObserver(() => renderChart());
+        const resizeObserver = new ResizeObserver(() => {
+            // Use requestAnimationFrame to debounce resize events
+            requestAnimationFrame(() => {
+                renderChart();
+            });
+        });
+        
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
 
@@ -391,6 +392,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         };
     }, [renderChart]);
 
+    // Handle indicator updates
     useEffect(() => {
         if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange) return;
 
@@ -400,18 +402,17 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
         let indicatorY = null;
 
-        // Only show indicator if the topVisibleYear is within our current view range
         if (topVisibleYear < viewStart || topVisibleYear > viewEnd) {
             indicatorY = null;
         } else if (scrollPercentage === 1 && events.length > 0) {
             const lastEvent = events[events.length - 1];
+            indicatorY = lastEvent.y;
         } else {
             let closest = null;
             let minDistance = Infinity;
 
             for (let i = 0; i < events.length; i++) {
                 const event = events[i];
-                // Events should all be in view, but double-checking
                 if (event.startDate >= viewStart && event.startDate <= viewEnd) {
                     const distance = Math.abs(event.startDate - topVisibleYear);
                     if (distance < minDistance) {
