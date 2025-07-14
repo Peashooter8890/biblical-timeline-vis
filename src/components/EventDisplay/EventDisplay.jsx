@@ -1,4 +1,4 @@
-import React, { Fragment, useRef, useMemo, useCallback, useEffect } from 'react';
+import React, { Fragment, useRef, useMemo, useCallback, useEffect, useState } from 'react';
 import { formatYear } from '../../utils/utils.js';
 import './eventDisplay.css';
 
@@ -6,6 +6,52 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
     const previousSelectionRef = useRef(null);
+    const [expandedEvents, setExpandedEvents] = useState(new Set());
+    const [peopleData, setPeopleData] = useState([]);
+
+    // Load people data
+    useEffect(() => {
+        const loadPeopleData = async () => {
+            try {
+                const response = await fetch('/data/people.json');
+                const people = await response.json();
+                setPeopleData(people);
+            } catch (error) {
+                console.error('Error loading people data:', error);
+            }
+        };
+        loadPeopleData();
+    }, []);
+
+    const formatDuration = useCallback((duration) => {
+        if (!duration) return '';
+        
+        const match = duration.match(/^(\d+)([DY])$/);
+        if (!match) return duration;
+        
+        const [, number, unit] = match;
+        const num = parseInt(number, 10);
+        
+        if (unit === 'D') {
+            return num === 1 ? '1 Day' : `${num} Days`;
+        } else if (unit === 'Y') {
+            return num === 1 ? '1 Year' : `${num} Years`;
+        }
+        
+        return duration;
+    }, []);
+
+    const formatParticipants = useCallback((participants) => {
+        if (!participants || !peopleData.length) return participants;
+        
+        const participantIds = participants.split(',').map(id => id.trim());
+        const names = participantIds.map(id => {
+            const person = peopleData.find(p => p.fields.personLookup === id);
+            return person ? person.fields.name : id;
+        });
+        
+        return names.join(', ');
+    }, [peopleData]);
 
     const groupedEvents = useMemo(() => {
         if (!data.length) return [];
@@ -124,6 +170,18 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         }
     }, [groupedEvents, onScrollInfoChange, selection, findTopVisibleYear, ref]);
 
+    const toggleEventExpansion = useCallback((eventTitle) => {
+        setExpandedEvents(prev => {
+            const newExpanded = new Set(prev);
+            if (newExpanded.has(eventTitle)) {
+                newExpanded.delete(eventTitle);
+            } else {
+                newExpanded.add(eventTitle);
+            }
+            return newExpanded;
+        });
+    }, []);
+
     useEffect(() => {
         handleScroll();
     }, [handleScroll, groupedEvents]);
@@ -142,11 +200,78 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                         <h3 className="event-year-header">
                             {formatYear(group.year)}
                         </h3>
-                        {group.events.map(event => (
-                            <div className="event-item" key={event.fields.title}>
-                                {event.fields.title}
-                            </div>
-                        ))}
+                        {group.events.map(event => {
+                            const isExpanded = expandedEvents.has(event.fields.title);
+                            
+                            return (
+                                <div className="event-item" key={event.fields.title}>
+                                    <button 
+                                        className={`event-triangle ${isExpanded ? 'expanded' : ''}`}
+                                        onClick={() => toggleEventExpansion(event.fields.title)}
+                                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} event details`}
+                                    >
+                                        ▶
+                                    </button>
+                                    <div className="event-content">
+                                        <div className="event-title">{event.fields.title}</div>
+                                        {isExpanded && (
+                                            <>
+                                                {event.fields.duration && (
+                                                    <div className="event-detail">
+                                                        Duration: {formatDuration(event.fields.duration)}
+                                                    </div>
+                                                )}
+                                                {event.fields.participants && (
+                                                    <div className="event-detail">
+                                                        Participants: {formatParticipants(event.fields.participants)}
+                                                    </div>
+                                                )}
+                                                {event.fields.groups && (
+                                                    <div className="event-detail">
+                                                        Groups: {event.fields.groups}
+                                                    </div>
+                                                )}
+                                                {event.fields.locations && (
+                                                    <div className="event-detail">
+                                                        Locations: {event.fields.locations}
+                                                    </div>
+                                                )}
+                                                {event.fields.verses && (
+                                                    <div className="event-detail">
+                                                        Verses: {event.fields.verses}
+                                                    </div>
+                                                )}
+                                                {event.fields.partOf && (
+                                                    <div className="event-detail">
+                                                        Part Of: {event.fields.partOf}
+                                                    </div>
+                                                )}
+                                                {event.fields.predecessor && (
+                                                    <div className="event-detail">
+                                                        Predecessor: {event.fields.predecessor}
+                                                    </div>
+                                                )}
+                                                {event.fields.lag && (
+                                                    <div className="event-detail">
+                                                        Lag: {event.fields.lag}
+                                                    </div>
+                                                )}
+                                                {event.fields.lagType && (
+                                                    <div className="event-detail">
+                                                        Lag Type: {event.fields.lagType}
+                                                    </div>
+                                                )}
+                                                {event.fields.notes && (
+                                                    <div className="event-detail">
+                                                        Notes: {event.fields.notes}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </Fragment>
                 ))
             )}

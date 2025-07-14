@@ -29,16 +29,59 @@
 .event-item {
     margin-bottom: 5px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     color: black;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .event-item:last-of-type {
     margin-bottom: 20px;
 }
 
-.event-item::before {
-    content: '○';
-    margin-right: 8px;
-    color: #888;
+.event-triangle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: black;
+    padding: 0;
+    margin-top: 2px;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.event-triangle:hover {
+    opacity: 0.5;
+}
+
+.event-triangle.expanded {
+    transform: rotate(90deg);
+}
+
+.event-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.event-title {
+    line-height: 1.2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.event-detail {
+    font-size: 0.8em;
+    color: black;
+    margin-top: 4px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+    box-sizing: border-box;
 }
