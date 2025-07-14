@@ -448,7 +448,6 @@ const render = useCallback(() => {
         };
     }, [render]);
 
-    // Handle scroll info and indicator updates
     useEffect(() => {
         if (!scrollInfo || !scaleInfoRef.current || !data || !data.length || scrollInfo.topVisibleYear === undefined) return;
 
