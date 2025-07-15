@@ -140,7 +140,7 @@ const App = () => {
     useEffect(() => {
         let isMounted = true;
 
-        fetch('/data/events.json')
+        fetch(`${import.meta.env.BASE_URL}data/events.json`)
             .then(res => res.json())
             .then(data => {
                 if (isMounted) {
