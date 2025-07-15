@@ -21,7 +21,7 @@ const formatYear = (year) => {
     return year < 0 ? `${Math.abs(year) + 1} BC` : `${year} AD`;
 };
 
-const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo }) => {
+const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSelection, onExternalSelectionProcessed }) => {
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -184,12 +184,12 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo }) => {
 
     const updateBrush = useCallback((brush, brushGroup, y0, y1) => {
         if (brush && brushGroup) {
+            isExternalUpdateRef.current = true;
             brush.move(brushGroup, [y0, y1]);
+            isExternalUpdateRef.current = false;
         }
     }, []);
 
-    
-    
     const updateOverlayPositions = useCallback((elements, dimensions, y0, y1) => {
         if (!elements) return;
         
@@ -219,92 +219,109 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo }) => {
     }, []);
 
     const createDragHandler = useCallback((dimensions, brush, brushGroup, resizeZone) => {
-    return function (event) {
-        isUserInteractingRef.current = true;
-        const rect = this.getBoundingClientRect();
-        const mouseY = event.clientY - rect.top;
+        return function (event) {
+            isUserInteractingRef.current = true;
+            const rect = this.getBoundingClientRect();
+            const mouseY = event.clientY - rect.top;
 
-        let mode = 'drag';
-        if (mouseY <= resizeZone) {
-            mode = 'resize-top';
-            this.style.cursor = 'ns-resize';
-        } else if (mouseY >= rect.height - resizeZone) {
-            mode = 'resize-bottom';
-            this.style.cursor = 'ns-resize';
-        }
-
-        const startMouseY = event.clientY;
-        const [currentY0, currentY1] = brushBoundsRef.current;
-
-        const handleMove = (moveEvent) => {
-            const deltaY = moveEvent.clientY - startMouseY;
-            let newY0 = currentY0,
-                newY1 = currentY1;
-
-            switch (mode) {
-                case 'resize-top':
-                    newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
-                    break;
-                case 'resize-bottom':
-                    newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
-                    break;
-                case 'drag':
-                    const height = currentY1 - currentY0;
-                    newY0 = Math.max(0, Math.min(dimensions.height - height, currentY0 + deltaY));
-                    newY1 = newY0 + height;
-                    break;
+            let mode = 'drag';
+            if (mouseY <= resizeZone) {
+                mode = 'resize-top';
+                this.style.cursor = 'ns-resize';
+            } else if (mouseY >= rect.height - resizeZone) {
+                mode = 'resize-bottom';
+                this.style.cursor = 'ns-resize';
             }
 
-            updateBrush(brush, brushGroup, newY0, newY1);
-            updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, newY1); // Update overlay
-        };
+            const startMouseY = event.clientY;
+            const [currentY0, currentY1] = brushBoundsRef.current;
 
-        const handleUp = () => {
-            this.style.cursor = 'move';
-            isUserInteractingRef.current = false;
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('mouseup', handleUp);
-        };
+            const handleMove = (moveEvent) => {
+                const deltaY = moveEvent.clientY - startMouseY;
+                let newY0 = currentY0,
+                    newY1 = currentY1;
 
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleUp);
-        event.preventDefault();
-    };
-}, [updateBrush, updateOverlayPositions]);
+                switch (mode) {
+                    case 'resize-top':
+                        newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
+                        break;
+                    case 'resize-bottom':
+                        newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
+                        break;
+                    case 'drag':
+                        const height = currentY1 - currentY0;
+                        newY0 = Math.max(0, Math.min(dimensions.height - height, currentY0 + deltaY));
+                        newY1 = newY0 + height;
+                        break;
+                }
+
+                updateBrush(brush, brushGroup, newY0, newY1);
+                updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, newY1);
+                
+                // Call onBrush during drag to update the app state
+                if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
+                    const { pixelToYear } = scaleInfoRef.current;
+                    const startYear = pixelToYear(newY0);
+                    const endYear = pixelToYear(newY1);
+                    onBrush([startYear, endYear]);
+                }
+            };
+
+            const handleUp = () => {
+                this.style.cursor = 'move';
+                isUserInteractingRef.current = false;
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('mouseup', handleUp);
+            };
+
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleUp);
+            event.preventDefault();
+        };
+    }, [updateBrush, updateOverlayPositions, onBrush]);
 
     const createHandleMouseDown = useCallback((dimensions, brush, brushGroup, isTop) => {
-    return function (event) {
-        isUserInteractingRef.current = true;
-        const startMouseY = event.clientY;
-        const [currentY0, currentY1] = brushBoundsRef.current;
+        return function (event) {
+            isUserInteractingRef.current = true;
+            const startMouseY = event.clientY;
+            const [currentY0, currentY1] = brushBoundsRef.current;
 
-        const handleMove = (moveEvent) => {
-            const deltaY = moveEvent.clientY - startMouseY;
+            const handleMove = (moveEvent) => {
+                const deltaY = moveEvent.clientY - startMouseY;
+                let newY0 = currentY0;
+                let newY1 = currentY1;
 
-            if (isTop) {
-                const newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
-                updateBrush(brush, brushGroup, newY0, currentY1);
-                updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, currentY1); // Update overlay
-            } else {
-                const newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
-                updateBrush(brush, brushGroup, currentY0, newY1);
-                updateOverlayPositions(overlayElementsRef.current, dimensions, currentY0, newY1); // Update overlay
-            }
+                if (isTop) {
+                    newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
+                    updateBrush(brush, brushGroup, newY0, currentY1);
+                    updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, currentY1);
+                } else {
+                    newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
+                    updateBrush(brush, brushGroup, currentY0, newY1);
+                    updateOverlayPositions(overlayElementsRef.current, dimensions, currentY0, newY1);
+                }
+                
+                // Call onBrush during handle drag to update the app state
+                if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
+                    const { pixelToYear } = scaleInfoRef.current;
+                    const startYear = pixelToYear(isTop ? newY0 : currentY0);
+                    const endYear = pixelToYear(isTop ? currentY1 : newY1);
+                    onBrush([startYear, endYear]);
+                }
+            };
+
+            const handleUp = () => {
+                isUserInteractingRef.current = false;
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('mouseup', handleUp);
+            };
+
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleUp);
+            event.preventDefault();
+            event.stopPropagation();
         };
-
-        const handleUp = () => {
-            isUserInteractingRef.current = false;
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('mouseup', handleUp);
-        };
-
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleUp);
-        event.preventDefault();
-        event.stopPropagation();
-    };
-}, [updateBrush, updateOverlayPositions]);
-
+    }, [updateBrush, updateOverlayPositions, onBrush]);
 
     const createOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
         const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
@@ -363,68 +380,109 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo }) => {
         return { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText };
     }, [createDragHandler, createHandleMouseDown]);
 
-// In the render function, modify this section:
-const render = useCallback(() => {
-    if (!svgRef.current || !containerRef.current) return;
+    // Update the render function to use useCallback properly
+    const render = useCallback(() => {
+        if (!svgRef.current || !containerRef.current) return;
 
-    const dimensions = calculateDimensions(containerRef.current);
-    if (dimensions.width === 0 || dimensions.height === 0) return;
+        const dimensions = calculateDimensions(containerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
 
-    const layout = calculateLayout(dimensions);
-    const converters = createConverters(dimensions, layout);
-    const oldScaleInfo = scaleInfoRef.current;
+        const layout = calculateLayout(dimensions);
+        const converters = createConverters(dimensions, layout);
+        const oldScaleInfo = scaleInfoRef.current;
 
-    const svg = d3.select(svgRef.current)
-        .attr('width', dimensions.width)
-        .attr('height', dimensions.height)
-        .style('overflow', 'visible');
+        const svg = d3.select(svgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
 
-    svg.selectAll('*').remove();
+        svg.selectAll('*').remove();
 
-    const colorBarLayout = createColorBars(svg, dimensions, layout);
-    createYearMarkers(svg, dimensions, converters, colorBarLayout);
+        const colorBarLayout = createColorBars(svg, dimensions, layout);
+        createYearMarkers(svg, dimensions, converters, colorBarLayout);
 
-    const brush = createBrush(dimensions, converters);
-    const brushGroup = svg.append('g').attr('class', 'brush').call(brush);
+        const brush = createBrush(dimensions, converters);
+        const brushGroup = svg.append('g').attr('class', 'brush').call(brush);
 
-    brushRef.current = brush;
-    brushGroupRef.current = brushGroup;
+        brushRef.current = brush;
+        brushGroupRef.current = brushGroup;
 
-    svg.selectAll('.brush .selection').style('display', 'none');
-    svg.selectAll('.brush .overlay').style('pointer-events', 'none');
+        svg.selectAll('.brush .selection').style('display', 'none');
+        svg.selectAll('.brush .overlay').style('pointer-events', 'none');
 
-    const currentBounds = brushBoundsRef.current;
-    let newY0, newY1;
+        const currentBounds = brushBoundsRef.current;
+        let newY0, newY1;
 
-    if (isUserInteractingRef.current && currentBounds[0] !== 0 && currentBounds[1] !== 0) {
-        newY0 = currentBounds[0];
-        newY1 = currentBounds[1];
-    } else if (currentBounds[0] === 0 && currentBounds[1] === 0) {
-        newY0 = 0;
-        newY1 = dimensions.height;
-    } else {
-        if (oldScaleInfo && oldScaleInfo.pixelToYear) {
-            const startYear = oldScaleInfo.pixelToYear(currentBounds[0]);
-            const endYear = oldScaleInfo.pixelToYear(currentBounds[1]);
-            newY0 = converters.yearToPixel(startYear);
-            newY1 = converters.yearToPixel(endYear);
+        if (isUserInteractingRef.current && currentBounds[0] !== 0 && currentBounds[1] !== 0) {
+            newY0 = currentBounds[0];
+            newY1 = currentBounds[1];
+        } else if (currentBounds[0] === 0 && currentBounds[1] === 0) {
+            newY0 = 0;
+            newY1 = dimensions.height;
         } else {
-            const oldHeight = oldScaleInfo?.dimensions?.height || dimensions.height;
-            const ratio = dimensions.height / oldHeight;
-            newY0 = currentBounds[0] * ratio;
-            newY1 = currentBounds[1] * ratio;
+            if (oldScaleInfo && oldScaleInfo.pixelToYear) {
+                const startYear = oldScaleInfo.pixelToYear(currentBounds[0]);
+                const endYear = oldScaleInfo.pixelToYear(currentBounds[1]);
+                newY0 = converters.yearToPixel(startYear);
+                newY1 = converters.yearToPixel(endYear);
+            } else {
+                const oldHeight = oldScaleInfo?.dimensions?.height || dimensions.height;
+                const ratio = dimensions.height / oldHeight;
+                newY0 = currentBounds[0] * ratio;
+                newY1 = currentBounds[1] * ratio;
+            }
         }
-    }
 
-    scaleInfoRef.current = { ...converters, dimensions };
-    brush.move(brushGroup, [newY0, newY1]);
-    brushBoundsRef.current = [newY0, newY1];
+        scaleInfoRef.current = { ...converters, dimensions };
+        isExternalUpdateRef.current = true;
+        brush.move(brushGroup, [newY0, newY1]);
+        isExternalUpdateRef.current = false;
+        brushBoundsRef.current = [newY0, newY1];
 
-    const overlayElements = createOverlayElements(containerRef.current, dimensions, brush, brushGroup);
-    overlayElementsRef.current = overlayElements;
+        const overlayElements = createOverlayElements(containerRef.current, dimensions, brush, brushGroup);
+        overlayElementsRef.current = overlayElements;
 
-    updateOverlayPositions(overlayElements, dimensions, newY0, newY1); // Ensure overlay is updated
-}, [calculateDimensions, calculateLayout, createConverters, createColorBars, createYearMarkers, createBrush, createOverlayElements, updateOverlayPositions]);
+        updateOverlayPositions(overlayElements, dimensions, newY0, newY1);
+    }, [
+        calculateDimensions, 
+        calculateLayout, 
+        createConverters, 
+        createColorBars, 
+        createYearMarkers, 
+        createBrush, 
+        createOverlayElements, 
+        updateOverlayPositions
+    ]);
+
+    // Handle external selection updates (from App.jsx)
+    useEffect(() => {
+        if (externalSelection && scaleInfoRef.current) {
+            const { yearToPixel } = scaleInfoRef.current;
+            const [startYear, endYear] = externalSelection;
+            
+            const newY0 = yearToPixel(startYear);
+            const newY1 = yearToPixel(endYear);
+            
+            isExternalUpdateRef.current = true;
+            if (brushRef.current && brushGroupRef.current) {
+                brushRef.current.move(brushGroupRef.current, [newY0, newY1]);
+            }
+            isExternalUpdateRef.current = false;
+            
+            brushBoundsRef.current = [newY0, newY1];
+            
+            if (overlayElementsRef.current) {
+                const dimensions = calculateDimensions(containerRef.current);
+                updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, newY1);
+            }
+            
+            // Notify App.jsx that we've processed the external selection
+            if (onExternalSelectionProcessed) {
+                onExternalSelectionProcessed();
+            }
+        }
+    }, [externalSelection, onExternalSelectionProcessed, calculateDimensions, updateOverlayPositions]);
+
     // Setup resize observer and initial render
     useEffect(() => {
         if (!containerRef.current) return;

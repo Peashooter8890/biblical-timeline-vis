@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import MacroChart from './components/MacroChart/MacroChart.jsx';
 import Microchart from './components/MicroChart/MicroChart.jsx';
 import EventDisplay from './components/EventDisplay/EventDisplay.jsx';
-import { calculateColumns } from './utils/utils.js';
+import { calculateColumns, throttle } from './utils/utils.js';
 import { EVENTS_BOUND } from './utils/constants.js';
 import './app.css'
 
@@ -29,15 +29,13 @@ const parseUrlParams = () => {
     const startYearParam = params.get('startYear');
     const endYearParam = params.get('endYear');
     
-    // If neither parameter is provided, return null (use default behavior)
     if (!startYearParam && !endYearParam) {
         return null;
     }
     
-    const minYear = TIME_PERIODS.all[0]; // -4100
-    const maxYear = TIME_PERIODS.all[1]; // 150
+    const minYear = TIME_PERIODS.all[0];
+    const maxYear = TIME_PERIODS.all[1];
     
-    // Parse provided parameters or use defaults
     let startYear, endYear;
     
     if (startYearParam) {
@@ -46,7 +44,7 @@ const parseUrlParams = () => {
             return null;
         }
     } else {
-        startYear = minYear; // Default to minimum if not provided
+        startYear = minYear;
     }
     
     if (endYearParam) {
@@ -55,15 +53,13 @@ const parseUrlParams = () => {
             return null;
         }
     } else {
-        endYear = maxYear; // Default to maximum if not provided
+        endYear = maxYear;
     }
     
-    // Validate range
     if (startYear >= endYear) {
         return null;
     }
     
-    // Clamp to bounds
     const clampedStart = Math.max(minYear, Math.min(maxYear, startYear));
     const clampedEnd = Math.max(minYear, Math.min(maxYear, endYear));
     
@@ -100,9 +96,11 @@ const App = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    // Add state to control when MacroChart should update its selection
+    const [externalSelection, setExternalSelection] = useState(null);
     const eventDisplayRef = useRef(null);
     const isInitialLoad = useRef(true);
-    const pendingSelectionRef = useRef(null); // Ref to store the pending selection
+    const pendingSelectionRef = useRef(null);
 
     useEffect(() => {
         const urlRange = parseUrlParams();
@@ -112,6 +110,7 @@ const App = () => {
             
             setSelection(urlRange);
             setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
+            setExternalSelection(urlRange); // Tell MacroChart to update
             
             if (matchingPeriod) {
                 setSelectedPeriod(matchingPeriod);
@@ -125,6 +124,7 @@ const App = () => {
             
             setSelection(defaultRange);
             setScrollInfo(prev => ({ ...prev, selectionRange: defaultRange }));
+            setExternalSelection(defaultRange); // Tell MacroChart to update
             setSelectedPeriod('all');
             setIsCustomRange(false);
             updateUrl(defaultRange);
@@ -160,13 +160,13 @@ const App = () => {
         };
     }, []);
 
+    // This is now only called by MacroChart when user drags/resizes
     const handleBrush = useCallback((domain) => {
         if (isInitialLoad.current) {
             return;
         }
 
         const roundedDomain = [Math.round(domain[0]), Math.round(domain[1])];
-
         const minYear = TIME_PERIODS.all[0];
         const maxYear = TIME_PERIODS.all[1];
 
@@ -179,6 +179,7 @@ const App = () => {
             boundedDomain[1] = Math.min(maxYear, boundedDomain[0] + 1);
         }
 
+        // Update App state to reflect MacroChart's selection
         setSelection(boundedDomain);
         setScrollInfo((prev) => ({ ...prev, selectionRange: boundedDomain }));
 
@@ -192,27 +193,31 @@ const App = () => {
             setIsCustomRange(true);
         }
 
-        // Store the selection in the ref for later URL update
         pendingSelectionRef.current = boundedDomain;
     }, []);
+
+    // Create a throttled version of handleBrush for live updates.
+    // useMemo ensures the throttled function is not recreated on every render.
+    const throttledHandleBrush = useMemo(
+        () => throttle(handleBrush, 10), // Update at most every 100ms
+        [handleBrush]
+    );
 
     useEffect(() => {
         const handleMouseUp = () => {
             if (pendingSelectionRef.current) {
-                updateUrl(pendingSelectionRef.current); // Update the URL when the mouse is released
-                pendingSelectionRef.current = null; // Clear the ref
+                updateUrl(pendingSelectionRef.current);
+                pendingSelectionRef.current = null;
             }
         };
 
-        // Add mouseup listener to the document
         document.addEventListener('mouseup', handleMouseUp);
-
         return () => {
-            // Clean up the listener on unmount
             document.removeEventListener('mouseup', handleMouseUp);
         };
     }, []);
 
+    // This is called when user clicks period buttons
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
         
@@ -229,9 +234,9 @@ const App = () => {
         
         const newRange = TIME_PERIODS[period];
         
-        // Set selection state (this will cause MacroChart to re-render with new default)
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
+        setExternalSelection(newRange); // Tell MacroChart to update
         
         updateUrl(newRange);
     }, []);
@@ -253,6 +258,7 @@ const App = () => {
                 
                 setSelection(urlRange);
                 setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
+                setExternalSelection(urlRange); // Tell MacroChart to update
                 
                 if (matchingPeriod) {
                     setSelectedPeriod(matchingPeriod);
@@ -318,9 +324,11 @@ const App = () => {
                         <div className="macrochart-container">
                            <MacroChart
                                 data={events}
-                                onBrush={handleBrush}
+                                onBrush={throttledHandleBrush}
                                 onIndicatorChange={handleIndicatorChange}
                                 scrollInfo={scrollInfo}
+                                externalSelection={externalSelection}
+                                onExternalSelectionProcessed={() => setExternalSelection(null)}
                             />
                            <div className="position-indicator" style={macroIndicatorStyle}></div>
                         </div>

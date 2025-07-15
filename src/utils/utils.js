@@ -139,3 +139,16 @@ export const getEffectiveColumn = (event) => {
     // Default to column 5 (middle) if no column is specified
     return 5;
 };
+
+export const throttle = (func, limit) => {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+};
