@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react';
 import ReactDOM from 'react-dom/client'
+import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
+
+// await os.unregisterApp('eventTimeline');
+// os.registerApp('eventTimeline', thisBot);
+// configBot.tags.gridPortal = null // important
+// const { render, useState, useEffect, useCallback, useRef, useMemo, Fragment } = os.appHooks;
+
+// if (!window.d3) {
+//   const script = document.createElement('script');
+//   script.src = "https://d3js.org/d3.v7.min.js";
+//   script.onload = () => console.log('D3 loaded');
+//   document.head.appendChild(script);
+// }
 
 // ============================================================================
 // CONSTANTS
@@ -1245,36 +1258,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     const previousSelectionRef = useRef(null);
     const previousScrollInfoRef = useRef(null);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
-    const [peopleData, setPeopleData] = useState([]);
-    const [placesData, setPlacesData] = useState([]);
+    const [peopleData, setPeopleData] = useState(peopleFullData);
+    const [placesData, setPlacesData] = useState(placesFullData);
     const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
     const SWITCH_THRESHOLD = 20;
-
-    // Load people data
-    useEffect(() => {
-        const loadPeopleData = async () => {
-            try {
-                const people = []
-                setPeopleData(people);
-            } catch (error) {
-                console.error('Error loading people data:', error);
-            }
-        };
-        loadPeopleData();
-    }, []);
-
-    // Load places data
-    useEffect(() => {
-        const loadPlacesData = async () => {
-            try {
-                const places = [];
-                setPlacesData(places);
-            } catch (error) {
-                console.error('Error loading places data:', error);
-            }
-        };
-        loadPlacesData();
-    }, []);
 
     const formatDuration = useCallback((duration) => {
         if (!duration) return '';
@@ -1656,229 +1643,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 // MAIN APP COMPONENT
 // ============================================================================
 
-const eventssss = [
-    {
-        "fields": {
-            "title": "Creation of all things",
-            "eventID": "1",
-            "startDate": "-4003",
-            "duration": "7D",
-            "column": "1",
-            "rangeFlag": "",
-            "predecessor": "",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.1.1,Gen.1.2,Gen.1.3,Gen.1.4,Gen.1.5,Gen.1.6,Gen.1.7,Gen.1.8,Gen.1.9,Gen.1.10,Gen.1.11,Gen.1.12,Gen.1.13,Gen.1.14,Gen.1.15,Gen.1.16,Gen.1.17,Gen.1.18,Gen.1.19,Gen.1.20,Gen.1.21,Gen.1.22,Gen.1.23,Gen.1.24,Gen.1.25,Gen.1.26,Gen.1.27,Gen.1.28,Gen.1.29,Gen.1.30,Gen.1.31,Gen.2.1,Gen.2.2,Gen.2.3",
-            "participants": "god_1324,jesus_905,holy_spirit_7400",
-            "locations": "",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01001001",
-            "modified": "5/17/2025 7:11pm",
-            "sortKey": "-4002.98999"
-        }
-    },
-    {
-        "fields": {
-            "title": "Creation of Adam and Eve",
-            "eventID": "2",
-            "startDate": "-4003",
-            "duration": "1D",
-            "column": "1",
-            "rangeFlag": "",
-            "predecessor": "",
-            "lag": "",
-            "lagType": "",
-            "partOf": "Lifetime of Adam",
-            "verses": "Gen.2.4,Gen.2.5,Gen.2.6,Gen.2.7,Gen.2.8,Gen.2.9,Gen.2.10,Gen.2.11,Gen.2.12,Gen.2.13,Gen.2.14,Gen.2.15,Gen.2.16,Gen.2.17,Gen.2.18,Gen.2.19,Gen.2.20,Gen.2.21,Gen.2.22,Gen.2.23,Gen.2.24,Gen.2.25",
-            "participants": "adam_78,eve_1231,god_1324",
-            "locations": "eden_354",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01002004",
-            "modified": "5/17/2025 7:00pm",
-            "sortKey": "-4002.98998"
-        }
-    },
-    {
-        "fields": {
-            "title": "The Fall",
-            "eventID": "3",
-            "startDate": "-4003",
-            "duration": "1D",
-            "column": "1",
-            "rangeFlag": "checked",
-            "predecessor": "Creation of Adam and Eve",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.3.1,Gen.3.2,Gen.3.3,Gen.3.4,Gen.3.5,Gen.3.6,Gen.3.7,Gen.3.8,Gen.3.9,Gen.3.10,Gen.3.11,Gen.3.12,Gen.3.13,Gen.3.14,Gen.3.15,Gen.3.16,Gen.3.17,Gen.3.18,Gen.3.19,Gen.3.20,Gen.3.21,Gen.3.22,Gen.3.23,Gen.3.24",
-            "participants": "adam_78,eve_1231,god_1324",
-            "locations": "eden_354",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01003001",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-4002.98997"
-        }
-    },
-    {
-        "fields": {
-            "title": "Lifetime of Adam",
-            "eventID": "4",
-            "startDate": "-4003",
-            "duration": "930Y",
-            "column": "1",
-            "rangeFlag": "",
-            "predecessor": "Creation of Adam and Eve",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.5.3,Gen.5.4,Gen.5.5",
-            "participants": "adam_78",
-            "locations": "eden_354",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01005003",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-4002.98995"
-        }
-    },
-    {
-        "fields": {
-            "title": "Cain kills Abel",
-            "eventID": "5",
-            "startDate": "-3874",
-            "duration": "1D",
-            "column": "1",
-            "rangeFlag": "",
-            "predecessor": "",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.4.1,Gen.4.2,Gen.4.3,Gen.4.4,Gen.4.5,Gen.4.6,Gen.4.7,Gen.4.8,Gen.4.9,Gen.4.10",
-            "participants": "cain_533,abel_13",
-            "locations": "eden_354",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01004001",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3873.98996"
-        }
-    },
-    {
-        "fields": {
-            "title": "God curses Cain",
-            "eventID": "6",
-            "startDate": "-3874",
-            "duration": "1D",
-            "column": "1",
-            "rangeFlag": "",
-            "predecessor": "Cain kills Abel",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.4.11,Gen.4.12,Gen.4.13,Gen.4.14,Gen.4.15,Gen.4.16",
-            "participants": "cain_533,god_1324",
-            "locations": "eden_354,nod_902",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01004011",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3873.98996"
-        }
-    },
-    {
-        "fields": {
-            "title": "Birth of Seth",
-            "eventID": "7",
-            "startDate": "-3873",
-            "duration": "1D",
-            "column": "2",
-            "rangeFlag": "",
-            "predecessor": "Creation of Adam and Eve",
-            "lag": "130Y",
-            "lagType": "FS",
-            "partOf": "Lifetime of Seth",
-            "verses": "Gen.4.25,Gen.5.3,Luke.3.38,1Chr.1.1",
-            "participants": "seth_2504,adam_78,eve_1231",
-            "locations": "eden_354",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01004025",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3872.98996"
-        }
-    },
-    {
-        "fields": {
-            "title": "Lifetime of Seth",
-            "eventID": "8",
-            "startDate": "-3873",
-            "duration": "912Y",
-            "column": "2",
-            "rangeFlag": "",
-            "predecessor": "Birth of Seth",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.5.6,Gen.5.7,Gen.5.8",
-            "participants": "seth_2504",
-            "locations": "",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01005006",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3872.98995"
-        }
-    },
-    {
-        "fields": {
-            "title": "Birth of Enos",
-            "eventID": "9",
-            "startDate": "-3768",
-            "duration": "1D",
-            "column": "3",
-            "rangeFlag": "",
-            "predecessor": "Birth of Seth",
-            "lag": "105Y",
-            "lagType": "FS",
-            "partOf": "Lifetime of Enos",
-            "verses": "Gen.4.26,Gen.5.6,1Chr.1.1",
-            "participants": "enos_1193,seth_2504",
-            "locations": "",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01004026",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3767.98996"
-        }
-    },
-    {
-        "fields": {
-            "title": "Lifetime of Enos",
-            "eventID": "10",
-            "startDate": "-3768",
-            "duration": "905Y",
-            "column": "3",
-            "rangeFlag": "",
-            "predecessor": "Birth of Enos",
-            "lag": "",
-            "lagType": "",
-            "partOf": "",
-            "verses": "Gen.5.9,Gen.5.10,Gen.5.11",
-            "participants": "enos_1193",
-            "locations": "",
-            "groups": "",
-            "notes": "",
-            "verseSort": "01005009",
-            "modified": "11/25/2020 9:12am",
-            "sortKey": "-3767.98995"
-        }
-    }
-]
-
 const EventTimeline = () => {
     const [events, setEvents] = useState([]);
     const [selection, setSelection] = useState(TIME_PERIODS.all);
@@ -1933,12 +1697,9 @@ const EventTimeline = () => {
     }, []);
 
     useEffect(() => {
-        let isMounted = true;
-        setEvents(eventssss);
-
-        return () => {
-            isMounted = false;
-        };
+        const dataWithColumns = calculateColumns(eventsFullData);
+        const sortedData = dataWithColumns.sort((a, b) => a.fields.startDate - b.fields.startDate);
+        setEvents(sortedData);
     }, []);
 
     // This is now only called by MacroChart when user drags/resizes
@@ -2622,3 +2383,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <EventTimeline />
   </React.StrictMode>,
 )
+
+// render(<EventTimeline />, document.body);
