@@ -6,7 +6,7 @@ import './testindex.css'
 // CONSTANTS
 // ============================================================================
 
-export const TIME_RANGES = [
+const TIME_RANGES = [
     { start: -4100, end: -2200, color: '#5795ff' },
     { start: -2199, end: -1600, color: '#ff7f00' },
     { start: -1599, end: -1375, color: '#fc8eac' },
@@ -18,15 +18,33 @@ export const TIME_RANGES = [
     { start: 0,     end: 150,    color: '#C4A484' }
 ];
 
-export const EQUAL_DISTRIBUTION_AREA = 0.5;
-export const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
-export const EVENTS_BOUND = [-4003, 57];
+const TIME_PERIODS = {
+    'all': [-4100, 150],
+    'period1': [-4100, -3000],
+    'period2': [-2999, -2000], 
+    'period3': [-1999, -1000],
+    'period4': [-999, 0],
+    'period5': [1, 150]
+};
+
+const PERIODS = [
+    { value: 'all', label: 'ALL' },
+    { value: 'period1', label: '4101 BC - 3001 BC' },
+    { value: 'period2', label: '3000 BC - 2001 BC' },
+    { value: 'period3', label: '2000 BC - 1001 BC' },
+    { value: 'period4', label: '1000 BC - 1 BC' },
+    { value: 'period5', label: '1 AD - 150 AD' }
+];
+
+const EQUAL_DISTRIBUTION_AREA = 0.5;
+const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
+const EVENTS_BOUND = [-4003, 57];
 
 // ============================================================================
 // UTILS
 // ============================================================================
 
-export const parseDuration = (durationStr) => {
+const parseDuration = (durationStr) => {
     // make 'D' (day) into 'Y' (year) format
     if (!durationStr) return 0;
     const value = parseFloat(durationStr);
@@ -35,21 +53,21 @@ export const parseDuration = (durationStr) => {
     return value;
 };
 
-export const getRangeInfo = (startDate) => {
+const getRangeInfo = (startDate) => {
     const range = TIME_RANGES.find(r => startDate >= r.start && startDate <= r.end);
     if (!range) return { color: '#ccc', span: 1 };
     const span = Math.abs(range.end - range.start);
     return { ...range, span: span > 0 ? span : 1 };
 };
 
-export const formatYear = (year) => {
+const formatYear = (year) => {
     // Format year as "YYYY BC" or "YYYY AD"
     if (year < 0) return `${Math.abs(year) + 1} BC`;
     if (year > 0) return `${year} AD`;
     return 0;
 };
 
-export const calculateColumns = (data) => {
+const calculateColumns = (data) => {
     const eventsByDate = {};
     
     data.forEach((event, index) => {
@@ -151,7 +169,7 @@ export const calculateColumns = (data) => {
     return result;
 }
 
-export const getEffectiveColumn = (event) => {
+const getEffectiveColumn = (event) => {
     // First check if there's a regular column value
     if (event.fields.column && event.fields.column.trim() !== '') {
         return parseFloat(event.fields.column);
@@ -166,7 +184,7 @@ export const getEffectiveColumn = (event) => {
     return 5;
 };
 
-export const throttle = (func, limit) => {
+const throttle = (func, limit) => {
     let inThrottle;
     return function() {
         const args = arguments;
@@ -179,111 +197,65 @@ export const throttle = (func, limit) => {
     };
 };
 
-// ============================================================================
-// SAMPLE DATA (Replace with your actual data)
-// ============================================================================
-
-const SAMPLE_EVENTS = [
-    {
-        fields: {
-            title: "Creation",
-            startDate: -4100,
-            duration: "7D",
-            participants: "God",
-            locations: "Eden",
-            verses: "Gen.1.1",
-            notes: "The beginning of all things"
-        }
-    },
-    {
-        fields: {
-            title: "The Flood",
-            startDate: -2348,
-            duration: "40D",
-            participants: "Noah",
-            locations: "Earth",
-            verses: "Gen.7.4",
-            notes: "Global flood"
-        }
-    },
-    {
-        fields: {
-            title: "Abraham's Call",
-            startDate: -2091,
-            duration: "1Y",
-            participants: "Abraham",
-            locations: "Ur",
-            verses: "Gen.12.1",
-            notes: "God calls Abraham"
-        }
-    },
-    {
-        fields: {
-            title: "Exodus from Egypt",
-            startDate: -1446,
-            duration: "40Y",
-            participants: "Moses,Israelites",
-            locations: "Egypt",
-            verses: "Exo.12.31",
-            notes: "Israel leaves Egypt"
-        }
-    },
-    {
-        fields: {
-            title: "David becomes King",
-            startDate: -1010,
-            duration: "40Y",
-            participants: "David",
-            locations: "Jerusalem",
-            verses: "2Sam.5.4",
-            notes: "David's reign begins"
-        }
-    },
-    {
-        fields: {
-            title: "Jesus' Birth",
-            startDate: -4,
-            duration: "1D",
-            participants: "Jesus,Mary,Joseph",
-            locations: "Bethlehem",
-            verses: "Mat.2.1",
-            notes: "Birth of Christ"
-        }
-    },
-    {
-        fields: {
-            title: "Jesus' Crucifixion",
-            startDate: 30,
-            duration: "1D",
-            participants: "Jesus",
-            locations: "Golgotha",
-            verses: "Mat.27.35",
-            notes: "Death and resurrection"
-        }
+const parseUrlParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    const startYearParam = params.get('startYear');
+    const endYearParam = params.get('endYear');
+    
+    if (!startYearParam && !endYearParam) {
+        return null;
     }
-];
+    
+    const minYear = TIME_PERIODS.all[0];
+    const maxYear = TIME_PERIODS.all[1];
+    
+    let startYear, endYear;
+    
+    if (startYearParam) {
+        startYear = Math.round(parseFloat(startYearParam));
+        if (isNaN(startYear)) {
+            return null;
+        }
+    } else {
+        startYear = minYear;
+    }
+    
+    if (endYearParam) {
+        endYear = Math.round(parseFloat(endYearParam));
+        if (isNaN(endYear)) {
+            return null;
+        }
+    } else {
+        endYear = maxYear;
+    }
+    
+    if (startYear >= endYear) {
+        return null;
+    }
+    
+    const clampedStart = Math.max(minYear, Math.min(maxYear, startYear));
+    const clampedEnd = Math.max(minYear, Math.min(maxYear, endYear));
+    
+    if (clampedStart >= clampedEnd) {
+        return null;
+    }
+    
+    return [clampedStart, clampedEnd];
+};
 
-const SAMPLE_PEOPLE = [
-    { fields: { personLookup: "God", displayTitle: "God" } },
-    { fields: { personLookup: "Noah", displayTitle: "Noah" } },
-    { fields: { personLookup: "Abraham", displayTitle: "Abraham" } },
-    { fields: { personLookup: "Moses", displayTitle: "Moses" } },
-    { fields: { personLookup: "Israelites", displayTitle: "Israelites" } },
-    { fields: { personLookup: "David", displayTitle: "David" } },
-    { fields: { personLookup: "Jesus", displayTitle: "Jesus" } },
-    { fields: { personLookup: "Mary", displayTitle: "Mary" } },
-    { fields: { personLookup: "Joseph", displayTitle: "Joseph" } }
-];
+const findMatchingPeriod = (range) => {
+    const entry = Object.entries(TIME_PERIODS).find(([key, periodRange]) => {
+        return periodRange[0] === range[0] && periodRange[1] === range[1];
+    });
+    return entry ? entry[0] : null;
+};
 
-const SAMPLE_PLACES = [
-    { fields: { placeLookup: "Eden", displayTitle: "Garden of Eden" } },
-    { fields: { placeLookup: "Earth", displayTitle: "Earth" } },
-    { fields: { placeLookup: "Ur", displayTitle: "Ur of the Chaldees" } },
-    { fields: { placeLookup: "Egypt", displayTitle: "Egypt" } },
-    { fields: { placeLookup: "Jerusalem", displayTitle: "Jerusalem" } },
-    { fields: { placeLookup: "Bethlehem", displayTitle: "Bethlehem" } },
-    { fields: { placeLookup: "Golgotha", displayTitle: "Golgotha" } }
-];
+const updateUrl = (range) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('startYear', range[0].toString());
+    url.searchParams.set('endYear', range[1].toString());
+    window.history.replaceState({}, '', url);
+};
 
 // ============================================================================
 // MACRO CHART COMPONENT
@@ -1684,84 +1656,6 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 // ============================================================================
 // MAIN APP COMPONENT
 // ============================================================================
-
-const TIME_PERIODS = {
-    'all': [-4100, 150],
-    'period1': [-4100, -3000],
-    'period2': [-2999, -2000], 
-    'period3': [-1999, -1000],
-    'period4': [-999, 0],
-    'period5': [1, 150]
-};
-
-const PERIODS = [
-    { value: 'all', label: 'ALL' },
-    { value: 'period1', label: '4101 BC - 3001 BC' },
-    { value: 'period2', label: '3000 BC - 2001 BC' },
-    { value: 'period3', label: '2000 BC - 1001 BC' },
-    { value: 'period4', label: '1000 BC - 1 BC' },
-    { value: 'period5', label: '1 AD - 150 AD' }
-];
-
-const parseUrlParams = () => {
-    const params = new URLSearchParams(window.location.search);
-    const startYearParam = params.get('startYear');
-    const endYearParam = params.get('endYear');
-    
-    if (!startYearParam && !endYearParam) {
-        return null;
-    }
-    
-    const minYear = TIME_PERIODS.all[0];
-    const maxYear = TIME_PERIODS.all[1];
-    
-    let startYear, endYear;
-    
-    if (startYearParam) {
-        startYear = Math.round(parseFloat(startYearParam));
-        if (isNaN(startYear)) {
-            return null;
-        }
-    } else {
-        startYear = minYear;
-    }
-    
-    if (endYearParam) {
-        endYear = Math.round(parseFloat(endYearParam));
-        if (isNaN(endYear)) {
-            return null;
-        }
-    } else {
-        endYear = maxYear;
-    }
-    
-    if (startYear >= endYear) {
-        return null;
-    }
-    
-    const clampedStart = Math.max(minYear, Math.min(maxYear, startYear));
-    const clampedEnd = Math.max(minYear, Math.min(maxYear, endYear));
-    
-    if (clampedStart >= clampedEnd) {
-        return null;
-    }
-    
-    return [clampedStart, clampedEnd];
-};
-
-const findMatchingPeriod = (range) => {
-    const entry = Object.entries(TIME_PERIODS).find(([key, periodRange]) => {
-        return periodRange[0] === range[0] && periodRange[1] === range[1];
-    });
-    return entry ? entry[0] : null;
-};
-
-const updateUrl = (range) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('startYear', range[0].toString());
-    url.searchParams.set('endYear', range[1].toString());
-    window.history.replaceState({}, '', url);
-};
 
 const App = () => {
     const [events, setEvents] = useState([]);
