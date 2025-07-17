@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react';
 import ReactDOM from 'react-dom/client'
-import './testindex.css'
 
 // ============================================================================
 // CONSTANTS
@@ -473,16 +472,17 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     const createDragHandler = useCallback((dimensions, brush, brushGroup, resizeZone) => {
         return function (event) {
             isUserInteractingRef.current = true;
-            const rect = this.getBoundingClientRect();
+            const element = event.currentTarget;
+            const rect = element.getBoundingClientRect();
             const mouseY = event.clientY - rect.top;
 
             let mode = 'drag';
             if (mouseY <= resizeZone) {
                 mode = 'resize-top';
-                this.style.cursor = 'ns-resize';
+                element.style.cursor = 'ns-resize';
             } else if (mouseY >= rect.height - resizeZone) {
                 mode = 'resize-bottom';
-                this.style.cursor = 'ns-resize';
+                element.style.cursor = 'ns-resize';
             }
 
             const startMouseY = event.clientY;
@@ -520,7 +520,7 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             };
 
             const handleUp = () => {
-                this.style.cursor = 'move';
+                element.style.cursor = 'move';
                 isUserInteractingRef.current = false;
                 document.removeEventListener('mousemove', handleMove);
                 document.removeEventListener('mouseup', handleUp);
@@ -590,13 +590,14 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             .on('mousedown', createDragHandler(dimensions, brush, brushGroup, resizeZone))
             .on('mousemove', function(event) {
                 if (event.buttons === 0) {
-                    const rect = this.getBoundingClientRect();
+                    const element = event.currentTarget;
+                    const rect = element.getBoundingClientRect();
                     const mouseY = event.clientY - rect.top;
                     
                     if (mouseY <= resizeZone || mouseY >= rect.height - resizeZone) {
-                        this.style.cursor = 'ns-resize';
+                        element.style.cursor = 'ns-resize';
                     } else {
-                        this.style.cursor = 'move';
+                        element.style.cursor = 'move';
                     }
                 }
             });
@@ -739,12 +740,12 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const resizeObserver = new ResizeObserver(() => {
+        const handleResize = () => {
             // Use requestAnimationFrame to debounce resize events
-            requestAnimationFrame(() => {
-                render();
-            });
-        });
+            requestAnimationFrame(render);
+        };
+
+        const resizeObserver = new ResizeObserver(handleResize);
         
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
@@ -1166,12 +1167,12 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const resizeObserver = new ResizeObserver(() => {
+        const handleResize = () => {
             // Use requestAnimationFrame to debounce resize events
-            requestAnimationFrame(() => {
-                renderChart();
-            });
-        });
+            requestAnimationFrame(renderChart);
+        };
+
+        const resizeObserver = new ResizeObserver(handleResize);
         
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
@@ -1253,8 +1254,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     useEffect(() => {
         const loadPeopleData = async () => {
             try {
-                const response = await fetch(`${import.meta.env.BASE_URL}data/people.json`);
-                const people = await response.json();
+                const people = []
                 setPeopleData(people);
             } catch (error) {
                 console.error('Error loading people data:', error);
@@ -1267,8 +1267,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
     useEffect(() => {
         const loadPlacesData = async () => {
             try {
-                const response = await fetch(`${import.meta.env.BASE_URL}data/places.json`);
-                const places = await response.json();
+                const places = [];
                 setPlacesData(places);
             } catch (error) {
                 console.error('Error loading places data:', error);
@@ -1657,7 +1656,230 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 // MAIN APP COMPONENT
 // ============================================================================
 
-const App = () => {
+const eventssss = [
+    {
+        "fields": {
+            "title": "Creation of all things",
+            "eventID": "1",
+            "startDate": "-4003",
+            "duration": "7D",
+            "column": "1",
+            "rangeFlag": "",
+            "predecessor": "",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.1.1,Gen.1.2,Gen.1.3,Gen.1.4,Gen.1.5,Gen.1.6,Gen.1.7,Gen.1.8,Gen.1.9,Gen.1.10,Gen.1.11,Gen.1.12,Gen.1.13,Gen.1.14,Gen.1.15,Gen.1.16,Gen.1.17,Gen.1.18,Gen.1.19,Gen.1.20,Gen.1.21,Gen.1.22,Gen.1.23,Gen.1.24,Gen.1.25,Gen.1.26,Gen.1.27,Gen.1.28,Gen.1.29,Gen.1.30,Gen.1.31,Gen.2.1,Gen.2.2,Gen.2.3",
+            "participants": "god_1324,jesus_905,holy_spirit_7400",
+            "locations": "",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01001001",
+            "modified": "5/17/2025 7:11pm",
+            "sortKey": "-4002.98999"
+        }
+    },
+    {
+        "fields": {
+            "title": "Creation of Adam and Eve",
+            "eventID": "2",
+            "startDate": "-4003",
+            "duration": "1D",
+            "column": "1",
+            "rangeFlag": "",
+            "predecessor": "",
+            "lag": "",
+            "lagType": "",
+            "partOf": "Lifetime of Adam",
+            "verses": "Gen.2.4,Gen.2.5,Gen.2.6,Gen.2.7,Gen.2.8,Gen.2.9,Gen.2.10,Gen.2.11,Gen.2.12,Gen.2.13,Gen.2.14,Gen.2.15,Gen.2.16,Gen.2.17,Gen.2.18,Gen.2.19,Gen.2.20,Gen.2.21,Gen.2.22,Gen.2.23,Gen.2.24,Gen.2.25",
+            "participants": "adam_78,eve_1231,god_1324",
+            "locations": "eden_354",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01002004",
+            "modified": "5/17/2025 7:00pm",
+            "sortKey": "-4002.98998"
+        }
+    },
+    {
+        "fields": {
+            "title": "The Fall",
+            "eventID": "3",
+            "startDate": "-4003",
+            "duration": "1D",
+            "column": "1",
+            "rangeFlag": "checked",
+            "predecessor": "Creation of Adam and Eve",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.3.1,Gen.3.2,Gen.3.3,Gen.3.4,Gen.3.5,Gen.3.6,Gen.3.7,Gen.3.8,Gen.3.9,Gen.3.10,Gen.3.11,Gen.3.12,Gen.3.13,Gen.3.14,Gen.3.15,Gen.3.16,Gen.3.17,Gen.3.18,Gen.3.19,Gen.3.20,Gen.3.21,Gen.3.22,Gen.3.23,Gen.3.24",
+            "participants": "adam_78,eve_1231,god_1324",
+            "locations": "eden_354",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01003001",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-4002.98997"
+        }
+    },
+    {
+        "fields": {
+            "title": "Lifetime of Adam",
+            "eventID": "4",
+            "startDate": "-4003",
+            "duration": "930Y",
+            "column": "1",
+            "rangeFlag": "",
+            "predecessor": "Creation of Adam and Eve",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.5.3,Gen.5.4,Gen.5.5",
+            "participants": "adam_78",
+            "locations": "eden_354",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01005003",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-4002.98995"
+        }
+    },
+    {
+        "fields": {
+            "title": "Cain kills Abel",
+            "eventID": "5",
+            "startDate": "-3874",
+            "duration": "1D",
+            "column": "1",
+            "rangeFlag": "",
+            "predecessor": "",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.4.1,Gen.4.2,Gen.4.3,Gen.4.4,Gen.4.5,Gen.4.6,Gen.4.7,Gen.4.8,Gen.4.9,Gen.4.10",
+            "participants": "cain_533,abel_13",
+            "locations": "eden_354",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01004001",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3873.98996"
+        }
+    },
+    {
+        "fields": {
+            "title": "God curses Cain",
+            "eventID": "6",
+            "startDate": "-3874",
+            "duration": "1D",
+            "column": "1",
+            "rangeFlag": "",
+            "predecessor": "Cain kills Abel",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.4.11,Gen.4.12,Gen.4.13,Gen.4.14,Gen.4.15,Gen.4.16",
+            "participants": "cain_533,god_1324",
+            "locations": "eden_354,nod_902",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01004011",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3873.98996"
+        }
+    },
+    {
+        "fields": {
+            "title": "Birth of Seth",
+            "eventID": "7",
+            "startDate": "-3873",
+            "duration": "1D",
+            "column": "2",
+            "rangeFlag": "",
+            "predecessor": "Creation of Adam and Eve",
+            "lag": "130Y",
+            "lagType": "FS",
+            "partOf": "Lifetime of Seth",
+            "verses": "Gen.4.25,Gen.5.3,Luke.3.38,1Chr.1.1",
+            "participants": "seth_2504,adam_78,eve_1231",
+            "locations": "eden_354",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01004025",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3872.98996"
+        }
+    },
+    {
+        "fields": {
+            "title": "Lifetime of Seth",
+            "eventID": "8",
+            "startDate": "-3873",
+            "duration": "912Y",
+            "column": "2",
+            "rangeFlag": "",
+            "predecessor": "Birth of Seth",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.5.6,Gen.5.7,Gen.5.8",
+            "participants": "seth_2504",
+            "locations": "",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01005006",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3872.98995"
+        }
+    },
+    {
+        "fields": {
+            "title": "Birth of Enos",
+            "eventID": "9",
+            "startDate": "-3768",
+            "duration": "1D",
+            "column": "3",
+            "rangeFlag": "",
+            "predecessor": "Birth of Seth",
+            "lag": "105Y",
+            "lagType": "FS",
+            "partOf": "Lifetime of Enos",
+            "verses": "Gen.4.26,Gen.5.6,1Chr.1.1",
+            "participants": "enos_1193,seth_2504",
+            "locations": "",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01004026",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3767.98996"
+        }
+    },
+    {
+        "fields": {
+            "title": "Lifetime of Enos",
+            "eventID": "10",
+            "startDate": "-3768",
+            "duration": "905Y",
+            "column": "3",
+            "rangeFlag": "",
+            "predecessor": "Birth of Enos",
+            "lag": "",
+            "lagType": "",
+            "partOf": "",
+            "verses": "Gen.5.9,Gen.5.10,Gen.5.11",
+            "participants": "enos_1193",
+            "locations": "",
+            "groups": "",
+            "notes": "",
+            "verseSort": "01005009",
+            "modified": "11/25/2020 9:12am",
+            "sortKey": "-3767.98995"
+        }
+    }
+]
+
+const EventTimeline = () => {
     const [events, setEvents] = useState([]);
     const [selection, setSelection] = useState(TIME_PERIODS.all);
     const [indicatorY, setIndicatorY] = useState(0);
@@ -1712,21 +1934,7 @@ const App = () => {
 
     useEffect(() => {
         let isMounted = true;
-
-        fetch(`${import.meta.env.BASE_URL}data/events.json`)
-            .then(res => res.json())
-            .then(data => {
-                if (isMounted) {
-                    const dataWithColumns = calculateColumns(data);
-                    const sortedData = dataWithColumns.sort((a, b) => a.fields.startDate - b.fields.startDate);
-                    setEvents(sortedData);
-                }
-            })
-            .catch(err => {
-                if (isMounted) {
-                    console.error("Failed to load event data:", err);
-                }
-            });
+        setEvents(eventssss);
 
         return () => {
             isMounted = false;
@@ -1864,69 +2072,544 @@ const App = () => {
     }
 
     return (
-        <div className="page-container">
-            <div className="content-wrapper">
-                <header className="header">
-                    <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
-                    <div className="header-controls">
-                        <div className="order-1">
-                            <form>
-                                <ul id="people-legend">
-                                    {PERIODS.map(period => (
-                                        <li key={period.value}>
-                                            <input 
-                                                id={`people-legend-${period.value}`}
-                                                type="radio" 
-                                                name="people-legend" 
-                                                value={period.value}
-                                                checked={!isCustomRange && selectedPeriod === period.value}
-                                                onChange={handlePeriodChange} 
-                                            />
-                                            <label htmlFor={`people-legend-${period.value}`}>
-                                                {period.label}
-                                            </label>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </form>
+        <>
+            <style>{`
+                :root {
+                    --tw-gray-100: rgb(241 245 249);
+                    --tw-gray-300: rgb(203 213 225);
+                    --tw-gray-800: rgb(30 41 59);
+                    --tw-blue-500: rgb(14 165 233);
+                }
+
+                body, html {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                    font-family: 'PT Sans', sans-serif;
+                    background-color: var(--tw-gray-100);
+                    color: #333;
+                    overflow: hidden;
+                    scrollbar-width: none;
+                    -ms-overflow-style: none;
+                }
+
+                body::-webkit-scrollbar {
+                    display: none;
+                }
+
+                *, *:before, *:after {
+                    box-sizing: inherit;
+                }
+
+                .page-container {
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 100vh;
+                    max-height: 100vh;
+                    padding: 0.75rem;
+                }
+
+                .content-wrapper {
+                    display: flex;
+                    flex-direction: column;
+                    flex: 1;
+                    min-height: 0;
+                }
+
+                /* Header styles */
+                .header {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 0.75rem 0;
+                    padding: 0 0.5rem;
+                }
+
+                .header h1 {
+                    margin: 0;
+                    margin-left: 0.25rem;
+                    font-family: 'Georgia', ui-serif, serif;
+                    font-style: italic;
+                    font-size: 1.5rem;
+                    line-height: 2rem;
+                    font-weight: normal;
+                }
+
+                .header-controls {
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 0.5rem 0;
+                }
+
+                /* People legend (radio button) styles */
+                #people-legend {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 0.5rem 0.5rem;
+                    padding: 0.25rem;
+                    margin: 0;
+                    list-style: none;
+                }
+
+                #people-legend input[type="radio"] {
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    padding: 0;
+                    margin: -1px;
+                    overflow: hidden;
+                    clip: rect(0, 0, 0, 0);
+                    white-space: nowrap;
+                    border-width: 0;
+                }
+
+                #people-legend label {
+                    cursor: pointer;
+                    padding: 0.125rem 0.5rem 0.125rem;
+                    padding-top: 0.25rem;
+                    border-bottom: 4px solid var(--tw-gray-300);
+                    user-select: none;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                }
+
+                #people-legend-all + label { border-bottom-color: var(--tw-gray-300); }
+                #people-legend-period1 + label { border-bottom-color: #5795ff; }
+                #people-legend-period2 + label { border-bottom-color: #5795ff; }
+                #people-legend-period3 + label { border-bottom-color: #ff7f00; }
+                #people-legend-period4 + label { border-bottom-color: #fdbf6f; }
+                #people-legend-period5 + label { border-bottom-color: #C4A484; }
+
+                #people-legend input[type="radio"]:checked + label {
+                    font-weight: 700;
+                }
+
+                #people-legend-all:checked + label { background-color: var(--tw-gray-300); color: black; }
+                #people-legend-period1:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
+                #people-legend-period2:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
+                #people-legend-period3:checked + label { background-color: #ff7f00; color: white; border-color: #ff7f00; }
+                #people-legend-period4:checked + label { background-color: #fdbf6f; color: black; border-color: #fdbf6f; }
+                #people-legend-period5:checked + label { background-color: #C4A484; color: white; border-color: #C4A484; }
+
+                /* Timeline container styles */
+                .timeline-container {
+                    display: flex;
+                    flex-direction: row;
+                    background-color: white;
+                    border: 2px solid var(--tw-gray-300);
+                    flex-grow: 1;
+                    min-height: 0;
+                    overflow: visible;
+                }
+
+                .sidebar {
+                    display: flex;
+                    flex-direction: row;
+                    border-right: 1px solid #ccc;
+                    background-color: #f0f0f0;
+                }
+
+                .macrochart-container, .microchart-container {
+                    width: 100px;
+                    height: 100%;
+                    box-sizing: border-box;
+                    position: relative;
+                    padding: 0;
+                    background-color: #f0f0f0;
+                    overflow: visible;
+                }
+
+                /* Position indicator styles */
+                .position-indicator {
+                    position: absolute;
+                    left: 0;
+                    width: 100%;
+                    height: 2px;
+                    background-color: red;
+                    z-index: 30;
+                    pointer-events: none;
+                }
+
+                .position-indicator::before {
+                    content: '';
+                    position: absolute;
+                    top: -4px;
+                    left: -10px;
+                    width: 0;
+                    height: 0;
+                    border-top: 5px solid transparent;
+                    border-bottom: 5px solid transparent;
+                    border-left: 10px solid red;
+                    z-index: 31;
+                }
+
+                .microchart-position-indicator {
+                    position: absolute;
+                    right: 0;
+                    width: 50%;
+                    height: 2px;
+                    background-color: red;
+                    z-index: 30;
+                    pointer-events: none;
+                }
+
+                .microchart-position-indicator::after {
+                    content: '';
+                    position: absolute;
+                    top: -4px;
+                    right: -10px;
+                    width: 0;
+                    height: 0;
+                    border-top: 5px solid transparent;
+                    border-bottom: 5px solid transparent;
+                    border-right: 10px solid red;
+                    z-index: 31;
+                }
+
+                label {
+                    color: black;
+                }
+
+                /* Media queries */
+                @media (min-width: 768px) {
+                    .header-controls {
+                        flex-direction: row;
+                        justify-content: space-between;
+                        width: auto;
+                        gap: 1rem;
+                    }
+                    .header h1 {
+                        margin-top: 0;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .header {
+                        justify-content: space-between;
+                    }
+                    .header h1 {
+                        font-size: 1.875rem;
+                        line-height: 2.25rem;
+                    }
+                }
+
+                @media (max-width: 767px) {
+                    .microchart-container {
+                        display: none;
+                    }
+                }
+
+                .microchart-container {
+                    width: 100px;
+                    height: 100%;
+                    box-sizing: border-box;
+                    position: relative;
+                    padding: 0;
+                    background-color: #f0f0f0;
+                    overflow: visible;
+                }
+
+                .microchart-container svg {
+                    width: 100% !important;
+                    height: 100% !important;
+                    display: block;
+                    background-color: #f0f0f0;
+                    overflow: visible;
+                }
+
+                .microchart-line {
+                    stroke-width: 5px;
+                }
+
+                .microchart-dot {
+                    stroke-width: 1px;
+                    stroke: #fff;
+                }
+
+                .microchart-root {
+                    width: 100%;
+                    height: 100%;
+                    border-left: 1px solid #ccc;
+                    position: relative;
+                }
+
+                .microchart-tooltip {
+                    opacity: 0;
+                    position: absolute;
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    pointer-events: none;
+                    z-index: 1000;
+                    max-width: 200px;
+                    word-wrap: break-word;
+                }
+
+                .macrochart-container {
+                    width: 100px;
+                    height: 100%;
+                    box-sizing: border-box;
+                    position: relative;
+                    padding: 0;
+                    background-color: #f0f0f0;
+                    overflow: visible;
+                }
+
+                .macrochart-container svg {
+                    width: 100% !important;
+                    height: 100% !important;
+                    display: block;
+                    background-color: #f0f0f0;
+                    overflow: visible;
+                }
+
+                .year-label {
+                    user-select: none;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    font-size: 14px;
+                    fill: black;
+                    text-anchor: end;
+                }
+
+                .selection-overlay {
+                    outline: none !important;
+                    box-shadow: none !important;
+                    position: absolute;
+                    background: rgba(119, 119, 119, 0.5);
+                    border: 1px solid #000;
+                    border-radius: 8px;
+                    pointer-events: auto;
+                    z-index: 20;
+                    box-sizing: border-box;
+                    cursor: move;
+                }
+
+                .selection-overlay:focus {
+                    outline: none !important;
+                }
+
+                .brush .selection {
+                    display: none !important;
+                }
+
+                .macrochart-root {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                }
+
+                .year-line {
+                    stroke: #999;
+                    stroke-width: 1px;
+                    stroke-dasharray: 2,2;
+                }
+
+                .top-handle,
+                .bottom-handle {
+                    position: absolute;
+                    background: #000;
+                    opacity: 0.8;
+                    pointer-events: auto;
+                    cursor: ns-resize;
+                    z-index: 21;
+                    border-radius: 4px;
+                }
+
+                .top-handle-text,
+                .bottom-handle-text {
+                    position: absolute;
+                    color: white;
+                    font-size: 10px;
+                    font-weight: bold;
+                    text-align: center;
+                    pointer-events: none;
+                    user-select: none;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+                    z-index: 22;
+                }
+
+                .event-display-container {
+                    flex-grow: 1;
+                    padding: 0 20px 10px 20px;
+                    overflow-y: auto;
+                    box-sizing: border-box;
+                    background-color: #e8e8e8;
+                    scrollbar-width: none;
+                    -ms-overflow-style: none;
+                    position: relative;
+                }
+
+                .event-display-container::-webkit-scrollbar {
+                    display: none;
+                }
+
+                .floating-header {
+                    position: sticky;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 1000;
+                    background-color: #e8e8e8;
+                    margin: 0;
+                    padding: 10px 0 5px 0;
+                    font-size: 1.1em;
+                    color: #000;
+                    font-weight: 600;
+                    border-bottom: 1px solid black;
+                    pointer-events: none;
+                }
+
+                .event-year-header {
+                    margin: 0;
+                    padding: 10px 0 5px 0;
+                    font-size: 1.1em;
+                    color: #000;
+                    font-weight: 600;
+                    border-bottom: 1px solid black;
+                }
+
+                .event-item {
+                    margin-bottom: 5px;
+                    display: flex;
+                    align-items: flex-start;
+                    color: black;
+                    gap: 8px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+
+                .event-item:last-of-type {
+                    margin-bottom: 20px;
+                }
+
+                .event-triangle {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 12px;
+                    color: black;
+                    padding: 0;
+                    margin-top: 2px;
+                    transition: transform 0.2s ease;
+                    flex-shrink: 0;
+                }
+
+                .event-triangle:hover {
+                    opacity: 0.5;
+                }
+
+                .event-triangle.expanded {
+                    transform: rotate(90deg);
+                }
+
+                .event-content {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 0;
+                    overflow-wrap: break-word;
+                    word-wrap: break-word;
+                }
+
+                .event-title {
+                    line-height: 1.2;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }
+
+                .event-detail {
+                    font-size: 0.8em;
+                    color: black;
+                    margin-top: 4px;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    white-space: pre-wrap;
+                    max-width: 100%;
+                    box-sizing: border-box;
+                }
+
+                .event-link {
+                    color: blue;
+                }
+            `}</style>
+            <div className="page-container">
+                <div className="content-wrapper">
+                    <header className="header">
+                        <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
+                        <div className="header-controls">
+                            <div className="order-1">
+                                <form>
+                                    <ul id="people-legend">
+                                        {PERIODS.map(period => (
+                                            <li key={period.value}>
+                                                <input 
+                                                    id={`people-legend-${period.value}`}
+                                                    type="radio" 
+                                                    name="people-legend" 
+                                                    value={period.value}
+                                                    checked={!isCustomRange && selectedPeriod === period.value}
+                                                    onChange={handlePeriodChange} 
+                                                />
+                                                <label htmlFor={`people-legend-${period.value}`}>
+                                                    {period.label}
+                                                </label>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </form>
+                            </div>
                         </div>
+                    </header>
+                    <div className="timeline-container">
+                        <div className="sidebar">
+                            <div className="macrochart-container">
+                            <MacroChart
+                                    data={events}
+                                    onBrush={throttledHandleBrush}
+                                    onIndicatorChange={handleIndicatorChange}
+                                    scrollInfo={scrollInfo}
+                                    externalSelection={externalSelection}
+                                    onExternalSelectionProcessed={() => setExternalSelection(null)}
+                                />
+                            <div className="position-indicator" style={macroIndicatorStyle}></div>
+                            </div>
+                            <div className="microchart-container">
+                                <Microchart
+                                    data={events} 
+                                    selection={selection}
+                                    onIndicatorChange={handleMicrochartIndicatorChange}
+                                    scrollInfo={scrollInfo} />
+                                {microchartIndicatorY !== null && (
+                                    <div 
+                                        className="microchart-position-indicator" 
+                                        style={microchartIndicatorStyle}
+                                    ></div>
+                                )}
+                            </div>
+                        </div>
+                        <EventDisplay 
+                            data={events}
+                            selection={selection}
+                            onScrollInfoChange={setScrollInfo}
+                            containerRef={eventDisplayRef} />
                     </div>
-                </header>
-                <div className="timeline-container">
-                    <div className="sidebar">
-                        <div className="macrochart-container">
-                           <MacroChart
-                                data={events}
-                                onBrush={throttledHandleBrush}
-                                onIndicatorChange={handleIndicatorChange}
-                                scrollInfo={scrollInfo}
-                                externalSelection={externalSelection}
-                                onExternalSelectionProcessed={() => setExternalSelection(null)}
-                            />
-                           <div className="position-indicator" style={macroIndicatorStyle}></div>
-                        </div>
-                        <div className="microchart-container">
-                            <Microchart
-                                data={events} 
-                                selection={selection}
-                                onIndicatorChange={handleMicrochartIndicatorChange}
-                                scrollInfo={scrollInfo} />
-                            {microchartIndicatorY !== null && (
-                                <div 
-                                    className="microchart-position-indicator" 
-                                    style={microchartIndicatorStyle}
-                                ></div>
-                            )}
-                        </div>
-                    </div>
-                    <EventDisplay 
-                        data={events}
-                        selection={selection}
-                        onScrollInfoChange={setScrollInfo}
-                        containerRef={eventDisplayRef} />
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
@@ -1936,6 +2619,6 @@ const App = () => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <EventTimeline />
   </React.StrictMode>,
 )
