@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment, createContext, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment, useContext, createContext, memo } from 'react';
 import ReactDOM from 'react-dom/client'
 import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
-import { parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn, throttle, parseUrlParams, findMatchingPeriod, updateUrl } from './utils.js';
+import { parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn, throttle, 
+    parseUrlParams, findMatchingPeriod, updateUrl, formatDuration, formatLocations, formatParticipants, formatVerses } from './utils.jsx';
 import './testindex.css'
 
 const TIME_RANGES = [
@@ -38,58 +39,43 @@ const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const EVENTS_BOUND = [-4003, 57];
 
-// CUSTOM HOOKS
-
-const useResizeObserver = (ref, callback) => {
-    useEffect(() => {
-        if (!ref.current) return;
-
-        const resizeObserver = new ResizeObserver(() => {
-            requestAnimationFrame(callback);
-        });
-
-        resizeObserver.observe(ref.current);
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, [callback]);
-};
-
-const useDimensions = (ref) => {
-    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-    useResizeObserver(ref, () => {
-        if (ref.current) {
-            const rect = ref.current.getBoundingClientRect();
-            setDimensions({ width: rect.width, height: rect.height });
-        }
-    });
-
-    return dimensions;
-};
-
-// CONTEXT PROVIDER
+// CONTEXT
 
 const TimelineContext = createContext();
 
 const TimelineProvider = ({ children }) => {
-    const [events] = useState(() => calculateColumns(eventsFullData));
+    const [events, setEvents] = useState(calculateColumns(eventsFullData));
     const [selection, setSelection] = useState(TIME_PERIODS.all);
+    const [indicatorY, setIndicatorY] = useState(0);
+    const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
+    const [scrollInfo, setScrollInfo] = useState({ 
+        topVisibleYear: EVENTS_BOUND[0], 
+        selectionRange: TIME_PERIODS.all
+    });
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
-    const [scrollInfo, setScrollInfo] = useState(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [externalSelection, setExternalSelection] = useState(null);
 
     const value = {
         events,
+        setEvents,
         selection,
         setSelection,
+        indicatorY,
+        setIndicatorY,
+        microchartIndicatorY,
+        setMicrochartIndicatorY,
+        scrollInfo,
+        setScrollInfo,
         selectedPeriod,
         setSelectedPeriod,
         isCustomRange,
         setIsCustomRange,
-        scrollInfo,
-        setScrollInfo
+        isInitialized,
+        setIsInitialized,
+        externalSelection,
+        setExternalSelection
     };
 
     return (
@@ -102,7 +88,7 @@ const TimelineProvider = ({ children }) => {
 const useTimeline = () => {
     const context = useContext(TimelineContext);
     if (!context) {
-        throw new Error('useTimeline must be used within TimelineProvider');
+        throw new Error('useTimeline must be used within a TimelineProvider');
     }
     return context;
 };
@@ -123,7 +109,8 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/2;
 
-const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSelection, onExternalSelectionProcessed }) => {
+const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
+    const { events, indicatorY, setIndicatorY, scrollInfo, externalSelection } = useTimeline();
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const scaleInfoRef = useRef(null);
@@ -620,15 +607,15 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     }, [render]);
 
     useEffect(() => {
-        if (!scrollInfo || !scaleInfoRef.current || !data || !data.length || scrollInfo.topVisibleYear === undefined) return;
+        if (!scrollInfo || !scaleInfoRef.current || !events || !events.length || scrollInfo.topVisibleYear === undefined) return;
 
         const { topVisibleYear, isAtBottom } = scrollInfo;
         const { yearToPixel } = scaleInfoRef.current;
         
-        const allEvents = data;
+        const allEvents = events;
 
         if (allEvents.length === 0) {
-            onIndicatorChange(null);
+            setIndicatorY(null);
             return;
         }
 
@@ -641,9 +628,9 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
             indicatorY = yearToPixel(topVisibleYear);
         }
         
-        onIndicatorChange(indicatorY);
-    }, [scrollInfo?.topVisibleYear, scrollInfo?.isAtBottom, data, onIndicatorChange]);
-
+        setIndicatorY(indicatorY);
+    }, [scrollInfo?.topVisibleYear, scrollInfo?.isAtBottom, events, setIndicatorY]);
+    
     return (
         <div ref={containerRef} className="macrochart-root">
             <svg ref={svgRef}></svg>
@@ -667,7 +654,8 @@ const FULL_RANGE = [-4100, 150];
 const SCROLL_SENSITIVITY = 125;
 const STATIC_COLUMN_COUNT = 10;
 
-const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
+const Microchart = () => {
+    const { events, selection, setMicrochartIndicatorY, scrollInfo } = useTimeline();
     const svgRef = useRef(null);
     const containerRef = useRef(null);
     const eventsRef = useRef([]);
@@ -895,7 +883,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
     // Optimized renderChart with proper memoization
     const renderChart = useCallback(() => {
-        if (!svgRef.current || !containerRef.current || !data.length) return;
+        if (!svgRef.current || !containerRef.current || !events.length) return;
 
         const dimensions = getDimensions();
         if (dimensions.width === 0 || dimensions.height === 0) return;
@@ -905,14 +893,14 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         const eraLayout = calculateEraLayout(dimensions, currentViewRange);
         const yScale = eraLayout.yScale;
 
-        const filtered = data.filter(d => 
+        const filtered = events.filter(d => 
             d.fields.startDate >= startYear && d.fields.startDate <= endYear);
 
-        const allEraData = processEraData(data);
-        const events = createEvents(filtered, yScale, dimensions, allEraData);
+        const allEraData = processEraData(events);
+        const processedEvents = createEvents(filtered, yScale, dimensions, allEraData);
         const lines = createLines(yScale, dimensions, allEraData, currentViewRange);
 
-        eventsRef.current = events;
+        eventsRef.current = processedEvents;
 
         d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
 
@@ -942,7 +930,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
         // Draw dots
         g.selectAll('.microchart-dot')
-            .data(events)
+            .data(processedEvents)
             .enter()
             .append('circle')
             .attr('class', 'microchart-dot')
@@ -977,7 +965,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
         return () => {
             d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
         };
-    }, [data, currentViewRange, getDimensions, calculateEraLayout, processEraData, createEvents, createLines, createTooltip]);
+    }, [events, currentViewRange, getDimensions, calculateEraLayout, processEraData, createEvents, createLines, createTooltip]);
 
     // Handle scroll events
     useEffect(() => {
@@ -1057,7 +1045,7 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 
     // Handle indicator updates
     useEffect(() => {
-        if (!scrollInfo || !eventsRef.current.length || !onIndicatorChange) return;
+        if (!scrollInfo || !eventsRef.current.length || !setMicrochartIndicatorY) return;
 
         const { topVisibleYear, scrollPercentage } = scrollInfo;
         const events = eventsRef.current;
@@ -1090,12 +1078,12 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
             }
         }
 
-        // Only call onIndicatorChange if the value has actually changed
+        // Only call setMicrochartIndicatorY if the value has actually changed
         if (indicatorY !== lastIndicatorYRef.current) {
             lastIndicatorYRef.current = indicatorY;
-            onIndicatorChange(indicatorY);
+            setMicrochartIndicatorY(indicatorY);
         }
-    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, onIndicatorChange, currentViewRange]);
+    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, setMicrochartIndicatorY, currentViewRange]);
 
     return (
         <div ref={containerRef} className="microchart-root">
@@ -1108,129 +1096,23 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
 // EVENT DISPLAY COMPONENT
 // ============================================================================
 
-const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => {
+const EventDisplay = ({ containerRef }) => {
+    const { events, selection, setScrollInfo } = useTimeline();
     const internalRef = useRef(null);
     const ref = containerRef || internalRef;
     const previousSelectionRef = useRef(null);
     const previousScrollInfoRef = useRef(null);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
-    const [peopleData, setPeopleData] = useState(peopleFullData);
-    const [placesData, setPlacesData] = useState(placesFullData);
     const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
     const SWITCH_THRESHOLD = 20;
 
-    const formatDuration = useCallback((duration) => {
-        if (!duration) return '';
-        
-        const match = duration.match(/^(\d+)([DY])$/);
-        if (!match) return duration;
-        
-        const [, number, unit] = match;
-        const num = parseInt(number, 10);
-        
-        if (unit === 'D') {
-            return num === 1 ? '1 Day' : `${num} Days`;
-        } else if (unit === 'Y') {
-            return num === 1 ? '1 Year' : `${num} Years`;
-        }
-        
-        return duration;
-    }, []);
-
-    // Move formatParticipants and formatLocations to useCallback to prevent recreation
-    const formatParticipants = useCallback((participants) => {
-        if (!participants || !peopleData.length) return participants;
-        
-        const participantIds = participants.split(',').map(id => id.trim());
-        
-        return participantIds.map((id, index) => {
-            const person = peopleData.find(p => p.fields.personLookup === id);
-            const displayName = person ? person.fields.displayTitle : id;
-            
-            return (
-                <span key={index}>
-                    <a 
-                        href={`https://theographic.netlify.app/person/${id}`}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="event-link"
-                    >
-                        {displayName}
-                    </a>
-                    {index < participantIds.length - 1 ? ', ' : ''}
-                </span>
-            );
-        });
-    }, [peopleData]);
-
-    const formatLocations = useCallback((locations) => {
-        if (!locations || !placesData.length) return locations;
-        
-        const locationIds = locations.split(',').map(id => id.trim());
-        
-        return locationIds.map((id, index) => {
-            const place = placesData.find(p => p.fields.placeLookup === id);
-            const displayName = place ? place.fields.displayTitle : id;
-            
-            return (
-                <span key={index}>
-                    <a 
-                        href={`https://theographic.netlify.app/place/${id}`}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="event-link"
-                    >
-                        {displayName}
-                    </a>
-                    {index < locationIds.length - 1 ? ', ' : ''}
-                </span>
-            );
-        });
-    }, [placesData]);
-
-    const formatVerses = useCallback((verses) => {
-        if (!verses) return verses;
-        
-        return verses.split(',').map((verse, index) => {
-            const trimmedVerse = verse.trim();
-            
-            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
-            
-            if (verseMatch) {
-                const [, book, chapter, verseNum] = verseMatch;
-                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
-                
-                return (
-                    <span key={index}>
-                        <a 
-                            href={url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="event-link"
-                        >
-                            {trimmedVerse}
-                        </a>
-                        {index < verses.split(',').length - 1 ? ', ' : ''}
-                    </span>
-                );
-            }
-            
-            return (
-                <span key={index}>
-                    {trimmedVerse}
-                    {index < verses.split(',').length - 1 ? ', ' : ''}
-                </span>
-            );
-        });
-    }, []);
-
     // Memoize the grouping logic more efficiently
     const groupedEvents = useMemo(() => {
-        if (!data.length) return [];
+        if (!events.length) return [];
         
         const groups = {};
         
-        for (const event of data) {
+        for (const event of events) {
             const key = event.fields.startDate;
             if (!groups[key]) {
                 groups[key] = [];
@@ -1244,8 +1126,8 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
             year: Number(key),
             events: groups[key]
         }));
-    }, [data]);
-
+    }, [events]);
+    
     const findTopVisibleYear = useCallback((scrollTop, container) => {
         if (!groupedEvents.length) return null;
 
@@ -1286,7 +1168,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         };
     }, [groupedEvents]);
 
-    // FIXED: Only call onScrollInfoChange when values actually change
+    // FIXED: Only call setScrollInfo when values actually change
     const handleScroll = useCallback(() => {
         if (!ref.current || !groupedEvents.length || !selection) return;
 
@@ -1320,10 +1202,10 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                 prev.selectionRange[1] !== newScrollInfo.selectionRange[1]) {
             
                 previousScrollInfoRef.current = newScrollInfo;
-                onScrollInfoChange(newScrollInfo);
+                setScrollInfo(newScrollInfo);
             }
         }
-    }, [groupedEvents, onScrollInfoChange, selection, findTopVisibleYear, ref]);
+    }, [groupedEvents, setScrollInfo, selection, findTopVisibleYear, ref]);
 
     // FIXED: Handle selection changes with proper dependency management
     useEffect(() => {
@@ -1392,7 +1274,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
         }
     }, [groupedEvents.length, selection]); // Remove handleScroll from dependencies
 
-    if (!data.length) {
+    if (!events.length) {
         return <div className="event-display-container">Loading events...</div>;
     }
 
@@ -1439,7 +1321,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                                                 )}
                                                 {event.fields.participants && (
                                                     <div className="event-detail">
-                                                        Participants: {formatParticipants(event.fields.participants)}
+                                                        Participants: {formatParticipants(event.fields.participants, peopleFullData)}
                                                     </div>
                                                 )}
                                                 {event.fields.groups && (
@@ -1449,7 +1331,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
                                                 )}
                                                 {event.fields.locations && (
                                                     <div className="event-detail">
-                                                        Locations: {formatLocations(event.fields.locations)}
+                                                        Locations: {formatLocations(event.fields.locations, placesFullData)}
                                                     </div>
                                                 )}
                                                 {event.fields.verses && (
@@ -1500,19 +1382,24 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 // ============================================================================
 
 const EventTimeline = () => {
-    const [events, setEvents] = useState(calculateColumns(eventsFullData));
-    const [selection, setSelection] = useState(TIME_PERIODS.all);
-    const [indicatorY, setIndicatorY] = useState(0);
-    const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
-    const [scrollInfo, setScrollInfo] = useState({ 
-        topVisibleYear: EVENTS_BOUND[0], 
-        selectionRange: TIME_PERIODS.all
-    });
-    const [selectedPeriod, setSelectedPeriod] = useState('all');
-    const [isCustomRange, setIsCustomRange] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    // Add state to control when MacroChart should update its selection
-    const [externalSelection, setExternalSelection] = useState(null);
+    const { 
+        events, 
+        selection, 
+        setSelection, 
+        indicatorY, 
+        microchartIndicatorY, 
+        scrollInfo, 
+        setScrollInfo, 
+        selectedPeriod, 
+        setSelectedPeriod, 
+        isCustomRange, 
+        setIsCustomRange, 
+        isInitialized, 
+        setIsInitialized, 
+        externalSelection, 
+        setExternalSelection 
+    } = useTimeline();
+    
     const eventDisplayRef = useRef(null);
     const isInitialLoad = useRef(true);
     const pendingSelectionRef = useRef(null);
@@ -1586,7 +1473,7 @@ const EventTimeline = () => {
         }
 
         pendingSelectionRef.current = boundedDomain;
-    }, []);
+    }, [setSelection, setScrollInfo, setSelectedPeriod, setIsCustomRange]);
 
     // Create a throttled version of handleBrush for live updates.
     // useMemo ensures the throttled function is not recreated on every render.
@@ -1684,71 +1571,57 @@ const EventTimeline = () => {
 
     return (
         <>
-            <TimelineProvider>
-                <div className="page-container">
-                    <div className="content-wrapper">
-                        <header className="header">
-                            <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
-                            <div className="header-controls">
-                                <div className="order-1">
-                                    <form>
-                                        <ul id="people-legend">
-                                            {PERIODS.map(period => (
-                                                <li key={period.value}>
-                                                    <input 
-                                                        id={`people-legend-${period.value}`}
-                                                        type="radio" 
-                                                        name="people-legend" 
-                                                        value={period.value}
-                                                        checked={!isCustomRange && selectedPeriod === period.value}
-                                                        onChange={handlePeriodChange} 
-                                                    />
-                                                    <label htmlFor={`people-legend-${period.value}`}>
-                                                        {period.label}
-                                                    </label>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </form>
-                                </div>
+            <div className="page-container">
+                <div className="content-wrapper">
+                    <header className="header">
+                        <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
+                        <div className="header-controls">
+                            <div className="order-1">
+                                <form>
+                                    <ul id="people-legend">
+                                        {PERIODS.map(period => (
+                                            <li key={period.value}>
+                                                <input 
+                                                    id={`people-legend-${period.value}`}
+                                                    type="radio" 
+                                                    name="people-legend" 
+                                                    value={period.value}
+                                                    checked={!isCustomRange && selectedPeriod === period.value}
+                                                    onChange={handlePeriodChange} 
+                                                />
+                                                <label htmlFor={`people-legend-${period.value}`}>
+                                                    {period.label}
+                                                </label>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </form>
                             </div>
-                        </header>
-                        <div className="timeline-container">
-                            <div className="sidebar">
-                                <div className="macrochart-container">
-                                <MacroChart
-                                        data={events}
-                                        onBrush={throttledHandleBrush}
-                                        onIndicatorChange={handleIndicatorChange}
-                                        scrollInfo={scrollInfo}
-                                        externalSelection={externalSelection}
-                                        onExternalSelectionProcessed={() => setExternalSelection(null)}
-                                    />
-                                <div className="position-indicator" style={macroIndicatorStyle}></div>
-                                </div>
-                                <div className="microchart-container">
-                                    <Microchart
-                                        data={events} 
-                                        selection={selection}
-                                        onIndicatorChange={handleMicrochartIndicatorChange}
-                                        scrollInfo={scrollInfo} />
-                                    {microchartIndicatorY !== null && (
-                                        <div 
-                                            className="microchart-position-indicator" 
-                                            style={microchartIndicatorStyle}
-                                        ></div>
-                                    )}
-                                </div>
-                            </div>
-                            <EventDisplay 
-                                data={events}
-                                selection={selection}
-                                onScrollInfoChange={setScrollInfo}
-                                containerRef={eventDisplayRef} />
                         </div>
+                    </header>
+                    <div className="timeline-container">
+                        <div className="sidebar">
+                            <div className="macrochart-container">
+                            <MacroChart
+                                    onBrush={throttledHandleBrush}
+                                    onExternalSelectionProcessed={() => setExternalSelection(null)}
+                                />
+                            <div className="position-indicator" style={macroIndicatorStyle}></div>
+                            </div>
+                            <div className="microchart-container">
+                                <Microchart />
+                                {microchartIndicatorY !== null && (
+                                    <div 
+                                        className="microchart-position-indicator" 
+                                        style={microchartIndicatorStyle}
+                                    ></div>
+                                )}
+                            </div>
+                        </div>
+                        <EventDisplay containerRef={eventDisplayRef} />
                     </div>
                 </div>
-            </TimelineProvider>
+            </div>
         </>
     );
 };
@@ -1759,7 +1632,9 @@ const EventTimeline = () => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <EventTimeline />
+    <TimelineProvider>
+      <EventTimeline />
+    </TimelineProvider>
   </React.StrictMode>,
 )
 
