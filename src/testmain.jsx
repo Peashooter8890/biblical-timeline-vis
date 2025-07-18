@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment, useContext, createContext, memo } from 'react';
-import ReactDOM from 'react-dom/client'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import ReactDOM from 'react-dom/client';
 import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
 import { parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn, throttle, 
-    parseUrlParams, findMatchingPeriod, updateUrl, formatDuration, formatLocations, formatParticipants, formatVerses } from './utils.jsx';
-import './testindex.css'
+    parseUrlParams, findMatchingPeriod, updateUrl, formatDuration, formatLocations, formatParticipants, 
+    formatVerses } from './utils.jsx';
+import './testindex.css';
 
 const TIME_RANGES = [
     { start: -4100, end: -2200, color: '#5795ff' },
@@ -38,65 +39,11 @@ const PERIODS = [
 const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const EVENTS_BOUND = [-4003, 57];
+const FULL_RANGE = [-4100, 150];
+const SCROLL_SENSITIVITY = 125;
+const STATIC_COLUMN_COUNT = 10;
 
-// CONTEXT
-
-const TimelineContext = createContext();
-
-const TimelineProvider = ({ children }) => {
-    const [events, setEvents] = useState(calculateColumns(eventsFullData));
-    const [selection, setSelection] = useState(TIME_PERIODS.all);
-    const [indicatorY, setIndicatorY] = useState(0);
-    const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
-    const [scrollInfo, setScrollInfo] = useState({ 
-        topVisibleYear: EVENTS_BOUND[0], 
-        selectionRange: TIME_PERIODS.all
-    });
-    const [selectedPeriod, setSelectedPeriod] = useState('all');
-    const [isCustomRange, setIsCustomRange] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [externalSelection, setExternalSelection] = useState(null);
-
-    const value = {
-        events,
-        setEvents,
-        selection,
-        setSelection,
-        indicatorY,
-        setIndicatorY,
-        microchartIndicatorY,
-        setMicrochartIndicatorY,
-        scrollInfo,
-        setScrollInfo,
-        selectedPeriod,
-        setSelectedPeriod,
-        isCustomRange,
-        setIsCustomRange,
-        isInitialized,
-        setIsInitialized,
-        externalSelection,
-        setExternalSelection
-    };
-
-    return (
-        <TimelineContext.Provider value={value}>
-            {children}
-        </TimelineContext.Provider>
-    );
-};
-
-const useTimeline = () => {
-    const context = useContext(TimelineContext);
-    if (!context) {
-        throw new Error('useTimeline must be used within a TimelineProvider');
-    }
-    return context;
-};
-
-// ============================================================================
-// MACRO CHART COMPONENT
-// ============================================================================
-
+// MacroChart constants
 const YEAR_LABEL_INTERVAL = 500;
 const YEAR_LABEL_RANGE_START = -4000;
 const YEAR_LABEL_RANGE_END = 0;
@@ -109,40 +56,110 @@ const HANDLE_OFFSET = 4;
 const RESIZE_ZONE_RATIO = 0.02;
 const HANDLE_WIDTH_RATIO = 1/2;
 
-const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
-    const { events, indicatorY, setIndicatorY, scrollInfo, externalSelection } = useTimeline();
-    const svgRef = useRef(null);
-    const containerRef = useRef(null);
-    const scaleInfoRef = useRef(null);
-    const brushBoundsRef = useRef([0, 0]);
-    const brushRef = useRef(null);
-    const brushGroupRef = useRef(null);
-    const overlayElementsRef = useRef(null);
-    const isExternalUpdateRef = useRef(false);
-    const isUserInteractingRef = useRef(false);
-    const resizeObserverRef = useRef(null);
+// Microchart constants
+const DOT_RADIUS = 3;
+const LINE_STROKE_WIDTH = 2;
+const TOOLTIP_OFFSET_X = 10;
+const TOOLTIP_OFFSET_Y = 50;
 
-    // Memoize calculateDimensions to prevent unnecessary re-renders
+const EventsTimeline = () => {
+    // Minimal React state - only for things that need to trigger re-renders
+    const [selectedPeriod, setSelectedPeriod] = useState('all');
+    const [isCustomRange, setIsCustomRange] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [expandedEvents, setExpandedEvents] = useState(new Set());
+    const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
+
+    // Refs for direct DOM access
+    const macroSvgRef = useRef(null);
+    const macroContainerRef = useRef(null);
+    const microSvgRef = useRef(null);
+    const microContainerRef = useRef(null);
+    const eventDisplayRef = useRef(null);
+    const macroIndicatorRef = useRef(null);
+    const microIndicatorRef = useRef(null);
+    
+    // Event listener cleanup tracking
+    const eventListenersRef = useRef(new Set());
+    const lastRenderedRange = useRef([0, 0]);
+
+    // Internal state (no React re-renders)
+    const stateRef = useRef({
+        events: calculateColumns(eventsFullData),
+        selection: TIME_PERIODS.all,
+        scrollOffset: 0,
+        currentViewRange: TIME_PERIODS.all,
+        groupedEvents: [],
+        isUserInteracting: false,
+        pendingSelection: null
+    });
+
+    // Macro chart state
+    const macroStateRef = useRef({
+        scaleInfo: null,
+        brushBounds: [0, 0],
+        brush: null,
+        brushGroup: null,
+        overlayElements: null,
+        isExternalUpdate: false
+    });
+
+    // Micro chart state
+    const microStateRef = useRef({
+        processedEvents: [],
+        lastIndicatorY: null
+    });
+
+    const isInitialLoad = useRef(true);
+
+    // Utility functions
     const calculateDimensions = useCallback((container) => {
         if (!container) return { width: 0, height: 0 };
         const rect = container.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
     }, []);
 
-    const calculateLayout = useCallback((dimensions) => {
+    const groupEventsByYear = useCallback((events) => {
+        const groups = {};
+        
+        for (const event of events) {
+            const key = event.fields.startDate;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(event);
+        }
+        
+        const sortedKeys = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
+        
+        return sortedKeys.map(key => ({
+            year: Number(key),
+            events: groups[key]
+        }));
+    }, []);
+
+    // Add useMemo for expensive calculations
+    const processedEvents = useMemo(() => {
+        return calculateColumns(eventsFullData);
+    }, []);
+
+    const groupedEventsMemo = useMemo(() => {
+        return groupEventsByYear(stateRef.current.events);
+    }, [stateRef.current.events]);
+
+    // MacroChart functions
+    const calculateMacroLayout = useCallback((dimensions) => {
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
         
         const numRanges = TIME_RANGES.length;
         const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
         const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
-
         const equalHeightPerRange = equalPortionHeight / numRanges;
         
         const heights = TIME_RANGES.map(range => {
             const span = Math.abs(range.end - range.start);
             const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
-            
             return equalHeightPerRange + proportionalHeight;
         });
 
@@ -156,7 +173,7 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
         return { heights, positions };
     }, []);
 
-    const createConverters = useCallback((dimensions, { heights, positions }) => {
+    const createMacroConverters = useCallback((dimensions, { heights, positions }) => {
         const yearToPixel = (year) => {
             const rangeIndex = TIME_RANGES.findIndex(range => 
                 year >= range.start && year <= range.end);
@@ -198,18 +215,90 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
         return { yearToPixel, pixelToYear };
     }, []);
 
-    const generateYearLabels = useCallback(() => {
-        const years = [];
-        for (let year = YEAR_LABEL_RANGE_START; year <= YEAR_LABEL_RANGE_END; year += YEAR_LABEL_INTERVAL) {
-            years.push(year);
-        }
-        if (!years.includes(YEAR_LABEL_RANGE_END)) {
-            years.push(YEAR_LABEL_RANGE_END);
-        }
-        return years;
+    const updateMacroIndicator = useCallback((year) => {
+        if (!macroIndicatorRef.current || !macroStateRef.current.scaleInfo) return;
+        
+        const { yearToPixel } = macroStateRef.current.scaleInfo;
+        const y = yearToPixel(year);
+        macroIndicatorRef.current.style.top = `${y}px`;
+        macroIndicatorRef.current.style.opacity = '1';
     }, []);
 
-    const createColorBars = useCallback((svg, dimensions, { heights, positions }) => {
+    const updateMicroIndicator = useCallback((y) => {
+        if (!microIndicatorRef.current) return;
+        
+        if (y !== null) {
+            microIndicatorRef.current.style.top = `${y}px`;
+            microIndicatorRef.current.style.opacity = '1';
+        } else {
+            microIndicatorRef.current.style.opacity = '0';
+        }
+    }, []);
+
+    // Selection handling
+    const handleSelectionChange = useCallback((newSelection) => {
+        if (isInitialLoad.current) return;
+
+        const roundedSelection = [Math.round(newSelection[0]), Math.round(newSelection[1])];
+        const minYear = TIME_PERIODS.all[0];
+        const maxYear = TIME_PERIODS.all[1];
+
+        const boundedSelection = [
+            Math.max(minYear, Math.min(maxYear, roundedSelection[0])),
+            Math.max(minYear, Math.min(maxYear, roundedSelection[1])),
+        ];
+
+        if (boundedSelection[0] >= boundedSelection[1]) {
+            boundedSelection[1] = Math.min(maxYear, boundedSelection[0] + 1);
+        }
+
+        stateRef.current.selection = boundedSelection;
+        stateRef.current.scrollOffset = 0;
+        stateRef.current.currentViewRange = boundedSelection;
+
+        const matchingPeriod = findMatchingPeriod(boundedSelection);
+
+        if (matchingPeriod) {
+            setSelectedPeriod(matchingPeriod);
+            setIsCustomRange(false);
+        } else {
+            setSelectedPeriod(null);
+            setIsCustomRange(true);
+        }
+
+        stateRef.current.pendingSelection = boundedSelection;
+        
+        // Update event display immediately
+        updateEventDisplay();
+        
+        // Update microchart
+        renderMicrochart();
+    }, []);
+
+    const throttledHandleSelectionChange = useCallback(
+        throttle(handleSelectionChange, 10),
+        [handleSelectionChange]
+    );
+
+    // MacroChart rendering
+    const renderMacrochart = useCallback(() => {
+        if (!macroSvgRef.current || !macroContainerRef.current) return;
+
+        const dimensions = calculateDimensions(macroContainerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
+        const layout = calculateMacroLayout(dimensions);
+        const converters = createMacroConverters(dimensions, layout);
+        const oldScaleInfo = macroStateRef.current.scaleInfo;
+
+        const svg = d3.select(macroSvgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
+
+        svg.selectAll('*').remove();
+
+        // Create color bars
         const width = dimensions.width * COLOR_BAR_WIDTH_RATIO;
         const x = dimensions.width - width;
         
@@ -219,17 +308,20 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
             .append('rect')
             .attr('class', 'era-rect')
             .attr('x', x)
-            .attr('y', (d, i) => positions[i])
+            .attr('y', (d, i) => layout.positions[i])
             .attr('width', width)
-            .attr('height', (d, i) => heights[i])
+            .attr('height', (d, i) => layout.heights[i])
             .attr('fill', d => d.color);
 
-        return { width, x };
-    }, []);
-
-    const createYearMarkers = useCallback((svg, dimensions, { yearToPixel }, { x }) => {
+        // Create year markers
         const lineStart = x - LABEL_LINE_LENGTH;
-        const years = generateYearLabels();
+        const years = [];
+        for (let year = YEAR_LABEL_RANGE_START; year <= YEAR_LABEL_RANGE_END; year += YEAR_LABEL_INTERVAL) {
+            years.push(year);
+        }
+        if (!years.includes(YEAR_LABEL_RANGE_END)) {
+            years.push(YEAR_LABEL_RANGE_END);
+        }
 
         svg.selectAll('.year-line')
             .data(years)
@@ -237,9 +329,9 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
             .append('line')
             .attr('class', 'year-line')
             .attr('x1', lineStart)
-            .attr('y1', yearToPixel)
+            .attr('y1', converters.yearToPixel)
             .attr('x2', x)
-            .attr('y2', yearToPixel);
+            .attr('y2', converters.yearToPixel);
 
         svg.selectAll('.year-label')
             .data(years)
@@ -247,264 +339,40 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
             .append('text')
             .attr('class', 'year-label')
             .attr('x', x - LABEL_MARGIN)
-            .attr('y', d => yearToPixel(d) + 5)
+            .attr('y', d => converters.yearToPixel(d) + 5)
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
-    }, [generateYearLabels]);
 
-    const createBrush = useCallback((dimensions, { pixelToYear }) => {
-        return d3.brushY()
+        // Create brush
+        const brush = d3.brushY()
             .extent([[0, 0], [dimensions.width, dimensions.height]])
             .on('brush end', (event) => {
-                if (event.selection && !isExternalUpdateRef.current) {
+                if (event.selection && !macroStateRef.current.isExternalUpdate) {
                     const [y0, y1] = event.selection;
-                    brushBoundsRef.current = [y0, y1];
+                    macroStateRef.current.brushBounds = [y0, y1];
                     
-                    const startYear = pixelToYear(y0);
-                    const endYear = pixelToYear(y1);
-                    onBrush([startYear, endYear]);
+                    const startYear = converters.pixelToYear(y0);
+                    const endYear = converters.pixelToYear(y1);
+                    throttledHandleSelectionChange([startYear, endYear]);
                 }
             })
             .on('brush', (event) => {
                 if (event.selection) {
-                    brushBoundsRef.current = event.selection;
-                }
-            });
-    }, [onBrush]);
-
-    const updateBrush = useCallback((brush, brushGroup, y0, y1) => {
-        if (brush && brushGroup) {
-            isExternalUpdateRef.current = true;
-            brush.move(brushGroup, [y0, y1]);
-            isExternalUpdateRef.current = false;
-        }
-    }, []);
-
-    const updateOverlayPositions = useCallback((elements, dimensions, y0, y1) => {
-        if (!elements) return;
-        
-        const { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText } = elements;
-        
-        overlay
-            .style('top', `${y0}px`)
-            .style('height', `${y1 - y0}px`)
-            .style('width', `${dimensions.width}px`);
-        
-        topHandle.style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`);
-        bottomHandle.style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`);
-        
-        if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
-            const { pixelToYear } = scaleInfoRef.current;
-            const topYear = pixelToYear(y0);
-            const bottomYear = pixelToYear(y1);
-            
-            topHandleText
-                .style('top', `${y0 - (HANDLE_HEIGHT / 2)}px`)
-                .text(formatYear(Math.round(topYear)));
-            
-            bottomHandleText
-                .style('top', `${y1 - (HANDLE_HEIGHT / 2)}px`)
-                .text(formatYear(Math.round(bottomYear)));
-        }
-    }, []);
-
-    const createDragHandler = useCallback((dimensions, brush, brushGroup, resizeZone) => {
-        return function (event) {
-            isUserInteractingRef.current = true;
-            const element = event.currentTarget;
-            const rect = element.getBoundingClientRect();
-            const mouseY = event.clientY - rect.top;
-
-            let mode = 'drag';
-            if (mouseY <= resizeZone) {
-                mode = 'resize-top';
-                element.style.cursor = 'ns-resize';
-            } else if (mouseY >= rect.height - resizeZone) {
-                mode = 'resize-bottom';
-                element.style.cursor = 'ns-resize';
-            }
-
-            const startMouseY = event.clientY;
-            const [currentY0, currentY1] = brushBoundsRef.current;
-
-            const handleMove = (moveEvent) => {
-                const deltaY = moveEvent.clientY - startMouseY;
-                let newY0 = currentY0,
-                    newY1 = currentY1;
-
-                switch (mode) {
-                    case 'resize-top':
-                        newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
-                        break;
-                    case 'resize-bottom':
-                        newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
-                        break;
-                    case 'drag':
-                        const height = currentY1 - currentY0;
-                        newY0 = Math.max(0, Math.min(dimensions.height - height, currentY0 + deltaY));
-                        newY1 = newY0 + height;
-                        break;
-                }
-
-                updateBrush(brush, brushGroup, newY0, newY1);
-                updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, newY1);
-                
-                // Call onBrush during drag to update the app state
-                if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
-                    const { pixelToYear } = scaleInfoRef.current;
-                    const startYear = pixelToYear(newY0);
-                    const endYear = pixelToYear(newY1);
-                    onBrush([startYear, endYear]);
-                }
-            };
-
-            const handleUp = () => {
-                element.style.cursor = 'move';
-                isUserInteractingRef.current = false;
-                document.removeEventListener('mousemove', handleMove);
-                document.removeEventListener('mouseup', handleUp);
-            };
-
-            document.addEventListener('mousemove', handleMove);
-            document.addEventListener('mouseup', handleUp);
-            event.preventDefault();
-        };
-    }, [updateBrush, updateOverlayPositions, onBrush]);
-
-    const createHandleMouseDown = useCallback((dimensions, brush, brushGroup, isTop) => {
-        return function (event) {
-            isUserInteractingRef.current = true;
-            const startMouseY = event.clientY;
-            const [currentY0, currentY1] = brushBoundsRef.current;
-
-            const handleMove = (moveEvent) => {
-                const deltaY = moveEvent.clientY - startMouseY;
-                let newY0 = currentY0;
-                let newY1 = currentY1;
-
-                if (isTop) {
-                    newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
-                    updateBrush(brush, brushGroup, newY0, currentY1);
-                    updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, currentY1);
-                } else {
-                    newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
-                    updateBrush(brush, brushGroup, currentY0, newY1);
-                    updateOverlayPositions(overlayElementsRef.current, dimensions, currentY0, newY1);
-                }
-                
-                // Call onBrush during handle drag to update the app state
-                if (scaleInfoRef.current && scaleInfoRef.current.pixelToYear) {
-                    const { pixelToYear } = scaleInfoRef.current;
-                    const startYear = pixelToYear(isTop ? newY0 : currentY0);
-                    const endYear = pixelToYear(isTop ? currentY1 : newY1);
-                    onBrush([startYear, endYear]);
-                }
-            };
-
-            const handleUp = () => {
-                isUserInteractingRef.current = false;
-                document.removeEventListener('mousemove', handleMove);
-                document.removeEventListener('mouseup', handleUp);
-            };
-
-            document.addEventListener('mousemove', handleMove);
-            document.addEventListener('mouseup', handleUp);
-            event.preventDefault();
-            event.stopPropagation();
-        };
-    }, [updateBrush, updateOverlayPositions, onBrush]);
-
-    const createOverlayElements = useCallback((container, dimensions, brush, brushGroup) => {
-        const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
-        const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
-        const overlayWidth = dimensions.width;
-        const handleLeft = (overlayWidth - handleWidth) / 2;
-
-        const overlay = d3.select(container)
-            .select('.selection-overlay')
-            .style('top', '0px')
-            .style('left', '0px')
-            .style('width', `${dimensions.width}px`)
-            .style('height', `${dimensions.height}px`)
-            .on('mousedown', createDragHandler(dimensions, brush, brushGroup, resizeZone))
-            .on('mousemove', function(event) {
-                if (event.buttons === 0) {
-                    const element = event.currentTarget;
-                    const rect = element.getBoundingClientRect();
-                    const mouseY = event.clientY - rect.top;
-                    
-                    if (mouseY <= resizeZone || mouseY >= rect.height - resizeZone) {
-                        element.style.cursor = 'ns-resize';
-                    } else {
-                        element.style.cursor = 'move';
-                    }
+                    macroStateRef.current.brushBounds = event.selection;
                 }
             });
 
-        const topHandle = d3.select(container)
-            .select('.top-handle')
-            .style('width', `${handleWidth}px`)
-            .style('height', `${HANDLE_HEIGHT}px`)
-            .style('left', `${handleLeft}px`)
-            .style('top', `-${HANDLE_OFFSET}px`)
-            .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, true));
-
-        const bottomHandle = d3.select(container)
-            .select('.bottom-handle')
-            .style('width', `${handleWidth}px`)
-            .style('height', `${HANDLE_HEIGHT}px`)
-            .style('left', `${handleLeft}px`)
-            .style('bottom', `-${HANDLE_OFFSET}px`)
-            .on('mousedown', createHandleMouseDown(dimensions, brush, brushGroup, false));
-
-        const topHandleText = d3.select(container)
-            .select('.top-handle-text')
-            .style('width', `${handleWidth}px`)
-            .style('left', `${handleLeft}px`)
-            .style('line-height', `${HANDLE_HEIGHT}px`);
-
-        const bottomHandleText = d3.select(container)
-            .select('.bottom-handle-text')
-            .style('width', `${handleWidth}px`)
-            .style('left', `${handleLeft}px`)
-            .style('line-height', `${HANDLE_HEIGHT}px`);
-
-        return { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText };
-    }, [createDragHandler, createHandleMouseDown]);
-
-    // Update the render function to use useCallback properly
-    const render = useCallback(() => {
-        if (!svgRef.current || !containerRef.current) return;
-
-        const dimensions = calculateDimensions(containerRef.current);
-        if (dimensions.width === 0 || dimensions.height === 0) return;
-
-        const layout = calculateLayout(dimensions);
-        const converters = createConverters(dimensions, layout);
-        const oldScaleInfo = scaleInfoRef.current;
-
-        const svg = d3.select(svgRef.current)
-            .attr('width', dimensions.width)
-            .attr('height', dimensions.height)
-            .style('overflow', 'visible');
-
-        svg.selectAll('*').remove();
-
-        const colorBarLayout = createColorBars(svg, dimensions, layout);
-        createYearMarkers(svg, dimensions, converters, colorBarLayout);
-
-        const brush = createBrush(dimensions, converters);
         const brushGroup = svg.append('g').attr('class', 'brush').call(brush);
-
-        brushRef.current = brush;
-        brushGroupRef.current = brushGroup;
-
         svg.selectAll('.brush .selection').style('display', 'none');
         svg.selectAll('.brush .overlay').style('pointer-events', 'none');
 
-        const currentBounds = brushBoundsRef.current;
+        macroStateRef.current.brush = brush;
+        macroStateRef.current.brushGroup = brushGroup;
+
+        // Calculate initial brush position
+        const currentBounds = macroStateRef.current.brushBounds;
         let newY0, newY1;
 
-        if (isUserInteractingRef.current && currentBounds[0] !== 0 && currentBounds[1] !== 0) {
+        if (stateRef.current.isUserInteracting && currentBounds[0] !== 0 && currentBounds[1] !== 0) {
             newY0 = currentBounds[0];
             newY1 = currentBounds[1];
         } else if (currentBounds[0] === 0 && currentBounds[1] === 0) {
@@ -524,173 +392,224 @@ const MacroChart = ({ onBrush, onExternalSelectionProcessed }) => {
             }
         }
 
-        scaleInfoRef.current = { ...converters, dimensions };
-        isExternalUpdateRef.current = true;
+        macroStateRef.current.scaleInfo = { ...converters, dimensions };
+        macroStateRef.current.isExternalUpdate = true;
         brush.move(brushGroup, [newY0, newY1]);
-        isExternalUpdateRef.current = false;
-        brushBoundsRef.current = [newY0, newY1];
+        macroStateRef.current.isExternalUpdate = false;
+        macroStateRef.current.brushBounds = [newY0, newY1];
 
-        const overlayElements = createOverlayElements(containerRef.current, dimensions, brush, brushGroup);
-        overlayElementsRef.current = overlayElements;
+        // Setup overlay elements for dragging
+        setupMacroOverlay(dimensions, brush, brushGroup);
+    }, [calculateDimensions, calculateMacroLayout, createMacroConverters, throttledHandleSelectionChange]);
 
-        updateOverlayPositions(overlayElements, dimensions, newY0, newY1);
-    }, [
-        calculateDimensions, 
-        calculateLayout, 
-        createConverters, 
-        createColorBars, 
-        createYearMarkers, 
-        createBrush, 
-        createOverlayElements, 
-        updateOverlayPositions
-    ]);
+    const setupMacroOverlay = useCallback((dimensions, brush, brushGroup) => {
+        const container = macroContainerRef.current;
+        if (!container) return;
 
-    // Handle external selection updates (from App.jsx)
-    useEffect(() => {
-        if (externalSelection && scaleInfoRef.current) {
-            const { yearToPixel } = scaleInfoRef.current;
-            const [startYear, endYear] = externalSelection;
-            
-            const newY0 = yearToPixel(startYear);
-            const newY1 = yearToPixel(endYear);
-            
-            isExternalUpdateRef.current = true;
-            if (brushRef.current && brushGroupRef.current) {
-                brushRef.current.move(brushGroupRef.current, [newY0, newY1]);
-            }
-            isExternalUpdateRef.current = false;
-            
-            brushBoundsRef.current = [newY0, newY1];
-            
-            if (overlayElementsRef.current) {
-                const dimensions = calculateDimensions(containerRef.current);
-                updateOverlayPositions(overlayElementsRef.current, dimensions, newY0, newY1);
-            }
-            
-            // Notify App.jsx that we've processed the external selection
-            if (onExternalSelectionProcessed) {
-                onExternalSelectionProcessed();
-            }
+        const resizeZone = dimensions.height * RESIZE_ZONE_RATIO;
+        const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
+        const handleLeft = (dimensions.width - handleWidth) / 2;
+
+        // Setup overlay elements if they don't exist
+        let overlay = container.querySelector('.selection-overlay');
+        let topHandle = container.querySelector('.top-handle');
+        let bottomHandle = container.querySelector('.bottom-handle');
+        let topHandleText = container.querySelector('.top-handle-text');
+        let bottomHandleText = container.querySelector('.bottom-handle-text');
+
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'selection-overlay';
+            container.appendChild(overlay);
         }
-    }, [externalSelection, onExternalSelectionProcessed, calculateDimensions, updateOverlayPositions]);
 
-    // Setup resize observer and initial render
-    useEffect(() => {
-        if (!containerRef.current) return;
+        if (!topHandle) {
+            topHandle = document.createElement('div');
+            topHandle.className = 'top-handle';
+            container.appendChild(topHandle);
+        }
 
-        // The function to be called on resize.
-        const onResize = () => {
-            // Use requestAnimationFrame to debounce resize events and prevent layout thrashing.
-            window.requestAnimationFrame(() => {
-                if (containerRef.current) { // Check if component is still mounted
-                    render();
+        if (!bottomHandle) {
+            bottomHandle = document.createElement('div');
+            bottomHandle.className = 'bottom-handle';
+            container.appendChild(bottomHandle);
+        }
+
+        if (!topHandleText) {
+            topHandleText = document.createElement('div');
+            topHandleText.className = 'top-handle-text';
+            container.appendChild(topHandleText);
+        }
+
+        if (!bottomHandleText) {
+            bottomHandleText = document.createElement('div');
+            bottomHandleText.className = 'bottom-handle-text';
+            container.appendChild(bottomHandleText);
+        }
+
+        // Style elements
+        overlay.style.cssText = `
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: ${dimensions.width}px;
+            height: ${dimensions.height}px;
+            cursor: move;
+        `;
+
+        topHandle.style.cssText = `
+            position: absolute;
+            width: ${handleWidth}px;
+            height: ${HANDLE_HEIGHT}px;
+            left: ${handleLeft}px;
+            cursor: ns-resize;
+        `;
+
+        bottomHandle.style.cssText = `
+            position: absolute;
+            width: ${handleWidth}px;
+            height: ${HANDLE_HEIGHT}px;
+            left: ${handleLeft}px;
+            cursor: ns-resize;
+        `;
+
+        topHandleText.style.cssText = `
+            position: absolute;
+            width: ${handleWidth}px;
+            left: ${handleLeft}px;
+            text-align: center;
+            pointer-events: none;
+            font-size: 10px;
+            line-height: ${HANDLE_HEIGHT}px;
+        `;
+
+        bottomHandleText.style.cssText = `
+            position: absolute;
+            width: ${handleWidth}px;
+            left: ${handleLeft}px;
+            text-align: center;
+            pointer-events: none;
+            font-size: 10px;
+            line-height: ${HANDLE_HEIGHT}px;
+        `;
+
+        // Add event listeners
+        const createDragHandler = (mode) => (event) => {
+            stateRef.current.isUserInteracting = true;
+            const startMouseY = event.clientY;
+            const [currentY0, currentY1] = macroStateRef.current.brushBounds;
+
+            const handleMove = (moveEvent) => {
+                const deltaY = moveEvent.clientY - startMouseY;
+                let newY0 = currentY0;
+                let newY1 = currentY1;
+
+                switch (mode) {
+                    case 'resize-top':
+                        newY0 = Math.max(0, Math.min(currentY1 - MIN_SELECTION_HEIGHT, currentY0 + deltaY));
+                        break;
+                    case 'resize-bottom':
+                        newY1 = Math.min(dimensions.height, Math.max(currentY0 + MIN_SELECTION_HEIGHT, currentY1 + deltaY));
+                        break;
+                    case 'drag':
+                        const height = currentY1 - currentY0;
+                        newY0 = Math.max(0, Math.min(dimensions.height - height, currentY0 + deltaY));
+                        newY1 = newY0 + height;
+                        break;
                 }
-            });
+
+                macroStateRef.current.isExternalUpdate = true;
+                brush.move(brushGroup, [newY0, newY1]);
+                macroStateRef.current.isExternalUpdate = false;
+                macroStateRef.current.brushBounds = [newY0, newY1];
+                
+                updateOverlayPositions(newY0, newY1);
+                
+                if (macroStateRef.current.scaleInfo && macroStateRef.current.scaleInfo.pixelToYear) {
+                    const { pixelToYear } = macroStateRef.current.scaleInfo;
+                    const startYear = pixelToYear(newY0);
+                    const endYear = pixelToYear(newY1);
+                    throttledHandleSelectionChange([startYear, endYear]);
+                }
+            };
+
+            const handleUp = () => {
+                stateRef.current.isUserInteracting = false;
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('mouseup', handleUp);
+            };
+
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleUp);
+            event.preventDefault();
         };
 
-        // Create the observer with the callback.
-        const resizeObserver = new ResizeObserver(onResize);
-        
-        // Start observing the container element.
-        resizeObserver.observe(containerRef.current);
-        resizeObserverRef.current = resizeObserver;
-
-        // Initial render.
-        render();
-
-        // Cleanup function to disconnect the observer when the component unmounts.
-        return () => {
-            if (resizeObserverRef.current) {
-                resizeObserverRef.current.disconnect();
+        const updateOverlayPositions = (y0, y1) => {
+            overlay.style.top = `${y0}px`;
+            overlay.style.height = `${y1 - y0}px`;
+            
+            topHandle.style.top = `${y0 - (HANDLE_HEIGHT / 2)}px`;
+            bottomHandle.style.top = `${y1 - (HANDLE_HEIGHT / 2)}px`;
+            
+            if (macroStateRef.current.scaleInfo && macroStateRef.current.scaleInfo.pixelToYear) {
+                const { pixelToYear } = macroStateRef.current.scaleInfo;
+                const topYear = pixelToYear(y0);
+                const bottomYear = pixelToYear(y1);
+                
+                topHandleText.style.top = `${y0 - (HANDLE_HEIGHT / 2)}px`;
+                topHandleText.textContent = formatYear(Math.round(topYear));
+                
+                bottomHandleText.style.top = `${y1 - (HANDLE_HEIGHT / 2)}px`;
+                bottomHandleText.textContent = formatYear(Math.round(bottomYear));
             }
         };
-    }, [render]);
 
-    useEffect(() => {
-        if (!scrollInfo || !scaleInfoRef.current || !events || !events.length || scrollInfo.topVisibleYear === undefined) return;
+        // Remove old event listeners
+        overlay.removeEventListener('mousedown', overlay._dragHandler);
+        topHandle.removeEventListener('mousedown', topHandle._dragHandler);
+        bottomHandle.removeEventListener('mousedown', bottomHandle._dragHandler);
 
-        const { topVisibleYear, isAtBottom } = scrollInfo;
-        const { yearToPixel } = scaleInfoRef.current;
+        // Add new event listeners
+        const cleanup = [];
         
-        const allEvents = events;
+        const overlayHandler = createDragHandler('drag');
+        const topHandler = createDragHandler('resize-top');
+        const bottomHandler = createDragHandler('resize-bottom');
 
-        if (allEvents.length === 0) {
-            setIndicatorY(null);
-            return;
-        }
+        overlay.addEventListener('mousedown', overlayHandler);
+        topHandle.addEventListener('mousedown', topHandler);
+        bottomHandle.addEventListener('mousedown', bottomHandler);
 
-        let indicatorY = null;
+        cleanup.push(
+            () => overlay.removeEventListener('mousedown', overlayHandler),
+            () => topHandle.removeEventListener('mousedown', topHandler),
+            () => bottomHandle.removeEventListener('mousedown', bottomHandler)
+        );
 
-        if (isAtBottom) {
-            const lastEvent = allEvents[allEvents.length - 1];
-            indicatorY = yearToPixel(lastEvent.fields.startDate);
-        } else {
-            indicatorY = yearToPixel(topVisibleYear);
-        }
-        
-        setIndicatorY(indicatorY);
-    }, [scrollInfo?.topVisibleYear, scrollInfo?.isAtBottom, events, setIndicatorY]);
-    
-    return (
-        <div ref={containerRef} className="macrochart-root">
-            <svg ref={svgRef}></svg>
-            <div className="selection-overlay"></div>
-            <div className="top-handle"></div>
-            <div className="bottom-handle"></div>
-            <div className="top-handle-text"></div>
-            <div className="bottom-handle-text"></div>
-        </div>
-    );
-};
-// ============================================================================
-// MICRO CHART COMPONENT
-// ============================================================================
+        // Return cleanup function
+        return () => cleanup.forEach(fn => fn());
+    }, [throttledHandleSelectionChange]);
 
-const DOT_RADIUS = 3;
-const LINE_STROKE_WIDTH = 2;
-const TOOLTIP_OFFSET_X = 10;
-const TOOLTIP_OFFSET_Y = 50;
-const FULL_RANGE = [-4100, 150];
-const SCROLL_SENSITIVITY = 125;
-const STATIC_COLUMN_COUNT = 10;
-
-const Microchart = () => {
-    const { events, selection, setMicrochartIndicatorY, scrollInfo } = useTimeline();
-    const svgRef = useRef(null);
-    const containerRef = useRef(null);
-    const eventsRef = useRef([]);
-    const resizeObserverRef = useRef(null);
-    const lastIndicatorYRef = useRef(null);
-    const [scrollOffset, setScrollOffset] = useState(0);
-    const [currentViewRange, setCurrentViewRange] = useState(selection);
-
-    // Memoize getDimensions to prevent unnecessary re-renders
-    const getDimensions = useCallback(() => {
-        if (!containerRef.current) return { width: 0, height: 0 };
-        const rect = containerRef.current.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
-    }, []);
-
-    // Calculate era heights using the same logic as MacroChart
-    const calculateEraLayout = useCallback((dimensions, viewRange) => {
+    // Microchart functions
+    const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
         const [startYear, endYear] = viewRange;
         
-        // Find which TIME_RANGES intersect with our view range
         const relevantRanges = TIME_RANGES.filter(range => 
             !(range.end < startYear || range.start > endYear)
         );
         
         if (relevantRanges.length === 0) {
-            // Fallback to simple linear scale if no ranges found
             return {
                 ranges: [],
                 heights: [],
                 positions: [],
-                yScale: d3.scaleLinear().domain([startYear, endYear]).range([0, dimensions.height])
+                yScale: (year) => {
+                    const progress = (year - startYear) / (endYear - startYear);
+                    return progress * dimensions.height;
+                }
             };
         }
         
-        // Calculate the actual span of each relevant range within our view
         const actualSpans = relevantRanges.map(range => {
             const actualStart = Math.max(range.start, startYear);
             const actualEnd = Math.min(range.end, endYear);
@@ -700,7 +619,6 @@ const Microchart = () => {
         const totalSpan = actualSpans.reduce((sum, span) => sum + span, 0);
         const numRanges = relevantRanges.length;
         
-        // Apply the same 75%/25% logic
         const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
         const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
         const equalHeightPerRange = equalPortionHeight / numRanges;
@@ -710,7 +628,6 @@ const Microchart = () => {
             return equalHeightPerRange + proportionalHeight;
         });
         
-        // Calculate positions
         const positions = [];
         let currentY = 0;
         for (const height of heights) {
@@ -718,20 +635,16 @@ const Microchart = () => {
             currentY += height;
         }
         
-        // Create a custom scale function
         const yScale = (year) => {
-            // Find which range this year belongs to
             const rangeIndex = relevantRanges.findIndex(range => 
                 year >= Math.max(range.start, startYear) && 
                 year <= Math.min(range.end, endYear)
             );
             
             if (rangeIndex === -1) {
-                // Year is outside our ranges, use linear interpolation
                 if (year < startYear) return 0;
                 if (year > endYear) return dimensions.height;
                 
-                // Fallback linear scale
                 const progress = (year - startYear) / (endYear - startYear);
                 return progress * dimensions.height;
             }
@@ -747,41 +660,28 @@ const Microchart = () => {
             return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
         };
         
-        return {
-            ranges: relevantRanges,
-            heights,
-            positions,
-            yScale
-        };
+        return { ranges: relevantRanges, heights, positions, yScale };
     }, []);
 
-    // Calculate the actual view range based on selection and scroll offset
-    const calculateViewRange = useCallback((selectionRange, offset) => {
-        const [selStart, selEnd] = selectionRange;
-        const windowSize = selEnd - selStart;
-        const [fullStart, fullEnd] = FULL_RANGE;
-        
-        // Apply scroll offset
-        let viewStart = selStart + offset;
-        let viewEnd = selEnd + offset;
-        
-        // Clamp to full range
-        if (viewStart < fullStart) {
-            viewStart = fullStart;
-            viewEnd = fullStart + windowSize;
-        }
-        if (viewEnd > fullEnd) {
-            viewEnd = fullEnd;
-            viewStart = fullEnd - windowSize;
-        }
-        
-        return [viewStart, viewEnd];
-    }, []);
+    const renderMicrochart = useCallback(() => {
+        if (!microSvgRef.current || !microContainerRef.current) return;
 
-    const processEraData = useCallback((dataset) => {
+        const dimensions = calculateDimensions(microContainerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
+        const [startYear, endYear] = stateRef.current.currentViewRange;
+        const events = stateRef.current.events;
+        
+        const eraLayout = calculateMicroEraLayout(dimensions, stateRef.current.currentViewRange);
+        const yScale = eraLayout.yScale;
+
+        const filtered = events.filter(d => 
+            d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+
+        // Process events by era
         const byEra = {};
         
-        dataset.forEach(d => {
+        events.forEach(d => {
             const rangeInfo = getRangeInfo(d.fields.startDate);
             const era = rangeInfo.color;
             
@@ -792,17 +692,9 @@ const Microchart = () => {
             byEra[era].push(d);
         });
 
-        return { byEra };
-    }, []);
-
-    const getColumnX = useCallback((columnNum, maxColumns, width) => {
-        const columnWidth = width / maxColumns;
-        return (columnNum - 1) * columnWidth + (columnWidth / 2);
-    }, []);
-
-    const createEvents = useCallback((filtered, yScale, dimensions, eraData) => {
-        const events = [];
-        const { byEra } = eraData;
+        // Create events
+        const processedEvents = [];
+        const lines = [];
         
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => filtered.includes(d));
@@ -811,110 +703,68 @@ const Microchart = () => {
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const column = getEffectiveColumn(d);
-                const x = getColumnX(column, maxColumns, dimensions.width);
+                const columnWidth = dimensions.width / maxColumns;
+                const x = (column - 1) * columnWidth + (columnWidth / 2);
                 const y = yScale(d.fields.startDate);
 
-                events.push({
+                processedEvents.push({
                     ...d.fields,
                     color: rangeInfo.color,
                     columnX: x,
                     y
                 });
-            });
-        });
 
-        return events.sort((a, b) => a.startDate - b.startDate);
-    }, [getColumnX]);
-
-    const createLines = useCallback((yScale, dimensions, eraData, viewRange) => {
-        const lines = [];
-        const { byEra } = eraData;
-        const [startYear, endYear] = viewRange;
-        
-        Object.keys(byEra).forEach(era => {
-            const maxColumns = STATIC_COLUMN_COUNT;
-            
-            byEra[era].forEach(d => {
+                // Add lines
                 const duration = parseDuration(d.fields.duration);
-                if (duration < 1) return;
-
-                const rangeInfo = getRangeInfo(d.fields.startDate);
-                const column = getEffectiveColumn(d);
-                const x = getColumnX(column, maxColumns, dimensions.width);
-                
-                const lineStart = parseFloat(d.fields.startDate);
-                const lineEnd = lineStart + duration;
-                
-                // Check if line intersects with view range
-                const intersects = (
-                    (lineStart >= startYear && lineStart <= endYear) ||
-                    (lineEnd >= startYear && lineEnd <= endYear) ||
-                    (lineStart <= startYear && lineEnd >= endYear)
-                );
-
-                if (intersects) {
-                    const startY = yScale(lineStart);
-                    const endY = yScale(lineEnd);
+                if (duration >= 1) {
+                    const lineStart = parseFloat(d.fields.startDate);
+                    const lineEnd = lineStart + duration;
                     
-                    const buffer = dimensions.height * 0.1;
-                    const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
-                    const y2 = Math.max(-buffer, Math.min(dimensions.height + buffer, endY));
-                    
-                    lines.push({
-                        x1: x,
-                        y1: y1,
-                        x2: x,
-                        y2: y2,
-                        color: rangeInfo.color
-                    });
+                    const intersects = (
+                        (lineStart >= startYear && lineStart <= endYear) ||
+                        (lineEnd >= startYear && lineEnd <= endYear) ||
+                        (lineStart <= startYear && lineEnd >= endYear)
+                    );
+
+                    if (intersects) {
+                        const startY = yScale(lineStart);
+                        const endY = yScale(lineEnd);
+                        
+                        const buffer = dimensions.height * 0.1;
+                        const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
+                        const y2 = Math.max(-buffer, Math.min(dimensions.height + buffer, endY));
+                        
+                        lines.push({
+                            x1: x,
+                            y1: y1,
+                            x2: x,
+                            y2: y2,
+                            color: rangeInfo.color
+                        });
+                    }
                 }
             });
         });
 
-        return lines;
-    }, [getColumnX]);
+        microStateRef.current.processedEvents = processedEvents.sort((a, b) => a.startDate - b.startDate);
 
-    const createTooltip = useCallback((container) => {
-        return d3.select(container)
-            .append('div')
-            .attr('class', 'microchart-tooltip')
-            .style('opacity', 0);
-    }, []);
+        // Remove old tooltip
+        const oldTooltip = microContainerRef.current.querySelector('.microchart-tooltip');
+        if (oldTooltip) {
+            oldTooltip.remove();
+        }
 
-    // Optimized renderChart with proper memoization
-    const renderChart = useCallback(() => {
-        if (!svgRef.current || !containerRef.current || !events.length) return;
-
-        const dimensions = getDimensions();
-        if (dimensions.width === 0 || dimensions.height === 0) return;
-
-        const [startYear, endYear] = currentViewRange;
-        
-        const eraLayout = calculateEraLayout(dimensions, currentViewRange);
-        const yScale = eraLayout.yScale;
-
-        const filtered = events.filter(d => 
-            d.fields.startDate >= startYear && d.fields.startDate <= endYear);
-
-        const allEraData = processEraData(events);
-        const processedEvents = createEvents(filtered, yScale, dimensions, allEraData);
-        const lines = createLines(yScale, dimensions, allEraData, currentViewRange);
-
-        eventsRef.current = processedEvents;
-
-        d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
-
-        const svg = d3.select(svgRef.current)
+        const svg = d3.select(microSvgRef.current)
             .attr('width', dimensions.width)
             .attr('height', dimensions.height)
             .style('overflow', 'visible');
 
-        svg.selectAll('*').remove();
+        // More selective D3 cleanup - only remove our specific group
+        svg.select('.microchart-group').remove();
+        const g = svg.append('g').attr('class', 'microchart-group');
 
-        const g = svg.append('g');
-
-        // Draw lines first
-        g.selectAll('.microchart-line')
+        // Batch D3 operations
+        const lineSelection = g.selectAll('.microchart-line')
             .data(lines)
             .enter()
             .append('line')
@@ -926,7 +776,14 @@ const Microchart = () => {
             .attr('stroke', d => d.color)
             .style('stroke-width', `${LINE_STROKE_WIDTH}px`);
 
-        const tooltip = createTooltip(containerRef.current);
+        // Create tooltip once
+        let tooltip = d3.select(microContainerRef.current).select('.microchart-tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select(microContainerRef.current)
+                .append('div')
+                .attr('class', 'microchart-tooltip')
+                .style('opacity', 0);
+        }
 
         // Draw dots
         g.selectAll('.microchart-dot')
@@ -961,103 +818,207 @@ const Microchart = () => {
                     .duration(100)
                     .style('stroke', '#fff');
             });
+    }, [calculateDimensions, calculateMicroEraLayout]);
 
-        return () => {
-            d3.select(containerRef.current).selectAll('.microchart-tooltip').remove();
-        };
-    }, [events, currentViewRange, getDimensions, calculateEraLayout, processEraData, createEvents, createLines, createTooltip]);
+    // Event display functions
+    const updateEventDisplay = useCallback(() => {
+        if (!eventDisplayRef.current) return;
 
-    // Handle scroll events
-    useEffect(() => {
-        const handleWheel = (event) => {
-            event.preventDefault();
-            
-            const delta = event.deltaY > 0 ? SCROLL_SENSITIVITY : -SCROLL_SENSITIVITY;
-            const currentRange = calculateViewRange(selection, scrollOffset);
-            const [fullStart, fullEnd] = FULL_RANGE;
-            
-            const atTopBound = currentRange[0] <= fullStart;
-            const atBottomBound = currentRange[1] >= fullEnd;
-            const scrollingUp = delta < 0;
-            const scrollingDown = delta > 0;
-            
-            if ((atTopBound && scrollingUp) || (atBottomBound && scrollingDown)) {
-                return;
-            }
-            
-            const newOffset = scrollOffset + delta;
-            const testRange = calculateViewRange(selection, newOffset);
-            
-            if (testRange[0] >= fullStart && testRange[1] <= fullEnd) {
-                setScrollOffset(newOffset);
-            }
-        };
+        const events = stateRef.current.events;
+        const groupedEvents = groupEventsByYear(events);
+        stateRef.current.groupedEvents = groupedEvents;
 
-        const container = containerRef.current;
-        if (container) {
-            container.addEventListener('wheel', handleWheel, { passive: false });
-            return () => container.removeEventListener('wheel', handleWheel);
-        }
-    }, [scrollOffset, selection, calculateViewRange]);
-
-    // Update current view range when selection or scroll offset changes
-    useEffect(() => {
-        const newViewRange = calculateViewRange(selection, scrollOffset);
-        setCurrentViewRange(newViewRange);
-    }, [selection, scrollOffset, calculateViewRange]);
-
-    // Reset scroll offset when selection changes significantly
-    useEffect(() => {
-        setScrollOffset(0);
-    }, [selection]);
-
-    // Render chart and setup resize observer
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        // The function to be called on resize.
-        const onResize = () => {
-            // Use requestAnimationFrame to debounce resize events and prevent layout thrashing.
-            window.requestAnimationFrame(() => {
-                if (containerRef.current) { // Check if component is still mounted
-                    renderChart();
-                }
-            });
-        };
-
-        // Create the observer with the callback.
-        const resizeObserver = new ResizeObserver(onResize);
+        const container = eventDisplayRef.current;
         
-        // Start observing the container element.
-        resizeObserver.observe(containerRef.current);
-        resizeObserverRef.current = resizeObserver;
+        // Clean up old event listeners first
+        eventListenersRef.current.forEach(cleanup => cleanup());
+        eventListenersRef.current.clear();
+        
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        // Add floating header
+        const floatingHeader = document.createElement('div');
+        floatingHeader.className = 'floating-header';
+        floatingHeader.style.display = 'none';
+        fragment.appendChild(floatingHeader);
 
-        // Initial render.
-        renderChart();
+        if (groupedEvents.length === 0) {
+            const noEvents = document.createElement('p');
+            noEvents.textContent = 'No events to display.';
+            fragment.appendChild(noEvents);
+        } else {
+            groupedEvents.forEach(group => {
+                // Create year header
+                const yearHeader = document.createElement('h3');
+                yearHeader.className = 'event-year-header';
+                yearHeader.textContent = formatYear(group.year);
+                fragment.appendChild(yearHeader);
 
-        // Cleanup function to disconnect the observer when the component unmounts.
-        return () => {
-            if (resizeObserverRef.current) {
-                resizeObserverRef.current.disconnect();
-            }
+                // Create events for this year
+                group.events.forEach(event => {
+                    const eventItem = document.createElement('div');
+                    eventItem.className = 'event-item';
+
+                    const triangle = document.createElement('button');
+                    triangle.className = 'event-triangle';
+                    triangle.textContent = '▶';
+                    triangle.setAttribute('aria-label', 'Expand event details');
+
+                    const eventContent = document.createElement('div');
+                    eventContent.className = 'event-content';
+
+                    const eventTitle = document.createElement('div');
+                    eventTitle.className = 'event-title';
+                    eventTitle.textContent = event.fields.title;
+                    eventContent.appendChild(eventTitle);
+
+                    const isExpanded = expandedEvents.has(event.fields.title);
+                    if (isExpanded) {
+                        triangle.classList.add('expanded');
+                        triangle.setAttribute('aria-label', 'Collapse event details');
+
+                        // Add detail fields
+                        const detailFields = [
+                            { key: 'duration', label: 'Duration', formatter: formatDuration },
+                            { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
+                            { key: 'groups', label: 'Groups' },
+                            { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
+                            { key: 'verses', label: 'Verses', formatter: formatVerses },
+                            { key: 'partOf', label: 'Part Of' },
+                            { key: 'predecessor', label: 'Predecessor' },
+                            { key: 'lag', label: 'Lag', formatter: formatDuration },
+                            { key: 'lagType', label: 'Lag Type' },
+                            { key: 'notes', label: 'Notes' }
+                        ];
+
+                        detailFields.forEach(field => {
+                            if (event.fields[field.key]) {
+                                const detail = document.createElement('div');
+                                detail.className = 'event-detail';
+                                const value = field.formatter ? field.formatter(event.fields[field.key]) : event.fields[field.key];
+                                detail.textContent = `${field.label}: ${value}`;
+                                eventContent.appendChild(detail);
+                            }
+                        });
+                    }
+
+                    // Add click handler with proper cleanup tracking
+                    const clickHandler = () => {
+                        const newExpanded = new Set(expandedEvents);
+                        if (newExpanded.has(event.fields.title)) {
+                            newExpanded.delete(event.fields.title);
+                        } else {
+                            newExpanded.add(event.fields.title);
+                        }
+                        setExpandedEvents(newExpanded);
+                    };
+                    
+                    triangle.addEventListener('click', clickHandler);
+                    
+                    // Track cleanup function
+                    const cleanup = () => triangle.removeEventListener('click', clickHandler);
+                    eventListenersRef.current.add(cleanup);
+
+                    eventItem.appendChild(triangle);
+                    eventItem.appendChild(eventContent);
+                    fragment.appendChild(eventItem);
+                });
+            });
+        }
+
+        // Single DOM update
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }, [groupEventsByYear, expandedEvents]);
+
+    // Add debounce utility
+    const debounce = useCallback((func, wait) => {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
         };
-    }, [renderChart]);
+    }, []);
 
-    // Handle indicator updates
-    useEffect(() => {
-        if (!scrollInfo || !eventsRef.current.length || !setMicrochartIndicatorY) return;
+    const handleEventScroll = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
-        const { topVisibleYear, scrollPercentage } = scrollInfo;
-        const events = eventsRef.current;
-        const [viewStart, viewEnd] = currentViewRange;
+        const container = eventDisplayRef.current;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        
+        const maxScroll = scrollHeight - clientHeight;
+        const scrollPercentage = maxScroll > 0 ? 
+            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
 
-        let indicatorY = null;
+        const headers = container.querySelectorAll('.event-year-header');
+        if (!headers.length) return;
+
+        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5;
+        const SWITCH_THRESHOLD = 20;
+
+        let topVisibleYear;
+
+        if (atBottom) {
+            topVisibleYear = stateRef.current.groupedEvents[stateRef.current.groupedEvents.length - 1].year;
+        } else {
+            const containerRect = container.getBoundingClientRect();
+            const containerTop = containerRect.top;
+            
+            let activeHeaderIndex = 0;
+            
+            for (let i = 0; i < headers.length; i++) {
+                const header = headers[i];
+                const headerRect = header.getBoundingClientRect();
+                const headerTop = headerRect.top;
+                
+                if (headerTop <= containerTop + SWITCH_THRESHOLD) {
+                    activeHeaderIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            topVisibleYear = stateRef.current.groupedEvents[activeHeaderIndex].year;
+        }
+
+        // Update floating header
+        const floatingHeader = container.querySelector('.floating-header');
+        if (floatingHeader) {
+            if (topVisibleYear !== null) {
+                floatingHeader.textContent = formatYear(topVisibleYear);
+                floatingHeader.style.display = 'block';
+                setFloatingHeaderYear(topVisibleYear);
+                
+                // Hide corresponding regular header
+                headers.forEach((header, index) => {
+                    if (stateRef.current.groupedEvents[index]?.year === topVisibleYear) {
+                        header.style.display = 'none';
+                    } else {
+                        header.style.display = 'block';
+                    }
+                });
+            }
+        }
+
+        // Update indicators
+        updateMacroIndicator(topVisibleYear);
+
+        // Update micro indicator
+        const events = microStateRef.current.processedEvents;
+        const [viewStart, viewEnd] = stateRef.current.currentViewRange;
+
+        let microIndicatorY = null;
 
         if (topVisibleYear < viewStart || topVisibleYear > viewEnd) {
-            indicatorY = null;
+            microIndicatorY = null;
         } else if (scrollPercentage === 1 && events.length > 0) {
             const lastEvent = events[events.length - 1];
-            indicatorY = lastEvent.y;
+            microIndicatorY = lastEvent.y;
         } else {
             let closest = null;
             let minDistance = Infinity;
@@ -1074,340 +1035,141 @@ const Microchart = () => {
             }
 
             if (closest) {
-                indicatorY = closest.y;
+                microIndicatorY = closest.y;
             }
         }
 
-        // Only call setMicrochartIndicatorY if the value has actually changed
-        if (indicatorY !== lastIndicatorYRef.current) {
-            lastIndicatorYRef.current = indicatorY;
-            setMicrochartIndicatorY(indicatorY);
+        if (microIndicatorY !== microStateRef.current.lastIndicatorY) {
+            microStateRef.current.lastIndicatorY = microIndicatorY;
+            updateMicroIndicator(microIndicatorY);
         }
-    }, [scrollInfo?.topVisibleYear, scrollInfo?.scrollPercentage, setMicrochartIndicatorY, currentViewRange]);
+    }, [updateMacroIndicator, updateMicroIndicator]);
 
-    return (
-        <div ref={containerRef} className="microchart-root">
-            <svg ref={svgRef}></svg>
-        </div>
-    );
-};
-
-// ============================================================================
-// EVENT DISPLAY COMPONENT
-// ============================================================================
-
-const EventDisplay = ({ containerRef }) => {
-    const { events, selection, setScrollInfo } = useTimeline();
-    const internalRef = useRef(null);
-    const ref = containerRef || internalRef;
-    const previousSelectionRef = useRef(null);
-    const previousScrollInfoRef = useRef(null);
-    const [expandedEvents, setExpandedEvents] = useState(new Set());
-    const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
-    const SWITCH_THRESHOLD = 20;
-
-    // Memoize the grouping logic more efficiently
-    const groupedEvents = useMemo(() => {
-        if (!events.length) return [];
+    // Microchart scroll handling
+    const handleMicroScroll = useCallback((event) => {
+        event.preventDefault();
         
-        const groups = {};
+        const delta = event.deltaY > 0 ? SCROLL_SENSITIVITY : -SCROLL_SENSITIVITY;
+        const [fullStart, fullEnd] = FULL_RANGE;
+        const selection = stateRef.current.selection;
+        const currentOffset = stateRef.current.scrollOffset;
         
-        for (const event of events) {
-            const key = event.fields.startDate;
-            if (!groups[key]) {
-                groups[key] = [];
-            }
-            groups[key].push(event);
-        }
-        
-        const sortedKeys = Object.keys(groups).sort((a, b) => Number(a) - Number(b));
-        
-        return sortedKeys.map(key => ({
-            year: Number(key),
-            events: groups[key]
-        }));
-    }, [events]);
-    
-    const findTopVisibleYear = useCallback((scrollTop, container) => {
-        if (!groupedEvents.length) return null;
-
-        const headers = container.querySelectorAll('.event-year-header');
-        if (!headers.length) return null;
-
-        const { scrollHeight, clientHeight } = container;
-        const maxScroll = scrollHeight - clientHeight;
-        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5;
-
-        if (atBottom) {
-            return {
-                year: groupedEvents[groupedEvents.length - 1].year,
-                isAtBottom: true
-            };
-        }
-
-        const containerRect = container.getBoundingClientRect();
-        const containerTop = containerRect.top;
-        
-        let activeHeaderIndex = 0;
-        
-        for (let i = 0; i < headers.length; i++) {
-            const header = headers[i];
-            const headerRect = header.getBoundingClientRect();
-            const headerTop = headerRect.top;
+        // Calculate new view range
+        const calculateViewRange = (selectionRange, offset) => {
+            const [selStart, selEnd] = selectionRange;
+            const windowSize = selEnd - selStart;
             
-            if (headerTop <= containerTop + SWITCH_THRESHOLD) {
-                activeHeaderIndex = i;
-            } else {
-                break;
+            let viewStart = selStart + offset;
+            let viewEnd = selEnd + offset;
+            
+            if (viewStart < fullStart) {
+                viewStart = fullStart;
+                viewEnd = fullStart + windowSize;
             }
-        }
-
-        return {
-            year: groupedEvents[activeHeaderIndex].year,
-            isAtBottom: false
+            if (viewEnd > fullEnd) {
+                viewEnd = fullEnd;
+                viewStart = fullEnd - windowSize;
+            }
+            
+            return [viewStart, viewEnd];
         };
-    }, [groupedEvents]);
 
-    // FIXED: Only call setScrollInfo when values actually change
-    const handleScroll = useCallback(() => {
-        if (!ref.current || !groupedEvents.length || !selection) return;
-
-        const container = ref.current;
-        const { scrollTop, scrollHeight, clientHeight } = container;
+        const currentRange = calculateViewRange(selection, currentOffset);
         
-        const maxScroll = scrollHeight - clientHeight;
-        const scrollPercentage = maxScroll > 0 ? 
-            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
-
-        const topVisibleInfo = findTopVisibleYear(scrollTop, container);
+        const atTopBound = currentRange[0] <= fullStart;
+        const atBottomBound = currentRange[1] >= fullEnd;
+        const scrollingUp = delta < 0;
+        const scrollingDown = delta > 0;
         
-        if (topVisibleInfo) {
-            // Update floating header
-            setFloatingHeaderYear(topVisibleInfo.year);
-            
-            const newScrollInfo = {
-                topVisibleYear: topVisibleInfo.year,
-                scrollPercentage,
-                isAtBottom: topVisibleInfo.isAtBottom,
-                selectionRange: selection
-            };
+        if ((atTopBound && scrollingUp) || (atBottomBound && scrollingDown)) {
+            return;
+        }
+        
+        const newOffset = currentOffset + delta;
+        const testRange = calculateViewRange(selection, newOffset);
+        
+        if (testRange[0] >= fullStart && testRange[1] <= fullEnd) {
+            stateRef.current.scrollOffset = newOffset;
+            stateRef.current.currentViewRange = testRange;
+            renderMicrochart();
+        }
+    }, [renderMicrochart]);
 
-            // Only update if values have actually changed
-            const prev = previousScrollInfoRef.current;
-            if (!prev || 
-                prev.topVisibleYear !== newScrollInfo.topVisibleYear ||
-                Math.abs(prev.scrollPercentage - newScrollInfo.scrollPercentage) > 0.001 ||
-                prev.isAtBottom !== newScrollInfo.isAtBottom ||
-                prev.selectionRange[0] !== newScrollInfo.selectionRange[0] ||
-                prev.selectionRange[1] !== newScrollInfo.selectionRange[1]) {
+    // Period change handler
+    const handlePeriodChange = useCallback((event) => {
+        const period = event.target.value;
+        
+        if (isInitialLoad.current || !TIME_PERIODS[period]) {
+            return;
+        }
+        
+        setSelectedPeriod(period);
+        setIsCustomRange(false);
+        
+        const newRange = TIME_PERIODS[period];
+        
+        stateRef.current.selection = newRange;
+        stateRef.current.scrollOffset = 0;
+        stateRef.current.currentViewRange = newRange;
+        
+        // Update URL
+        updateUrl(newRange);
+        
+        // Update displays
+        updateEventDisplay();
+        renderMicrochart();
+        
+        // Update macro chart
+        if (macroStateRef.current.scaleInfo && macroStateRef.current.brush && macroStateRef.current.brushGroup) {
+            const { yearToPixel } = macroStateRef.current.scaleInfo;
+            const newY0 = yearToPixel(newRange[0]);
+            const newY1 = yearToPixel(newRange[1]);
             
-                previousScrollInfoRef.current = newScrollInfo;
-                setScrollInfo(newScrollInfo);
+            macroStateRef.current.isExternalUpdate = true;
+            macroStateRef.current.brush.move(macroStateRef.current.brushGroup, [newY0, newY1]);
+            macroStateRef.current.isExternalUpdate = false;
+            
+            macroStateRef.current.brushBounds = [newY0, newY1];
+            
+            if (macroStateRef.current.overlayElements) {
+                macroStateRef.current.overlayElements.updateOverlayPositions(newY0, newY1);
             }
         }
-    }, [groupedEvents, setScrollInfo, selection, findTopVisibleYear, ref]);
-
-    // FIXED: Handle selection changes with proper dependency management
-    useEffect(() => {
-        if (!selection || !ref.current || !groupedEvents.length) return;
         
-        const [startYear, endYear] = selection;
-        
-        if (previousSelectionRef.current) {
-            const [prevStart, prevEnd] = previousSelectionRef.current;
-            if (prevStart === startYear && prevEnd === endYear) return;
-        }
-        
-        previousSelectionRef.current = selection;
-        
-        const targetGroup = groupedEvents.find(group => group.year >= startYear);
-        
-        if (targetGroup) {
-            const container = ref.current;
-            const elements = container.querySelectorAll('.event-year-header'); 
+        // Scroll to start of period
+        if (eventDisplayRef.current && stateRef.current.groupedEvents.length) {
+            const [startYear] = newRange;
+            const targetGroup = stateRef.current.groupedEvents.find(group => group.year >= startYear);
             
-            for (let i = 0; i < elements.length; i++) {
-                const element = elements[i];
-                const groupYear = groupedEvents[i].year;
+            if (targetGroup) {
+                const container = eventDisplayRef.current;
+                const elements = container.querySelectorAll('.event-year-header');
                 
-                if (groupYear === targetGroup.year) {
-                    const containerRect = container.getBoundingClientRect();
-                    const elementRect = element.getBoundingClientRect();
-                    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
-                    container.scrollTop = relativeTop;
+                for (let i = 0; i < elements.length; i++) {
+                    const element = elements[i];
+                    const groupYear = stateRef.current.groupedEvents[i].year;
                     
-                    // Set floating header to the target group year immediately
-                    setFloatingHeaderYear(targetGroup.year);
-                    break;
+                    if (groupYear === targetGroup.year) {
+                        const containerRect = container.getBoundingClientRect();
+                        const elementRect = element.getBoundingClientRect();
+                        const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+                        container.scrollTop = relativeTop;
+                        break;
+                    }
                 }
             }
         }
-    }, [selection, groupedEvents, ref]);
+    }, [updateEventDisplay, renderMicrochart]);
 
-    const toggleEventExpansion = useCallback((eventTitle) => {
-        setExpandedEvents(prev => {
-            const newExpanded = new Set(prev);
-            if (newExpanded.has(eventTitle)) {
-                newExpanded.delete(eventTitle);
-            } else {
-                newExpanded.add(eventTitle);
-            }
-            return newExpanded;
-        });
-    }, []);
-
-    // FIXED: Only call handleScroll once when component is ready
-    useEffect(() => {
-        if (groupedEvents.length > 0 && selection) {
-            // Small delay to ensure DOM is ready
-            const timeoutId = setTimeout(() => {
-                // Find the first visible year in the selection range
-                const [startYear] = selection;
-                const targetGroup = groupedEvents.find(group => group.year >= startYear);
-                if (targetGroup) {
-                    setFloatingHeaderYear(targetGroup.year);
-                }
-                handleScroll();
-            }, 0);
-            
-            return () => clearTimeout(timeoutId);
-        }
-    }, [groupedEvents.length, selection]); // Remove handleScroll from dependencies
-
-    if (!events.length) {
-        return <div className="event-display-container">Loading events...</div>;
-    }
-
-    return (
-        <div className="event-display-container" ref={ref} onScroll={handleScroll}>
-            {floatingHeaderYear && (
-                <div className="floating-header">
-                    {formatYear(floatingHeaderYear)}
-                </div>
-            )}
-            {groupedEvents.length === 0 ? (
-                <p>No events to display.</p>
-            ) : (
-                groupedEvents.map(group => (
-                    <Fragment key={group.year}>
-                        <h3 
-                            className="event-year-header"
-                            style={{ 
-                                display: floatingHeaderYear === group.year ? 'none' : 'block' 
-                            }}
-                        >
-                            {formatYear(group.year)}
-                        </h3>
-                        {group.events.map(event => {
-                            const isExpanded = expandedEvents.has(event.fields.title);
-                            
-                            return (
-                                <div className="event-item" key={event.fields.title}>
-                                    <button 
-                                        className={`event-triangle ${isExpanded ? 'expanded' : ''}`}
-                                        onClick={() => toggleEventExpansion(event.fields.title)}
-                                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} event details`}
-                                    >
-                                        ▶
-                                    </button>
-                                    <div className="event-content">
-                                        <div className="event-title">{event.fields.title}</div>
-                                        {isExpanded && (
-                                            <>
-                                                {event.fields.duration && (
-                                                    <div className="event-detail">
-                                                        Duration: {formatDuration(event.fields.duration)}
-                                                    </div>
-                                                )}
-                                                {event.fields.participants && (
-                                                    <div className="event-detail">
-                                                        Participants: {formatParticipants(event.fields.participants, peopleFullData)}
-                                                    </div>
-                                                )}
-                                                {event.fields.groups && (
-                                                    <div className="event-detail">
-                                                        Groups: {event.fields.groups}
-                                                    </div>
-                                                )}
-                                                {event.fields.locations && (
-                                                    <div className="event-detail">
-                                                        Locations: {formatLocations(event.fields.locations, placesFullData)}
-                                                    </div>
-                                                )}
-                                                {event.fields.verses && (
-                                                    <div className="event-detail">
-                                                        Verses: {formatVerses(event.fields.verses)}
-                                                    </div>
-                                                )}
-                                                {event.fields.partOf && (
-                                                    <div className="event-detail">
-                                                        Part Of: {event.fields.partOf}
-                                                    </div>
-                                                )}
-                                                {event.fields.predecessor && (
-                                                    <div className="event-detail">
-                                                        Predecessor: {event.fields.predecessor}
-                                                    </div>
-                                                )}
-                                                {event.fields.lag && (
-                                                    <div className="event-detail">
-                                                        Lag: {formatDuration(event.fields.lag)}
-                                                    </div>
-                                                )}
-                                                {event.fields.lagType && (
-                                                    <div className="event-detail">
-                                                        Lag Type: {event.fields.lagType}
-                                                    </div>
-                                                )}
-                                                {event.fields.notes && (
-                                                    <div className="event-detail">
-                                                        Notes: {event.fields.notes}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </Fragment>
-                ))
-            )}
-        </div>
-    );
-};
-
-// ============================================================================
-// MAIN APP COMPONENT
-// ============================================================================
-
-const EventTimeline = () => {
-    const { 
-        setSelection, 
-        indicatorY, 
-        microchartIndicatorY, 
-        setScrollInfo, 
-        selectedPeriod, 
-        setSelectedPeriod, 
-        isCustomRange, 
-        setIsCustomRange, 
-        isInitialized, 
-        setIsInitialized, 
-        setExternalSelection 
-    } = useTimeline();
-    
-    const eventDisplayRef = useRef(null);
-    const isInitialLoad = useRef(true);
-    const pendingSelectionRef = useRef(null);
-
+    // Initialize
     useEffect(() => {
         const urlRange = parseUrlParams();
         
         if (urlRange) {
             const matchingPeriod = findMatchingPeriod(urlRange);
-            setSelection(urlRange);
-            setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
-            setExternalSelection(urlRange);
+            stateRef.current.selection = urlRange;
+            stateRef.current.currentViewRange = urlRange;
+            
             if (matchingPeriod) {
                 setSelectedPeriod(matchingPeriod);
                 setIsCustomRange(false);
@@ -1417,107 +1179,87 @@ const EventTimeline = () => {
             }
         } else {
             const defaultRange = TIME_PERIODS.all;
-            setSelection(defaultRange);
-            setScrollInfo(prev => ({ ...prev, selectionRange: defaultRange }));
-            setExternalSelection(defaultRange);
+            stateRef.current.selection = defaultRange;
+            stateRef.current.currentViewRange = defaultRange;
             setSelectedPeriod('all');
             setIsCustomRange(false);
             updateUrl(defaultRange);
         }
+        
+        // Initialize grouped events
+        stateRef.current.groupedEvents = groupEventsByYear(stateRef.current.events);
         
         setIsInitialized(true);
         
         setTimeout(() => {
             isInitialLoad.current = false;
         }, 100);
-    }, []);
+    }, [groupEventsByYear]);
 
-    // only called by MacroChart when user drags/resizes
-    const handleBrush = useCallback((domain) => {
-        if (isInitialLoad.current) {
-            return;
-        }
-
-        const roundedDomain = [Math.round(domain[0]), Math.round(domain[1])];
-        const minYear = TIME_PERIODS.all[0];
-        const maxYear = TIME_PERIODS.all[1];
-
-        const boundedDomain = [
-            Math.max(minYear, Math.min(maxYear, roundedDomain[0])),
-            Math.max(minYear, Math.min(maxYear, roundedDomain[1])),
-        ];
-
-        if (boundedDomain[0] >= boundedDomain[1]) {
-            boundedDomain[1] = Math.min(maxYear, boundedDomain[0] + 1);
-        }
-
-        setSelection(boundedDomain);
-        setScrollInfo((prev) => ({ ...prev, selectionRange: boundedDomain }));
-
-        const matchingPeriod = findMatchingPeriod(boundedDomain);
-
-        if (matchingPeriod) {
-            setSelectedPeriod(matchingPeriod);
-            setIsCustomRange(false);
-        } else {
-            setSelectedPeriod(null);
-            setIsCustomRange(true);
-        }
-
-        pendingSelectionRef.current = boundedDomain;
-    }, [setSelection, setScrollInfo, setSelectedPeriod, setIsCustomRange]);
-
-    const throttledHandleBrush = useMemo(
-        () => throttle(handleBrush, 10),
-        [handleBrush]
-    );
-
+    // Setup resize observers and initial renders
     useEffect(() => {
+        if (!isInitialized) return;
+
+        const setupResizeObserver = (ref, renderFn) => {
+            if (!ref.current) return null;
+            
+            const onResize = () => {
+                window.requestAnimationFrame(() => {
+                    if (ref.current) {
+                        renderFn();
+                    }
+                });
+            };
+            
+            const resizeObserver = new ResizeObserver(onResize);
+            resizeObserver.observe(ref.current);
+            
+            // Initial render
+            renderFn();
+            
+            return resizeObserver;
+        };
+
+        const macroObserver = setupResizeObserver(macroContainerRef, renderMacrochart);
+        const microObserver = setupResizeObserver(microContainerRef, renderMicrochart);
+        
+        // Setup event display
+        updateEventDisplay();
+        
+        // Setup event listeners
+        const eventContainer = eventDisplayRef.current;
+        const microContainer = microContainerRef.current;
+        
+        // Create debounced scroll handler
+        const debouncedHandleEventScroll = debounce(handleEventScroll, 16); // ~60fps
+        
+        if (eventContainer) {
+            eventContainer.addEventListener('scroll', debouncedHandleEventScroll);
+        }
+        
+        if (microContainer) {
+            microContainer.addEventListener('wheel', handleMicroScroll, { passive: false });
+        }
+
+        // Handle mouse up for URL updates
         const handleMouseUp = () => {
-            if (pendingSelectionRef.current) {
-                updateUrl(pendingSelectionRef.current);
-                pendingSelectionRef.current = null;
+            if (stateRef.current.pendingSelection) {
+                updateUrl(stateRef.current.pendingSelection);
+                stateRef.current.pendingSelection = null;
             }
         };
         document.addEventListener('mouseup', handleMouseUp);
-        return () => {
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, []);
 
-    // This is called when user clicks period buttons
-    const handlePeriodChange = useCallback((event) => {
-        const period = event.target.value;
-        
-        if (isInitialLoad.current) {
-            return;
-        }
-        
-        if (!TIME_PERIODS[period]) {
-            return;
-        }
-        
-        setSelectedPeriod(period);
-        setIsCustomRange(false);
-        
-        const newRange = TIME_PERIODS[period];
-        
-        setSelection(newRange);
-        setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
-        setExternalSelection(newRange);
-        updateUrl(newRange);
-    }, []);
-
-    useEffect(() => {
+        // Handle popstate for browser navigation
         const handlePopState = () => {
             const urlRange = parseUrlParams();
             
             if (urlRange) {
                 const matchingPeriod = findMatchingPeriod(urlRange);
                 
-                setSelection(urlRange);
-                setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
-                setExternalSelection(urlRange); // Tell MacroChart to update
+                stateRef.current.selection = urlRange;
+                stateRef.current.scrollOffset = 0;
+                stateRef.current.currentViewRange = urlRange;
                 
                 if (matchingPeriod) {
                     setSelectedPeriod(matchingPeriod);
@@ -1526,24 +1268,64 @@ const EventTimeline = () => {
                     setSelectedPeriod(null);
                     setIsCustomRange(true);
                 }
+                
+                updateEventDisplay();
+                renderMicrochart();
+                
+                // Update macro chart if initialized
+                if (macroStateRef.current.scaleInfo && macroStateRef.current.brush && macroStateRef.current.brushGroup) {
+                    const { yearToPixel } = macroStateRef.current.scaleInfo;
+                    const newY0 = yearToPixel(urlRange[0]);
+                    const newY1 = yearToPixel(urlRange[1]);
+                    
+                    macroStateRef.current.isExternalUpdate = true;
+                    macroStateRef.current.brush.move(macroStateRef.current.brushGroup, [newY0, newY1]);
+                    macroStateRef.current.isExternalUpdate = false;
+                    
+                    macroStateRef.current.brushBounds = [newY0, newY1];
+                    
+                    if (macroStateRef.current.overlayElements) {
+                        macroStateRef.current.overlayElements.updateOverlayPositions(newY0, newY1);
+                    }
+                }
             }
         };
 
         window.addEventListener('popstate', handlePopState);
+
         return () => {
+            if (macroObserver) macroObserver.disconnect();
+            if (microObserver) microObserver.disconnect();
+            if (eventContainer) eventContainer.removeEventListener('scroll', debouncedHandleEventScroll);
+            if (microContainer) microContainer.removeEventListener('wheel', handleMicroScroll);
+            document.removeEventListener('mouseup', handleMouseUp);
             window.removeEventListener('popstate', handlePopState);
         };
+    }, [isInitialized, renderMacrochart, renderMicrochart, updateEventDisplay, handleEventScroll, handleMicroScroll]);
+
+    // Re-render event display when expandedEvents changes
+    useEffect(() => {
+        if (isInitialized) {
+            updateEventDisplay();
+        }
+    }, [expandedEvents, updateEventDisplay, isInitialized]);
+
+    // Add cleanup on component unmount
+    useEffect(() => {
+        return () => {
+            // Clean up all event listeners
+            eventListenersRef.current.forEach(cleanup => cleanup());
+            eventListenersRef.current.clear();
+            
+            // Clear D3 selections
+            if (microSvgRef.current) {
+                d3.select(microSvgRef.current).selectAll('*').remove();
+            }
+            if (macroSvgRef.current) {
+                d3.select(macroSvgRef.current).selectAll('*').remove();
+            }
+        };
     }, []);
-
-    const microchartIndicatorStyle = useMemo(() => ({
-        top: `${microchartIndicatorY}px`,
-        opacity: microchartIndicatorY !== null ? 1 : 0,
-        transition: 'opacity 0.3s ease'
-    }), [microchartIndicatorY]);
-
-    const macroIndicatorStyle = useMemo(() => ({
-        top: `${indicatorY}px`
-    }), [indicatorY]);
 
     if (!isInitialized) {
         return <div className="page-container">Loading...</div>;
@@ -1551,71 +1333,55 @@ const EventTimeline = () => {
 
     return (
         <>
-            <div className="page-container">
-                <div className="content-wrapper">
-                    <header className="header">
-                        <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
-                        <div className="header-controls">
-                            <div className="order-1">
-                                <form>
-                                    <ul id="people-legend">
-                                        {PERIODS.map(period => (
-                                            <li key={period.value}>
-                                                <input 
-                                                    id={`people-legend-${period.value}`}
-                                                    type="radio" 
-                                                    name="people-legend" 
-                                                    value={period.value}
-                                                    checked={!isCustomRange && selectedPeriod === period.value}
-                                                    onChange={handlePeriodChange} 
-                                                />
-                                                <label htmlFor={`people-legend-${period.value}`}>
-                                                    {period.label}
-                                                </label>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </form>
-                            </div>
+        <div className="page-container">
+            <div className="content-wrapper">
+                <header className="header">
+                    <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
+                    <div className="header-controls">
+                        <div className="order-1">
+                            <form>
+                                <ul id="people-legend">
+                                    {PERIODS.map(period => (
+                                        <li key={period.value}>
+                                            <input 
+                                                id={`people-legend-${period.value}`}
+                                                type="radio" 
+                                                name="people-legend" 
+                                                value={period.value}
+                                                checked={!isCustomRange && selectedPeriod === period.value}
+                                                onChange={handlePeriodChange} 
+                                            />
+                                            <label htmlFor={`people-legend-${period.value}`}>
+                                                {period.label}
+                                            </label>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </form>
                         </div>
-                    </header>
-                    <div className="timeline-container">
-                        <div className="sidebar">
-                            <div className="macrochart-container">
-                            <MacroChart
-                                    onBrush={throttledHandleBrush}
-                                    onExternalSelectionProcessed={() => setExternalSelection(null)}
-                                />
-                            <div className="position-indicator" style={macroIndicatorStyle}></div>
-                            </div>
-                            <div className="microchart-container">
-                                <Microchart />
-                                {microchartIndicatorY !== null && (
-                                    <div 
-                                        className="microchart-position-indicator" 
-                                        style={microchartIndicatorStyle}
-                                    ></div>
-                                )}
-                            </div>
-                        </div>
-                        <EventDisplay containerRef={eventDisplayRef} />
                     </div>
+                </header>
+                <div className="timeline-container">
+                    <div className="sidebar">
+                        <div className="macrochart-container" ref={macroContainerRef}>
+                            <svg ref={macroSvgRef}></svg>
+                            <div ref={macroIndicatorRef} className="position-indicator"></div>
+                        </div>
+                        <div className="microchart-container" ref={microContainerRef}>
+                            <svg ref={microSvgRef}></svg>
+                            <div ref={microIndicatorRef} className="microchart-position-indicator"></div>
+                        </div>
+                    </div>
+                    <div className="event-display-container" ref={eventDisplayRef}></div>
                 </div>
             </div>
+        </div>
         </>
     );
 };
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <TimelineProvider>
-      <EventTimeline />
-    </TimelineProvider>
-  </React.StrictMode>,
-)
-
-// render(<EventTimeline />, document.body);
+    <EventsTimeline />
+  </React.StrictMode>
+);
