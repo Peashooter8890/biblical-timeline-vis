@@ -162,8 +162,7 @@ export const getEffectiveColumn = (event) => {
 
 export const throttle = (func, limit) => {
     let inThrottle;
-    return function() {
-        const args = arguments;
+    return function(...args) {
         const context = this;
         if (!inThrottle) {
             func.apply(context, args);

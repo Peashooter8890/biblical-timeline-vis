@@ -1383,12 +1383,9 @@ const EventDisplay = ({ containerRef }) => {
 
 const EventTimeline = () => {
     const { 
-        events, 
-        selection, 
         setSelection, 
         indicatorY, 
         microchartIndicatorY, 
-        scrollInfo, 
         setScrollInfo, 
         selectedPeriod, 
         setSelectedPeriod, 
@@ -1396,7 +1393,6 @@ const EventTimeline = () => {
         setIsCustomRange, 
         isInitialized, 
         setIsInitialized, 
-        externalSelection, 
         setExternalSelection 
     } = useTimeline();
     
@@ -1409,11 +1405,9 @@ const EventTimeline = () => {
         
         if (urlRange) {
             const matchingPeriod = findMatchingPeriod(urlRange);
-            
             setSelection(urlRange);
             setScrollInfo(prev => ({ ...prev, selectionRange: urlRange }));
-            setExternalSelection(urlRange); // Tell MacroChart to update
-            
+            setExternalSelection(urlRange);
             if (matchingPeriod) {
                 setSelectedPeriod(matchingPeriod);
                 setIsCustomRange(false);
@@ -1423,10 +1417,9 @@ const EventTimeline = () => {
             }
         } else {
             const defaultRange = TIME_PERIODS.all;
-            
             setSelection(defaultRange);
             setScrollInfo(prev => ({ ...prev, selectionRange: defaultRange }));
-            setExternalSelection(defaultRange); // Tell MacroChart to update
+            setExternalSelection(defaultRange);
             setSelectedPeriod('all');
             setIsCustomRange(false);
             updateUrl(defaultRange);
@@ -1439,7 +1432,7 @@ const EventTimeline = () => {
         }, 100);
     }, []);
 
-    // This is now only called by MacroChart when user drags/resizes
+    // only called by MacroChart when user drags/resizes
     const handleBrush = useCallback((domain) => {
         if (isInitialLoad.current) {
             return;
@@ -1458,7 +1451,6 @@ const EventTimeline = () => {
             boundedDomain[1] = Math.min(maxYear, boundedDomain[0] + 1);
         }
 
-        // Update App state to reflect MacroChart's selection
         setSelection(boundedDomain);
         setScrollInfo((prev) => ({ ...prev, selectionRange: boundedDomain }));
 
@@ -1475,10 +1467,8 @@ const EventTimeline = () => {
         pendingSelectionRef.current = boundedDomain;
     }, [setSelection, setScrollInfo, setSelectedPeriod, setIsCustomRange]);
 
-    // Create a throttled version of handleBrush for live updates.
-    // useMemo ensures the throttled function is not recreated on every render.
     const throttledHandleBrush = useMemo(
-        () => throttle(handleBrush, 10), // Update at most every 100ms
+        () => throttle(handleBrush, 10),
         [handleBrush]
     );
 
@@ -1489,7 +1479,6 @@ const EventTimeline = () => {
                 pendingSelectionRef.current = null;
             }
         };
-
         document.addEventListener('mouseup', handleMouseUp);
         return () => {
             document.removeEventListener('mouseup', handleMouseUp);
@@ -1515,17 +1504,8 @@ const EventTimeline = () => {
         
         setSelection(newRange);
         setScrollInfo(prev => ({ ...prev, selectionRange: newRange }));
-        setExternalSelection(newRange); // Tell MacroChart to update
-        
+        setExternalSelection(newRange);
         updateUrl(newRange);
-    }, []);
-
-    const handleIndicatorChange = useCallback((y) => {
-        setIndicatorY(y);
-    }, []);
-
-    const handleMicrochartIndicatorChange = useCallback((y) => {
-        setMicrochartIndicatorY(y);
     }, []);
 
     useEffect(() => {
