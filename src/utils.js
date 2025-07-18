@@ -121,7 +121,7 @@ export const calculateColumns = (data) => {
         }
     });
     
-    const result = new Array(data.length);
+    let result = new Array(data.length);
     Object.values(eventsByDate).forEach(events => {
         events.forEach(event => {
             // Clean startDates that are of format ex. "0030-03-05" and make it into "0030"
@@ -141,6 +141,7 @@ export const calculateColumns = (data) => {
             delete result[event.originalIndex].originalIndex;
         });
     });
+    result = result.sort((a, b) => a.fields.startDate - b.fields.startDate);
     return result;
 }
 

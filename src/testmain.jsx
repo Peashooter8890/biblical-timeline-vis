@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Fragment, createContext, memo } from 'react';
 import ReactDOM from 'react-dom/client'
 import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
 import { parseDuration, getRangeInfo, formatYear, calculateColumns, getEffectiveColumn, throttle, parseUrlParams, findMatchingPeriod, updateUrl } from './utils.js';
@@ -37,6 +37,75 @@ const PERIODS = [
 const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const EVENTS_BOUND = [-4003, 57];
+
+// CUSTOM HOOKS
+
+const useResizeObserver = (ref, callback) => {
+    useEffect(() => {
+        if (!ref.current) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            requestAnimationFrame(callback);
+        });
+
+        resizeObserver.observe(ref.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [callback]);
+};
+
+const useDimensions = (ref) => {
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    useResizeObserver(ref, () => {
+        if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setDimensions({ width: rect.width, height: rect.height });
+        }
+    });
+
+    return dimensions;
+};
+
+// CONTEXT PROVIDER
+
+const TimelineContext = createContext();
+
+const TimelineProvider = ({ children }) => {
+    const [events] = useState(() => calculateColumns(eventsFullData));
+    const [selection, setSelection] = useState(TIME_PERIODS.all);
+    const [selectedPeriod, setSelectedPeriod] = useState('all');
+    const [isCustomRange, setIsCustomRange] = useState(false);
+    const [scrollInfo, setScrollInfo] = useState(null);
+
+    const value = {
+        events,
+        selection,
+        setSelection,
+        selectedPeriod,
+        setSelectedPeriod,
+        isCustomRange,
+        setIsCustomRange,
+        scrollInfo,
+        setScrollInfo
+    };
+
+    return (
+        <TimelineContext.Provider value={value}>
+            {children}
+        </TimelineContext.Provider>
+    );
+};
+
+const useTimeline = () => {
+    const context = useContext(TimelineContext);
+    if (!context) {
+        throw new Error('useTimeline must be used within TimelineProvider');
+    }
+    return context;
+};
 
 // ============================================================================
 // MACRO CHART COMPONENT
@@ -1431,7 +1500,7 @@ const EventDisplay = ({ data, selection, onScrollInfoChange, containerRef }) => 
 // ============================================================================
 
 const EventTimeline = () => {
-    const [events, setEvents] = useState([]);
+    const [events, setEvents] = useState(calculateColumns(eventsFullData));
     const [selection, setSelection] = useState(TIME_PERIODS.all);
     const [indicatorY, setIndicatorY] = useState(0);
     const [microchartIndicatorY, setMicrochartIndicatorY] = useState(null);
@@ -1481,12 +1550,6 @@ const EventTimeline = () => {
         setTimeout(() => {
             isInitialLoad.current = false;
         }, 100);
-    }, []);
-
-    useEffect(() => {
-        const dataWithColumns = calculateColumns(eventsFullData);
-        const sortedData = dataWithColumns.sort((a, b) => a.fields.startDate - b.fields.startDate);
-        setEvents(sortedData);
     }, []);
 
     // This is now only called by MacroChart when user drags/resizes
@@ -1621,69 +1684,71 @@ const EventTimeline = () => {
 
     return (
         <>
-            <div className="page-container">
-                <div className="content-wrapper">
-                    <header className="header">
-                        <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
-                        <div className="header-controls">
-                            <div className="order-1">
-                                <form>
-                                    <ul id="people-legend">
-                                        {PERIODS.map(period => (
-                                            <li key={period.value}>
-                                                <input 
-                                                    id={`people-legend-${period.value}`}
-                                                    type="radio" 
-                                                    name="people-legend" 
-                                                    value={period.value}
-                                                    checked={!isCustomRange && selectedPeriod === period.value}
-                                                    onChange={handlePeriodChange} 
-                                                />
-                                                <label htmlFor={`people-legend-${period.value}`}>
-                                                    {period.label}
-                                                </label>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </form>
+            <TimelineProvider>
+                <div className="page-container">
+                    <div className="content-wrapper">
+                        <header className="header">
+                            <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
+                            <div className="header-controls">
+                                <div className="order-1">
+                                    <form>
+                                        <ul id="people-legend">
+                                            {PERIODS.map(period => (
+                                                <li key={period.value}>
+                                                    <input 
+                                                        id={`people-legend-${period.value}`}
+                                                        type="radio" 
+                                                        name="people-legend" 
+                                                        value={period.value}
+                                                        checked={!isCustomRange && selectedPeriod === period.value}
+                                                        onChange={handlePeriodChange} 
+                                                    />
+                                                    <label htmlFor={`people-legend-${period.value}`}>
+                                                        {period.label}
+                                                    </label>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </form>
+                                </div>
                             </div>
+                        </header>
+                        <div className="timeline-container">
+                            <div className="sidebar">
+                                <div className="macrochart-container">
+                                <MacroChart
+                                        data={events}
+                                        onBrush={throttledHandleBrush}
+                                        onIndicatorChange={handleIndicatorChange}
+                                        scrollInfo={scrollInfo}
+                                        externalSelection={externalSelection}
+                                        onExternalSelectionProcessed={() => setExternalSelection(null)}
+                                    />
+                                <div className="position-indicator" style={macroIndicatorStyle}></div>
+                                </div>
+                                <div className="microchart-container">
+                                    <Microchart
+                                        data={events} 
+                                        selection={selection}
+                                        onIndicatorChange={handleMicrochartIndicatorChange}
+                                        scrollInfo={scrollInfo} />
+                                    {microchartIndicatorY !== null && (
+                                        <div 
+                                            className="microchart-position-indicator" 
+                                            style={microchartIndicatorStyle}
+                                        ></div>
+                                    )}
+                                </div>
+                            </div>
+                            <EventDisplay 
+                                data={events}
+                                selection={selection}
+                                onScrollInfoChange={setScrollInfo}
+                                containerRef={eventDisplayRef} />
                         </div>
-                    </header>
-                    <div className="timeline-container">
-                        <div className="sidebar">
-                            <div className="macrochart-container">
-                            <MacroChart
-                                    data={events}
-                                    onBrush={throttledHandleBrush}
-                                    onIndicatorChange={handleIndicatorChange}
-                                    scrollInfo={scrollInfo}
-                                    externalSelection={externalSelection}
-                                    onExternalSelectionProcessed={() => setExternalSelection(null)}
-                                />
-                            <div className="position-indicator" style={macroIndicatorStyle}></div>
-                            </div>
-                            <div className="microchart-container">
-                                <Microchart
-                                    data={events} 
-                                    selection={selection}
-                                    onIndicatorChange={handleMicrochartIndicatorChange}
-                                    scrollInfo={scrollInfo} />
-                                {microchartIndicatorY !== null && (
-                                    <div 
-                                        className="microchart-position-indicator" 
-                                        style={microchartIndicatorStyle}
-                                    ></div>
-                                )}
-                            </div>
-                        </div>
-                        <EventDisplay 
-                            data={events}
-                            selection={selection}
-                            onScrollInfoChange={setScrollInfo}
-                            containerRef={eventDisplayRef} />
                     </div>
                 </div>
-            </div>
+            </TimelineProvider>
         </>
     );
 };
