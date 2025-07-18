@@ -10,10 +10,12 @@ function processJson(filePath, lookupKey) {
   const rawData = fs.readFileSync(filePath, 'utf8');
   const jsonData = JSON.parse(rawData);
 
-  // Extract only the "fields" attribute and map it to the lookupKey
+  // Ensure each object has a "fields" property with the required attributes
   return jsonData.map((item) => ({
-    [lookupKey]: item.fields[lookupKey],
-    displayTitle: item.fields.displayTitle,
+    fields: {
+      [lookupKey]: item.fields[lookupKey],
+      displayTitle: item.fields.displayTitle,
+    },
   }));
 }
 

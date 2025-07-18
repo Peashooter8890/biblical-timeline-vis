@@ -753,18 +753,27 @@ const MacroChart = ({ data, onBrush, onIndicatorChange, scrollInfo, externalSele
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const handleResize = () => {
-            // Use requestAnimationFrame to debounce resize events
-            requestAnimationFrame(render);
+        // The function to be called on resize.
+        const onResize = () => {
+            // Use requestAnimationFrame to debounce resize events and prevent layout thrashing.
+            window.requestAnimationFrame(() => {
+                if (containerRef.current) { // Check if component is still mounted
+                    render();
+                }
+            });
         };
 
-        const resizeObserver = new ResizeObserver(handleResize);
+        // Create the observer with the callback.
+        const resizeObserver = new ResizeObserver(onResize);
         
+        // Start observing the container element.
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
 
+        // Initial render.
         render();
 
+        // Cleanup function to disconnect the observer when the component unmounts.
         return () => {
             if (resizeObserverRef.current) {
                 resizeObserverRef.current.disconnect();
@@ -1180,18 +1189,27 @@ const Microchart = ({ data, selection, onIndicatorChange, scrollInfo }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const handleResize = () => {
-            // Use requestAnimationFrame to debounce resize events
-            requestAnimationFrame(renderChart);
+        // The function to be called on resize.
+        const onResize = () => {
+            // Use requestAnimationFrame to debounce resize events and prevent layout thrashing.
+            window.requestAnimationFrame(() => {
+                if (containerRef.current) { // Check if component is still mounted
+                    renderChart();
+                }
+            });
         };
 
-        const resizeObserver = new ResizeObserver(handleResize);
+        // Create the observer with the callback.
+        const resizeObserver = new ResizeObserver(onResize);
         
+        // Start observing the container element.
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
 
+        // Initial render.
         renderChart();
 
+        // Cleanup function to disconnect the observer when the component unmounts.
         return () => {
             if (resizeObserverRef.current) {
                 resizeObserverRef.current.disconnect();
