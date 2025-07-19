@@ -12,10 +12,14 @@ import {
     formatDuration,
     formatParticipants,
     formatLocations,
-    formatVerses
+    formatVerses,
+    throttle
 } from './utils.jsx';
 import { PERIODS, DETAIL_FIELDS, TIME_RANGES } from './const.js';
 import './testindex.css';
+
+// Update frequency control
+const UPDATE_THROTTLE_MS = 33; // 30fps, adjustable
 
 // Macrochart constants
 const EQUAL_DISTRIBUTION_AREA = 0.5;
@@ -26,6 +30,11 @@ const YEAR_LABEL_RANGE_END = 0;
 const LABEL_MARGIN = 15;
 const LABEL_LINE_LENGTH = 10;
 const COLOR_BAR_WIDTH_RATIO = 1/6;
+
+// Selection overlay constants
+const MIN_SELECTION_HEIGHT = 45;
+const HANDLE_HEIGHT = 14;
+const HANDLE_WIDTH_RATIO = 1/2;
 
 // Microchart constants
 const DOT_RADIUS = 3;
@@ -49,6 +58,15 @@ const EventsTimeline = () => {
 
     // Process events with proper column calculation on mount
     const [processedEvents, setProcessedEvents] = useState([]);
+
+    // Selection state (not React state to avoid re-renders)
+    const selectionState = useRef({
+        range: FULL_RANGE,
+        pixelBounds: [0, 0],
+        macroScaleInfo: null,
+        overlayElements: null,
+        isDragging: false
+    });
 
     useEffect(() => {
         const eventsWithColumns = calculateColumns(eventsFullData);
@@ -121,7 +139,7 @@ const EventsTimeline = () => {
             return range.start + (proportion * yearSpan);
         };
 
-        return { yearToPixel, pixelToYear };
+        return { yearToPixel, pixelToYear, dimensions };
     }, []);
 
     // Calculate micro era layout
@@ -197,6 +215,281 @@ const EventsTimeline = () => {
         return { ranges: relevantRanges, heights, positions, yScale };
     }, []);
 
+    // Create selection overlay elements
+    const createSelectionOverlay = useCallback((containerElement, dimensions) => {
+        // Remove existing overlay
+        const existingOverlay = containerElement.querySelector('.selection-overlay-group');
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+
+        const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
+        const handleLeft = (dimensions.width - handleWidth) / 2;
+
+        // Create overlay container
+        const overlayGroup = document.createElement('div');
+        overlayGroup.className = 'selection-overlay-group';
+        overlayGroup.style.position = 'absolute';
+        overlayGroup.style.top = '0';
+        overlayGroup.style.left = '0';
+        overlayGroup.style.width = '100%';
+        overlayGroup.style.height = '100%';
+        overlayGroup.style.pointerEvents = 'none';
+
+        // Create main overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'selection-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.border = '2px solid #333';
+        overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        overlay.style.cursor = 'move';
+        overlay.style.pointerEvents = 'all';
+
+        // Create handles
+        const topHandle = document.createElement('div');
+        topHandle.className = 'top-handle';
+        topHandle.style.position = 'absolute';
+        topHandle.style.backgroundColor = '#333';
+        topHandle.style.cursor = 'ns-resize';
+        topHandle.style.pointerEvents = 'all';
+
+        const bottomHandle = document.createElement('div');
+        bottomHandle.className = 'bottom-handle';
+        bottomHandle.style.position = 'absolute';
+        bottomHandle.style.backgroundColor = '#333';
+        bottomHandle.style.cursor = 'ns-resize';
+        bottomHandle.style.pointerEvents = 'all';
+
+        // Create handle text
+        const topHandleText = document.createElement('div');
+        topHandleText.className = 'top-handle-text';
+        topHandleText.style.position = 'absolute';
+        topHandleText.style.fontSize = '10px';
+        topHandleText.style.lineHeight = HANDLE_HEIGHT + 'px';
+        topHandleText.style.textAlign = 'center';
+        topHandleText.style.pointerEvents = 'none';
+        topHandleText.style.color = '#fff';
+
+        const bottomHandleText = document.createElement('div');
+        bottomHandleText.className = 'bottom-handle-text';
+        bottomHandleText.style.position = 'absolute';
+        bottomHandleText.style.fontSize = '10px';
+        bottomHandleText.style.lineHeight = HANDLE_HEIGHT + 'px';
+        bottomHandleText.style.textAlign = 'center';
+        bottomHandleText.style.pointerEvents = 'none';
+        bottomHandleText.style.color = '#fff';
+
+        // Append elements
+        overlayGroup.appendChild(overlay);
+        overlayGroup.appendChild(topHandle);
+        overlayGroup.appendChild(bottomHandle);
+        overlayGroup.appendChild(topHandleText);
+        overlayGroup.appendChild(bottomHandleText);
+        containerElement.appendChild(overlayGroup);
+
+        const elements = {
+            overlayGroup,
+            overlay,
+            topHandle,
+            bottomHandle,
+            topHandleText,
+            bottomHandleText,
+            dimensions,
+            handleWidth,
+            handleLeft
+        };
+
+        selectionState.current.overlayElements = elements;
+        return elements;
+    }, []);
+
+    // Update overlay position
+    const updateOverlayPosition = useCallback((y0, y1) => {
+        const elements = selectionState.current.overlayElements;
+        if (!elements || !selectionState.current.macroScaleInfo) return;
+
+        const { overlay, topHandle, bottomHandle, topHandleText, bottomHandleText, 
+                dimensions, handleWidth, handleLeft } = elements;
+        const { pixelToYear } = selectionState.current.macroScaleInfo;
+
+        const height = y1 - y0;
+        if (height < MIN_SELECTION_HEIGHT) return;
+
+        // Update overlay
+        overlay.style.left = '0px';
+        overlay.style.top = y0 + 'px';
+        overlay.style.width = dimensions.width + 'px';
+        overlay.style.height = height + 'px';
+
+        // Update handles
+        topHandle.style.left = handleLeft + 'px';
+        topHandle.style.top = (y0 - HANDLE_HEIGHT / 2) + 'px';
+        topHandle.style.width = handleWidth + 'px';
+        topHandle.style.height = HANDLE_HEIGHT + 'px';
+
+        bottomHandle.style.left = handleLeft + 'px';
+        bottomHandle.style.top = (y1 - HANDLE_HEIGHT / 2) + 'px';
+        bottomHandle.style.width = handleWidth + 'px';
+        bottomHandle.style.height = HANDLE_HEIGHT + 'px';
+
+        // Update handle text
+        topHandleText.style.left = handleLeft + 'px';
+        topHandleText.style.top = (y0 - HANDLE_HEIGHT / 2) + 'px';
+        topHandleText.style.width = handleWidth + 'px';
+        topHandleText.style.height = HANDLE_HEIGHT + 'px';
+        topHandleText.textContent = formatYear(Math.round(pixelToYear(y0)));
+
+        bottomHandleText.style.left = handleLeft + 'px';
+        bottomHandleText.style.top = (y1 - HANDLE_HEIGHT / 2) + 'px';
+        bottomHandleText.style.width = handleWidth + 'px';
+        bottomHandleText.style.height = HANDLE_HEIGHT + 'px';
+        bottomHandleText.textContent = formatYear(Math.round(pixelToYear(y1)));
+
+        // Update pixel bounds
+        selectionState.current.pixelBounds = [y0, y1];
+    }, []);
+
+    // Coordinated update function (throttled)
+    const coordinatedUpdate = useCallback(throttle(() => {
+        if (!selectionState.current.macroScaleInfo) return;
+
+        const { pixelToYear } = selectionState.current.macroScaleInfo;
+        const [y0, y1] = selectionState.current.pixelBounds;
+        
+        const startYear = Math.round(pixelToYear(y0));
+        const endYear = Math.round(pixelToYear(y1));
+        const newRange = [startYear, endYear];
+        
+        selectionState.current.range = newRange;
+
+        // Update microchart
+        renderMicrochart(newRange);
+
+        // Scroll event display
+        scrollEventDisplayToRange(newRange);
+    }, UPDATE_THROTTLE_MS), []);
+
+    // Scroll event display to show range
+    const scrollEventDisplayToRange = useCallback((range) => {
+        if (!eventDisplayRef.current || !processedEvents.length) return;
+
+        const [startYear] = range;
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        
+        // Find the first year header >= startYear
+        for (let i = 0; i < headers.length; i++) {
+            const header = headers[i];
+            const headerText = header.textContent;
+            
+            // Parse year from formatted text (e.g., "4001 BC" -> -4000)
+            let headerYear;
+            if (headerText.includes('BC')) {
+                headerYear = -(parseInt(headerText.replace(' BC', '')) - 1);
+            } else if (headerText.includes('AD')) {
+                headerYear = parseInt(headerText.replace(' AD', ''));
+            } else {
+                headerYear = 0;
+            }
+            
+            if (headerYear >= startYear) {
+                const containerRect = container.getBoundingClientRect();
+                const headerRect = header.getBoundingClientRect();
+                const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+                container.scrollTop = Math.max(0, relativeTop);
+                break;
+            }
+        }
+    }, [processedEvents]);
+
+    // Create D3 drag behavior for different elements
+    const createDragBehaviors = useCallback(() => {
+        // Store drag state externally since event.subject is read-only
+        const dragState = { mode: null, startY: 0, startBounds: [0, 0] };
+
+        // Shared drag handler
+        const handleDrag = (event) => {
+            const deltaY = event.y - dragState.startY;
+            const [originalY0, originalY1] = dragState.startBounds;
+            const height = originalY1 - originalY0;
+            const { dimensions } = selectionState.current.macroScaleInfo;
+
+            let newY0, newY1;
+
+            if (dragState.mode === 'drag') {
+                // Dragging the whole overlay
+                newY0 = Math.max(0, Math.min(dimensions.height - height, originalY0 + deltaY));
+                newY1 = newY0 + height;
+            } else if (dragState.mode === 'resize-top') {
+                // Resizing from top handle
+                newY0 = Math.max(0, Math.min(originalY1 - MIN_SELECTION_HEIGHT, originalY0 + deltaY));
+                newY1 = originalY1;
+            } else if (dragState.mode === 'resize-bottom') {
+                // Resizing from bottom handle
+                newY0 = originalY0;
+                newY1 = Math.min(dimensions.height, Math.max(originalY0 + MIN_SELECTION_HEIGHT, originalY1 + deltaY));
+            }
+
+            // Immediate visual update
+            updateOverlayPosition(newY0, newY1);
+
+            // Throttled coordinated update
+            coordinatedUpdate();
+        };
+
+        // Overlay drag behavior (move entire selection)
+        const overlayDrag = d3.drag()
+            .on('start', function(event) {
+                dragState.mode = 'drag';
+                dragState.startY = event.y;
+                dragState.startBounds = [...selectionState.current.pixelBounds];
+                selectionState.current.isDragging = true;
+            })
+            .on('drag', handleDrag)
+            .on('end', function(event) {
+                selectionState.current.isDragging = false;
+            });
+
+        // Top handle drag behavior (resize from top)
+        const topHandleDrag = d3.drag()
+            .on('start', function(event) {
+                dragState.mode = 'resize-top';
+                dragState.startY = event.y;
+                dragState.startBounds = [...selectionState.current.pixelBounds];
+                selectionState.current.isDragging = true;
+            })
+            .on('drag', handleDrag)
+            .on('end', function(event) {
+                selectionState.current.isDragging = false;
+            });
+
+        // Bottom handle drag behavior (resize from bottom)
+        const bottomHandleDrag = d3.drag()
+            .on('start', function(event) {
+                dragState.mode = 'resize-bottom';
+                dragState.startY = event.y;
+                dragState.startBounds = [...selectionState.current.pixelBounds];
+                selectionState.current.isDragging = true;
+            })
+            .on('drag', handleDrag)
+            .on('end', function(event) {
+                selectionState.current.isDragging = false;
+            });
+
+        return { overlayDrag, topHandleDrag, bottomHandleDrag };
+    }, [updateOverlayPosition, coordinatedUpdate]);
+
+    // Setup drag handlers for overlay elements
+    const setupDragHandlers = useCallback((elements) => {
+        const { overlay, topHandle, bottomHandle } = elements;
+        const { overlayDrag, topHandleDrag, bottomHandleDrag } = createDragBehaviors();
+
+        // Apply drag behaviors to respective elements
+        d3.select(overlay).call(overlayDrag);
+        d3.select(topHandle).call(topHandleDrag);
+        d3.select(bottomHandle).call(bottomHandleDrag);
+    }, [createDragBehaviors]);
+
     // Render macrochart
     const renderMacrochart = useCallback(() => {
         if (!macroSvgRef.current || !macroContainerRef.current) return;
@@ -206,6 +499,9 @@ const EventsTimeline = () => {
 
         const layout = calculateMacroLayout(dimensions);
         const converters = createMacroConverters(dimensions, layout);
+
+        // Store scale info for selection overlay
+        selectionState.current.macroScaleInfo = converters;
 
         const svg = d3.select(macroSvgRef.current)
             .attr('width', dimensions.width)
@@ -263,20 +559,28 @@ const EventsTimeline = () => {
             .attr('font-size', '12px')
             .attr('fill', '#000')
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
-    }, [calculateMacroLayout, createMacroConverters]);
 
-    // Render microchart
-    const renderMicrochart = useCallback(() => {
+        // Create selection overlay
+        const elements = createSelectionOverlay(macroContainerRef.current, dimensions);
+        setupDragHandlers(elements);
+
+        // Initialize overlay position to full range
+        const initialY0 = converters.yearToPixel(FULL_RANGE[0]);
+        const initialY1 = converters.yearToPixel(FULL_RANGE[1]);
+        updateOverlayPosition(initialY0, initialY1);
+
+    }, [calculateMacroLayout, createMacroConverters, createSelectionOverlay, setupDragHandlers, updateOverlayPosition]);
+
+    // Render microchart with specific view range
+    const renderMicrochart = useCallback((viewRange = FULL_RANGE) => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length) return;
 
         const dimensions = calculateDimensions(microContainerRef.current);
         if (dimensions.width === 0 || dimensions.height === 0) return;
 
-        // Use full range for initial load
-        const currentViewRange = FULL_RANGE;
-        const [startYear, endYear] = currentViewRange;
+        const [startYear, endYear] = viewRange;
         
-        const eraLayout = calculateMicroEraLayout(dimensions, currentViewRange);
+        const eraLayout = calculateMicroEraLayout(dimensions, viewRange);
         const yScale = eraLayout.yScale;
 
         const filtered = processedEvents.filter(d => 
