@@ -1,11 +1,23 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as d3 from 'd3';
-import { eventsFullData } from './teststuff.js';
-import { formatYear } from './utils.jsx';
+import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
+import { 
+    formatYear, 
+    parseDuration, 
+    getRangeInfo, 
+    calculateColumns, 
+    getEffectiveColumn, 
+    calculateDimensions,
+    formatDuration,
+    formatParticipants,
+    formatLocations,
+    formatVerses
+} from './utils.jsx';
 import { PERIODS, DETAIL_FIELDS, TIME_RANGES } from './const.js';
 import './testindex.css';
 
+// Macrochart constants
 const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const YEAR_LABEL_INTERVAL = 500;
@@ -15,6 +27,14 @@ const LABEL_MARGIN = 15;
 const LABEL_LINE_LENGTH = 10;
 const COLOR_BAR_WIDTH_RATIO = 1/6;
 
+// Microchart constants
+const DOT_RADIUS = 3;
+const LINE_STROKE_WIDTH = 2;
+const TOOLTIP_OFFSET_X = 10;
+const TOOLTIP_OFFSET_Y = 50;
+const STATIC_COLUMN_COUNT = 10;
+const FULL_RANGE = [-4100, 150];
+
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [expandedEvents, setExpandedEvents] = useState(new Set());
@@ -22,15 +42,17 @@ const EventsTimeline = () => {
     const macroContainerRef = useRef(null);
     const macroSvgRef = useRef(null);
     const microContainerRef = useRef(null);
+    const microSvgRef = useRef(null);
     const eventDisplayRef = useRef(null);
     const macroIndicatorRef = useRef(null);
     const microIndicatorRef = useRef(null);
 
-    // Calculate dimensions utility
-    const calculateDimensions = useCallback((container) => {
-        if (!container) return { width: 0, height: 0 };
-        const rect = container.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
+    // Process events with proper column calculation on mount
+    const [processedEvents, setProcessedEvents] = useState([]);
+
+    useEffect(() => {
+        const eventsWithColumns = calculateColumns(eventsFullData);
+        setProcessedEvents(eventsWithColumns);
     }, []);
 
     // Calculate macro layout
@@ -102,6 +124,79 @@ const EventsTimeline = () => {
         return { yearToPixel, pixelToYear };
     }, []);
 
+    // Calculate micro era layout
+    const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
+        const [startYear, endYear] = viewRange;
+        
+        const relevantRanges = TIME_RANGES.filter(range => 
+            !(range.end < startYear || range.start > endYear)
+        );
+        
+        if (relevantRanges.length === 0) {
+            return {
+                ranges: [],
+                heights: [],
+                positions: [],
+                yScale: (year) => {
+                    const progress = (year - startYear) / (endYear - startYear);
+                    return progress * dimensions.height;
+                }
+            };
+        }
+        
+        const actualSpans = relevantRanges.map(range => {
+            const actualStart = Math.max(range.start, startYear);
+            const actualEnd = Math.min(range.end, endYear);
+            return actualEnd - actualStart;
+        });
+        
+        const totalSpan = actualSpans.reduce((sum, span) => sum + span, 0);
+        const numRanges = relevantRanges.length;
+        
+        const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
+        const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
+        const equalHeightPerRange = equalPortionHeight / numRanges;
+        
+        const heights = actualSpans.map(span => {
+            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
+            return equalHeightPerRange + proportionalHeight;
+        });
+        
+        const positions = [];
+        let currentY = 0;
+        for (const height of heights) {
+            positions.push(currentY);
+            currentY += height;
+        }
+        
+        const yScale = (year) => {
+            const rangeIndex = relevantRanges.findIndex(range => 
+                year >= Math.max(range.start, startYear) && 
+                year <= Math.min(range.end, endYear)
+            );
+            
+            if (rangeIndex === -1) {
+                if (year < startYear) return 0;
+                if (year > endYear) return dimensions.height;
+                
+                const progress = (year - startYear) / (endYear - startYear);
+                return progress * dimensions.height;
+            }
+            
+            const range = relevantRanges[rangeIndex];
+            const rangeStart = Math.max(range.start, startYear);
+            const rangeEnd = Math.min(range.end, endYear);
+            const rangeSpan = rangeEnd - rangeStart;
+            
+            if (rangeSpan <= 0) return positions[rangeIndex];
+            
+            const positionInRange = (year - rangeStart) / rangeSpan;
+            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
+        };
+        
+        return { ranges: relevantRanges, heights, positions, yScale };
+    }, []);
+
     // Render macrochart
     const renderMacrochart = useCallback(() => {
         if (!macroSvgRef.current || !macroContainerRef.current) return;
@@ -168,7 +263,173 @@ const EventsTimeline = () => {
             .attr('font-size', '12px')
             .attr('fill', '#000')
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
-    }, [calculateDimensions, calculateMacroLayout, createMacroConverters]);
+    }, [calculateMacroLayout, createMacroConverters]);
+
+    // Render microchart
+    const renderMicrochart = useCallback(() => {
+        if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length) return;
+
+        const dimensions = calculateDimensions(microContainerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
+        // Use full range for initial load
+        const currentViewRange = FULL_RANGE;
+        const [startYear, endYear] = currentViewRange;
+        
+        const eraLayout = calculateMicroEraLayout(dimensions, currentViewRange);
+        const yScale = eraLayout.yScale;
+
+        const filtered = processedEvents.filter(d => 
+            d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+
+        // Process events by era
+        const byEra = {};
+        
+        processedEvents.forEach(d => {
+            const rangeInfo = getRangeInfo(d.fields.startDate);
+            const era = rangeInfo.color;
+            
+            if (!byEra[era]) {
+                byEra[era] = [];
+            }
+            
+            byEra[era].push(d);
+        });
+
+        // Create events and lines
+        const processedEventsForDisplay = [];
+        const lines = [];
+        
+        Object.keys(byEra).forEach(era => {
+            const eraEvents = byEra[era].filter(d => filtered.includes(d));
+            const maxColumns = STATIC_COLUMN_COUNT;
+            
+            eraEvents.forEach(d => {
+                const rangeInfo = getRangeInfo(d.fields.startDate);
+                const column = getEffectiveColumn(d);
+                const columnWidth = dimensions.width / maxColumns;
+                const x = (column - 1) * columnWidth + (columnWidth / 2);
+                const y = yScale(d.fields.startDate);
+
+                processedEventsForDisplay.push({
+                    ...d.fields,
+                    color: rangeInfo.color,
+                    columnX: x,
+                    y
+                });
+
+                // Add lines for events with duration
+                const duration = parseDuration(d.fields.duration);
+                if (duration >= 1) {
+                    const lineStart = parseFloat(d.fields.startDate);
+                    const lineEnd = lineStart + duration;
+                    
+                    const intersects = (
+                        (lineStart >= startYear && lineStart <= endYear) ||
+                        (lineEnd >= startYear && lineEnd <= endYear) ||
+                        (lineStart <= startYear && lineEnd >= endYear)
+                    );
+
+                    if (intersects) {
+                        const startY = yScale(lineStart);
+                        const endY = yScale(lineEnd);
+                        
+                        const buffer = dimensions.height * 0.1;
+                        const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
+                        const y2 = Math.max(-buffer, Math.min(dimensions.height + buffer, endY));
+                        
+                        lines.push({
+                            x1: x,
+                            y1: y1,
+                            x2: x,
+                            y2: y2,
+                            color: rangeInfo.color
+                        });
+                    }
+                }
+            });
+        });
+
+        // Remove old tooltip
+        const oldTooltip = microContainerRef.current.querySelector('.microchart-tooltip');
+        if (oldTooltip) {
+            oldTooltip.remove();
+        }
+
+        const svg = d3.select(microSvgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
+
+        // Clear previous content
+        svg.selectAll('*').remove();
+        const g = svg.append('g').attr('class', 'microchart-group');
+
+        // Draw lines
+        g.selectAll('.microchart-line')
+            .data(lines)
+            .enter()
+            .append('line')
+            .attr('class', 'microchart-line')
+            .attr('x1', d => d.x1)
+            .attr('y1', d => d.y1)
+            .attr('x2', d => d.x2)
+            .attr('y2', d => d.y2)
+            .attr('stroke', d => d.color)
+            .style('stroke-width', `${LINE_STROKE_WIDTH}px`);
+
+        // Create tooltip
+        let tooltip = d3.select(microContainerRef.current).select('.microchart-tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select(microContainerRef.current)
+                .append('div')
+                .attr('class', 'microchart-tooltip')
+                .style('opacity', 0)
+                .style('position', 'absolute')
+                .style('background', 'rgba(0, 0, 0, 0.8)')
+                .style('color', 'white')
+                .style('padding', '5px')
+                .style('border-radius', '3px')
+                .style('font-size', '12px')
+                .style('pointer-events', 'none');
+        }
+
+        // Draw dots
+        g.selectAll('.microchart-dot')
+            .data(processedEventsForDisplay)
+            .enter()
+            .append('circle')
+            .attr('class', 'microchart-dot')
+            .attr('cx', d => d.columnX)
+            .attr('cy', d => d.y)
+            .attr('r', DOT_RADIUS)
+            .attr('fill', d => d.color)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1)
+            .on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', .9);
+                tooltip.html(d.title)
+                    .style('left', (event.layerX - TOOLTIP_OFFSET_X) + 'px')
+                    .style('top', (event.layerY - TOOLTIP_OFFSET_Y) + 'px');
+
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .style('stroke', '#000');
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .style('stroke', '#fff');
+            });
+    }, [calculateMicroEraLayout, processedEvents]);
 
     // Events stuff
     const groupEventsByYear = useCallback((events) => {
@@ -207,12 +468,34 @@ const EventsTimeline = () => {
             triangle.classList.add('expanded');
             triangle.setAttribute('aria-label', 'Collapse event details');
 
-            DETAIL_FIELDS.forEach(field => {
+            // Add detail fields using proper formatters
+            const detailFields = [
+                { key: 'duration', label: 'Duration', formatter: formatDuration },
+                { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
+                { key: 'groups', label: 'Groups' },
+                { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
+                { key: 'verses', label: 'Verses', formatter: formatVerses },
+                { key: 'partOf', label: 'Part Of' },
+                { key: 'predecessor', label: 'Predecessor' },
+                { key: 'lag', label: 'Lag', formatter: formatDuration },
+                { key: 'lagType', label: 'Lag Type' },
+                { key: 'notes', label: 'Notes' }
+            ];
+
+            detailFields.forEach(field => {
                 if (event.fields[field.key]) {
                     const detail = document.createElement('div');
                     detail.className = 'event-detail';
                     const value = field.formatter ? field.formatter(event.fields[field.key]) : event.fields[field.key];
-                    detail.textContent = `${field.label}: ${value}`;
+                    
+                    // Handle React elements (like formatted participants/locations/verses)
+                    if (React.isValidElement(value)) {
+                        const tempDiv = document.createElement('div');
+                        ReactDOM.render(value, tempDiv);
+                        detail.innerHTML = `${field.label}: ${tempDiv.innerHTML}`;
+                    } else {
+                        detail.textContent = `${field.label}: ${value}`;
+                    }
                     eventContent.appendChild(detail);
                 }
             });
@@ -234,9 +517,9 @@ const EventsTimeline = () => {
     }, [expandedEvents]);
 
     const updateEventDisplay = useCallback(() => {
-        if (!eventDisplayRef.current) return;
+        if (!eventDisplayRef.current || !processedEvents.length) return;
 
-        const groupedEvents = groupEventsByYear(eventsFullData);
+        const groupedEvents = groupEventsByYear(processedEvents);
         const container = eventDisplayRef.current;
         const fragment = document.createDocumentFragment();
         
@@ -264,41 +547,52 @@ const EventsTimeline = () => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
-    }, [groupEventsByYear, createEventItem]);
+    }, [groupEventsByYear, createEventItem, processedEvents]);
 
     const handlePeriodChange = useCallback((event) => {
         setSelectedPeriod(event.target.value);
     }, []);
 
-    // Setup macrochart on mount and resize
-    useEffect(() => {
-        if (!macroContainerRef.current) return;
+    // Refactored chart setup with shared ResizeObserver logic
+    const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
+        if (!containerRef.current) return null;
 
         // Create SVG element if it doesn't exist
-        if (!macroSvgRef.current) {
+        if (!svgRef.current) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            macroContainerRef.current.appendChild(svg);
-            macroSvgRef.current = svg;
+            containerRef.current.appendChild(svg);
+            svgRef.current = svg;
         }
 
         // Initial render
-        renderMacrochart();
+        renderFunction();
 
         // Setup resize observer
         const resizeObserver = new ResizeObserver(() => {
             window.requestAnimationFrame(() => {
-                if (macroContainerRef.current) {
-                    renderMacrochart();
+                if (containerRef.current) {
+                    renderFunction();
                 }
             });
         });
 
-        resizeObserver.observe(macroContainerRef.current);
+        resizeObserver.observe(containerRef.current);
+
+        return resizeObserver;
+    }, []);
+
+    // Setup charts on mount and resize
+    useEffect(() => {
+        if (!processedEvents.length) return;
+
+        const macroObserver = setupChart(macroContainerRef, macroSvgRef, renderMacrochart, 'macro');
+        const microObserver = setupChart(microContainerRef, microSvgRef, renderMicrochart, 'micro');
 
         return () => {
-            resizeObserver.disconnect();
+            if (macroObserver) macroObserver.disconnect();
+            if (microObserver) microObserver.disconnect();
         };
-    }, [renderMacrochart]);
+    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents]);
 
     useEffect(() => {
         updateEventDisplay();
@@ -339,7 +633,6 @@ const EventsTimeline = () => {
                             <div ref={macroIndicatorRef} className="position-indicator"></div>
                         </div>
                         <div className="microchart-container" ref={microContainerRef}>
-                            <svg></svg>
                             <div ref={microIndicatorRef} className="microchart-position-indicator"></div>
                         </div>
                     </div>
