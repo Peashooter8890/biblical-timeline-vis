@@ -335,3 +335,9 @@ export const formatVerses = (verses) => {
         );
     });
 };
+
+export const calculateDimensions = (container) => {
+    if (!container) return { width: 0, height: 0 };
+    const rect = container.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+};

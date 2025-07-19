@@ -1,41 +1,176 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
-import { formatYear, formatDuration, formatLocations, formatParticipants, formatVerses } from './utils.jsx';
+import * as d3 from 'd3';
+import { eventsFullData } from './teststuff.js';
+import { formatYear } from './utils.jsx';
+import { PERIODS, DETAIL_FIELDS, TIME_RANGES } from './const.js';
 import './testindex.css';
 
-const PERIODS = [
-    { value: 'all', label: 'ALL' },
-    { value: 'period1', label: '4101 BC - 3001 BC' },
-    { value: 'period2', label: '3000 BC - 2001 BC' },
-    { value: 'period3', label: '2000 BC - 1001 BC' },
-    { value: 'period4', label: '1000 BC - 1 BC' },
-    { value: 'period5', label: '1 AD - 150 AD' }
-];
-
-const DETAIL_FIELDS = [
-    { key: 'duration', label: 'Duration', formatter: formatDuration },
-    { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
-    { key: 'groups', label: 'Groups' },
-    { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
-    { key: 'verses', label: 'Verses', formatter: formatVerses },
-    { key: 'partOf', label: 'Part Of' },
-    { key: 'predecessor', label: 'Predecessor' },
-    { key: 'lag', label: 'Lag', formatter: formatDuration },
-    { key: 'lagType', label: 'Lag Type' },
-    { key: 'notes', label: 'Notes' }
-];
+const EQUAL_DISTRIBUTION_AREA = 0.5;
+const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
+const YEAR_LABEL_INTERVAL = 500;
+const YEAR_LABEL_RANGE_START = -4000;
+const YEAR_LABEL_RANGE_END = 0;
+const LABEL_MARGIN = 15;
+const LABEL_LINE_LENGTH = 10;
+const COLOR_BAR_WIDTH_RATIO = 1/6;
 
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [expandedEvents, setExpandedEvents] = useState(new Set());
 
     const macroContainerRef = useRef(null);
+    const macroSvgRef = useRef(null);
     const microContainerRef = useRef(null);
     const eventDisplayRef = useRef(null);
     const macroIndicatorRef = useRef(null);
     const microIndicatorRef = useRef(null);
 
+    // Calculate dimensions utility
+    const calculateDimensions = useCallback((container) => {
+        if (!container) return { width: 0, height: 0 };
+        const rect = container.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+    }, []);
+
+    // Calculate macro layout
+    const calculateMacroLayout = useCallback((dimensions) => {
+        const totalSpan = TIME_RANGES.reduce((sum, range) => 
+            sum + Math.abs(range.end - range.start), 0);
+        
+        const numRanges = TIME_RANGES.length;
+        const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
+        const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
+        const equalHeightPerRange = equalPortionHeight / numRanges;
+        
+        const heights = TIME_RANGES.map(range => {
+            const span = Math.abs(range.end - range.start);
+            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
+            return equalHeightPerRange + proportionalHeight;
+        });
+
+        const positions = [];
+        let currentY = 0;
+        for (const height of heights) {
+            positions.push(currentY);
+            currentY += height;
+        }
+
+        return { heights, positions };
+    }, []);
+
+    // Create macro converters
+    const createMacroConverters = useCallback((dimensions, { heights, positions }) => {
+        const yearToPixel = (year) => {
+            const rangeIndex = TIME_RANGES.findIndex(range => 
+                year >= range.start && year <= range.end);
+            
+            if (rangeIndex === -1) {
+                if (year < TIME_RANGES[0].start) return positions[0];
+                if (year > TIME_RANGES[TIME_RANGES.length - 1].end) return dimensions.height;
+                return 0;
+            }
+            
+            const range = TIME_RANGES[rangeIndex];
+            const rangeSpan = range.end - range.start;
+            const positionInRange = (year - range.start) / rangeSpan;
+            
+            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
+        };
+
+        const pixelToYear = (pixel) => {
+            let rangeIndex = TIME_RANGES.length - 1;
+            for (let i = 0; i < positions.length - 1; i++) {
+                if (pixel < positions[i + 1]) {
+                    rangeIndex = i;
+                    break;
+                }
+            }
+
+            const range = TIME_RANGES[rangeIndex];
+            const rangeStart = positions[rangeIndex];
+            const rangeHeight = heights[rangeIndex];
+
+            if (rangeHeight <= 0) return range.start;
+
+            const pixelIntoRange = pixel - rangeStart;
+            const proportion = pixelIntoRange / rangeHeight;
+            const yearSpan = range.end - range.start;
+            return range.start + (proportion * yearSpan);
+        };
+
+        return { yearToPixel, pixelToYear };
+    }, []);
+
+    // Render macrochart
+    const renderMacrochart = useCallback(() => {
+        if (!macroSvgRef.current || !macroContainerRef.current) return;
+
+        const dimensions = calculateDimensions(macroContainerRef.current);
+        if (dimensions.width === 0 || dimensions.height === 0) return;
+
+        const layout = calculateMacroLayout(dimensions);
+        const converters = createMacroConverters(dimensions, layout);
+
+        const svg = d3.select(macroSvgRef.current)
+            .attr('width', dimensions.width)
+            .attr('height', dimensions.height)
+            .style('overflow', 'visible');
+
+        // Clear previous content
+        svg.selectAll('*').remove();
+
+        // Create color bars
+        const width = dimensions.width * COLOR_BAR_WIDTH_RATIO;
+        const x = dimensions.width - width;
+        
+        svg.selectAll('.era-rect')
+            .data(TIME_RANGES)
+            .enter()
+            .append('rect')
+            .attr('class', 'era-rect')
+            .attr('x', x)
+            .attr('y', (d, i) => layout.positions[i])
+            .attr('width', width)
+            .attr('height', (d, i) => layout.heights[i])
+            .attr('fill', d => d.color);
+
+        // Create year markers
+        const lineStart = x - LABEL_LINE_LENGTH;
+        const years = [];
+        for (let year = YEAR_LABEL_RANGE_START; year <= YEAR_LABEL_RANGE_END; year += YEAR_LABEL_INTERVAL) {
+            years.push(year);
+        }
+        if (!years.includes(YEAR_LABEL_RANGE_END)) {
+            years.push(YEAR_LABEL_RANGE_END);
+        }
+
+        svg.selectAll('.year-line')
+            .data(years)
+            .enter()
+            .append('line')
+            .attr('class', 'year-line')
+            .attr('x1', lineStart)
+            .attr('y1', converters.yearToPixel)
+            .attr('x2', x)
+            .attr('y2', converters.yearToPixel)
+            .attr('stroke', '#000')
+            .attr('stroke-width', 1);
+
+        svg.selectAll('.year-label')
+            .data(years)
+            .enter()
+            .append('text')
+            .attr('class', 'year-label')
+            .attr('x', x - LABEL_MARGIN)
+            .attr('y', d => converters.yearToPixel(d) + 5)
+            .attr('text-anchor', 'end')
+            .attr('font-size', '12px')
+            .attr('fill', '#000')
+            .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
+    }, [calculateDimensions, calculateMacroLayout, createMacroConverters]);
+
+    // Events stuff
     const groupEventsByYear = useCallback((events) => {
         const groups = {};
         
@@ -135,6 +270,36 @@ const EventsTimeline = () => {
         setSelectedPeriod(event.target.value);
     }, []);
 
+    // Setup macrochart on mount and resize
+    useEffect(() => {
+        if (!macroContainerRef.current) return;
+
+        // Create SVG element if it doesn't exist
+        if (!macroSvgRef.current) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            macroContainerRef.current.appendChild(svg);
+            macroSvgRef.current = svg;
+        }
+
+        // Initial render
+        renderMacrochart();
+
+        // Setup resize observer
+        const resizeObserver = new ResizeObserver(() => {
+            window.requestAnimationFrame(() => {
+                if (macroContainerRef.current) {
+                    renderMacrochart();
+                }
+            });
+        });
+
+        resizeObserver.observe(macroContainerRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [renderMacrochart]);
+
     useEffect(() => {
         updateEventDisplay();
     }, [updateEventDisplay, expandedEvents]);
@@ -171,7 +336,6 @@ const EventsTimeline = () => {
                 <div className="timeline-container">
                     <div className="sidebar">
                         <div className="macrochart-container" ref={macroContainerRef}>
-                            <svg></svg>
                             <div ref={macroIndicatorRef} className="position-indicator"></div>
                         </div>
                         <div className="microchart-container" ref={microContainerRef}>
