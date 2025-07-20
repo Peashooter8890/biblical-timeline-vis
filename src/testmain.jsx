@@ -13,7 +13,6 @@ import {
     formatParticipants,
     formatLocations,
     formatVerses,
-    throttle
 } from './utils.jsx';
 import { PERIODS, DETAIL_FIELDS, TIME_RANGES } from './const.js';
 import './testindex.css';
@@ -204,34 +203,48 @@ const EventsTimeline = () => {
     }, []);
 
     // Scroll event display to a specific year
-    const scrollToYear = useCallback((targetYear) => {
-        if (!eventDisplayRef.current || !processedEvents.length) return;
+const scrollToYear = useCallback((targetYear) => {
+    if (!eventDisplayRef.current || !processedEvents.length) return;
 
-        const container = eventDisplayRef.current;
-        const headers = container.querySelectorAll('.event-year-header');
+    const container = eventDisplayRef.current;
+    const headers = container.querySelectorAll('.event-year-header');
+    
+    // Find the closest year header
+    let closestHeader = null;
+    let minDifference = Infinity;
+    
+    headers.forEach((header, index) => {
+        const headerText = header.textContent;
         
-        // Find the closest year header
-        let closestHeader = null;
-        let minDifference = Infinity;
-        
-        headers.forEach((header, index) => {
-            const headerText = header.textContent;
-            const year = parseFloat(headerText.replace(/[^\d-]/g, '')) || 0;
-            const difference = Math.abs(year - targetYear);
-            
-            if (difference < minDifference) {
-                minDifference = difference;
-                closestHeader = header;
-            }
-        });
-        
-        if (closestHeader) {
-            const containerRect = container.getBoundingClientRect();
-            const headerRect = closestHeader.getBoundingClientRect();
-            const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
-            container.scrollTop = relativeTop;
+        // Parse year correctly, handling BC years
+        let year;
+        if (headerText.includes('BC|AD')) {
+            year = 0;
+        } else if (headerText.includes('BC')) {
+            // Extract the number and make it negative for BC years
+            const match = headerText.match(/(\d+)\s*BC/);
+            year = match ? -parseInt(match[1]) : 0;
+        } else {
+            // AD years (or other formats)
+            const match = headerText.match(/(-?\d+)/);
+            year = match ? parseInt(match[1]) : 0;
         }
-    }, [processedEvents]);
+        
+        const difference = Math.abs(year - targetYear);
+        
+        if (difference < minDifference) {
+            minDifference = difference;
+            closestHeader = header;
+        }
+    });
+    
+    if (closestHeader) {
+        const containerRect = container.getBoundingClientRect();
+        const headerRect = closestHeader.getBoundingClientRect();
+        const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+        container.scrollTop = relativeTop;
+    }
+}, [processedEvents]);
 
     // Calculate micro era layout - now uses selection bounds for view
     const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
@@ -733,7 +746,7 @@ const EventsTimeline = () => {
         setupMacroOverlay(dimensions);
 
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements]);
-    
+
     // Events stuff - unchanged, still shows all events
     const groupEventsByYear = useCallback((events) => {
         const groups = {};
