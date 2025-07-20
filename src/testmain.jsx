@@ -203,48 +203,48 @@ const EventsTimeline = () => {
     }, []);
 
     // Scroll event display to a specific year
-const scrollToYear = useCallback((targetYear) => {
-    if (!eventDisplayRef.current || !processedEvents.length) return;
+    const scrollToYear = useCallback((targetYear) => {
+        if (!eventDisplayRef.current || !processedEvents.length) return;
 
-    const container = eventDisplayRef.current;
-    const headers = container.querySelectorAll('.event-year-header');
-    
-    // Find the closest year header
-    let closestHeader = null;
-    let minDifference = Infinity;
-    
-    headers.forEach((header, index) => {
-        const headerText = header.textContent;
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
         
-        // Parse year correctly, handling BC years
-        let year;
-        if (headerText.includes('BC|AD')) {
-            year = 0;
-        } else if (headerText.includes('BC')) {
-            // Extract the number and make it negative for BC years
-            const match = headerText.match(/(\d+)\s*BC/);
-            year = match ? -parseInt(match[1]) : 0;
-        } else {
-            // AD years (or other formats)
-            const match = headerText.match(/(-?\d+)/);
-            year = match ? parseInt(match[1]) : 0;
+        // Find the closest year header
+        let closestHeader = null;
+        let minDifference = Infinity;
+        
+        headers.forEach((header, index) => {
+            const headerText = header.textContent;
+            
+            // Parse year correctly, handling BC years
+            let year;
+            if (headerText.includes('BC|AD')) {
+                year = 0;
+            } else if (headerText.includes('BC')) {
+                // Extract the number and make it negative for BC years
+                const match = headerText.match(/(\d+)\s*BC/);
+                year = match ? -parseInt(match[1]) : 0;
+            } else {
+                // AD years (or other formats)
+                const match = headerText.match(/(-?\d+)/);
+                year = match ? parseInt(match[1]) : 0;
+            }
+            
+            const difference = Math.abs(year - targetYear);
+            
+            if (difference < minDifference) {
+                minDifference = difference;
+                closestHeader = header;
+            }
+        });
+        
+        if (closestHeader) {
+            const containerRect = container.getBoundingClientRect();
+            const headerRect = closestHeader.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+            container.scrollTop = relativeTop;
         }
-        
-        const difference = Math.abs(year - targetYear);
-        
-        if (difference < minDifference) {
-            minDifference = difference;
-            closestHeader = header;
-        }
-    });
-    
-    if (closestHeader) {
-        const containerRect = container.getBoundingClientRect();
-        const headerRect = closestHeader.getBoundingClientRect();
-        const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
-        container.scrollTop = relativeTop;
-    }
-}, [processedEvents]);
+    }, [processedEvents]);
 
     // Calculate micro era layout - now uses selection bounds for view
     const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
@@ -318,6 +318,109 @@ const scrollToYear = useCallback((targetYear) => {
         
         return { ranges: relevantRanges, heights, positions, yScale };
     }, []);
+
+    // Update position indicators based on scroll position
+    const updatePositionIndicators = useCallback(() => {
+        if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
+        if (!selectionState.current.macroScaleInfo || !processedEvents.length) return;
+
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        
+        if (headers.length === 0) return;
+
+        // Find the topmost visible header
+        let topVisibleHeader = null;
+        let topVisibleYear = null;
+        
+        for (const header of headers) {
+            const headerRect = header.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top;
+            
+            if (relativeTop >= 0) {
+                topVisibleHeader = header;
+                break;
+            }
+        }
+        
+        // If no header is visible from the top, use the last one that's above the viewport
+        if (!topVisibleHeader && headers.length > 0) {
+            for (let i = headers.length - 1; i >= 0; i--) {
+                const header = headers[i];
+                const headerRect = header.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const relativeTop = headerRect.top - containerRect.top;
+                
+                if (relativeTop < 0) {
+                    topVisibleHeader = header;
+                    break;
+                }
+            }
+        }
+        
+        if (!topVisibleHeader) {
+            topVisibleHeader = headers[0];
+        }
+        
+        // Parse year from header
+        const headerText = topVisibleHeader.textContent;
+        if (headerText.includes('BC|AD')) {
+            topVisibleYear = 0;
+        } else if (headerText.includes('BC')) {
+            const match = headerText.match(/(\d+)\s*BC/);
+            topVisibleYear = match ? -parseInt(match[1]) : 0;
+        } else {
+            const match = headerText.match(/(-?\d+)/);
+            topVisibleYear = match ? parseInt(match[1]) : 0;
+        }
+        
+        // Update macro indicator
+        const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
+        const macroContainer = macroContainerRef.current;
+        if (macroContainer) {
+            const macroDimensions = calculateDimensions(macroContainer);
+            macroIndicatorRef.current.style.cssText = `
+                position: absolute;
+                left: 0;
+                top: ${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px;
+                width: 100%;
+                height: 2px;
+                background: #ff0000;
+                z-index: 10;
+                pointer-events: none;
+                box-shadow: 0 0 2px rgba(255, 0, 0, 0.5);
+            `;
+        }
+        
+        // Update micro indicator if microchart has rendered
+        const microContainer = microContainerRef.current;
+        if (microContainer && microSvgRef.current) {
+            const microDimensions = calculateDimensions(microContainer);
+            // Use the same era layout calculation as the microchart
+            const viewRange = selectionState.current.yearBounds;
+            const eraLayout = calculateMicroEraLayout(microDimensions, viewRange);
+            const microY = eraLayout.yScale(topVisibleYear);
+            
+            microIndicatorRef.current.style.cssText = `
+                position: absolute;
+                left: 0;
+                top: ${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px;
+                width: 100%;
+                height: 2px;
+                background: #ff0000;
+                z-index: 10;
+                pointer-events: none;
+                box-shadow: 0 0 2px rgba(255, 0, 0, 0.5);
+            `;
+        }
+    }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
+
+    // Create throttled indicator update
+    const throttledIndicatorUpdate = useCallback(
+        createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
+        [updatePositionIndicators, createThrottledFunction]
+    );
 
     // Render microchart - now uses selection for view range but shows all events
     const renderMicrochart = useCallback(() => {
@@ -484,7 +587,10 @@ const scrollToYear = useCallback((targetYear) => {
                     .duration(100)
                     .style('stroke', '#fff');
             });
-    }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
+
+        // Update indicators after microchart renders
+        throttledIndicatorUpdate();
+    }, [calculateDimensions, calculateMicroEraLayout, processedEvents, throttledIndicatorUpdate]);
 
     // Handle selection changes (this will update microchart and scroll events)
     const handleSelectionChange = useCallback((startYear, endYear) => {
@@ -745,7 +851,10 @@ const scrollToYear = useCallback((targetYear) => {
         // Setup selection overlay
         setupMacroOverlay(dimensions);
 
-    }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements]);
+        // Update indicators after macrochart renders
+        throttledIndicatorUpdate();
+
+    }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
     // Events stuff - unchanged, still shows all events
     const groupEventsByYear = useCallback((events) => {
@@ -863,7 +972,10 @@ const scrollToYear = useCallback((targetYear) => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
-    }, [groupEventsByYear, createEventItem, processedEvents]);
+
+        // Update indicators after event display is updated
+        throttledIndicatorUpdate();
+    }, [groupEventsByYear, createEventItem, processedEvents, throttledIndicatorUpdate]);
 
     const handlePeriodChange = useCallback((event) => {
         setSelectedPeriod(event.target.value);
@@ -913,6 +1025,10 @@ const scrollToYear = useCallback((targetYear) => {
                 throttledSelectionChange.cancel();
             }
             
+            if (throttledIndicatorUpdate?.cancel) {
+                throttledIndicatorUpdate.cancel();
+            }
+            
             // Clean up overlay elements
             cleanupOverlayElements();
             
@@ -920,7 +1036,28 @@ const scrollToYear = useCallback((targetYear) => {
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
-    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, cleanupOverlayElements]);
+    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, cleanupOverlayElements]);
+
+    // Setup scroll listener for position indicators
+    useEffect(() => {
+        if (!eventDisplayRef.current) return;
+
+        const container = eventDisplayRef.current;
+        
+        const handleScroll = () => {
+            throttledIndicatorUpdate();
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        
+        // Store cleanup reference
+        const cleanup = () => {
+            container.removeEventListener('scroll', handleScroll);
+        };
+        eventListenersRef.current.add(cleanup);
+
+        return cleanup;
+    }, [throttledIndicatorUpdate]);
 
     useEffect(() => {
         updateEventDisplay();
