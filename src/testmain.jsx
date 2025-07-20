@@ -29,6 +29,15 @@ const TIME_RANGES = [
     { start: 0,     end: 150,   color: '#C4A484' }
 ];
 
+const TIME_PERIODS = {
+    'all': [-4100, 150],
+    'period1': [-4100, -3000],
+    'period2': [-2999, -2000], 
+    'period3': [-1999, -1000],
+    'period4': [-999, 0],
+    'period5': [1, 150]
+};
+
 const PERIODS = [
     { value: 'all', label: 'ALL' },
     { value: 'period1', label: '4101 BC - 3001 BC' },
@@ -66,7 +75,9 @@ const FULL_RANGE = [-4100, 150];
 
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
+    const [isCustomRange, setIsCustomRange] = useState(false);
     const [expandedEvents, setExpandedEvents] = useState(new Set());
+    const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
 
     const macroContainerRef = useRef(null);
     const macroSvgRef = useRef(null);
@@ -78,6 +89,7 @@ const EventsTimeline = () => {
 
     // Process events with proper column calculation on mount
     const [processedEvents, setProcessedEvents] = useState([]);
+    const [filteredEvents, setFilteredEvents] = useState([]);
 
     // Selection state (not React state to avoid re-renders)
     const selectionState = useRef({
@@ -85,7 +97,8 @@ const EventsTimeline = () => {
         yearBounds: FULL_RANGE,
         macroScaleInfo: null,
         overlayElements: null,
-        isDragging: false
+        isDragging: false,
+        currentViewRange: TIME_PERIODS.all
     });
 
     // Overlay element references for cleanup
@@ -104,7 +117,27 @@ const EventsTimeline = () => {
     useEffect(() => {
         const eventsWithColumns = calculateColumns(eventsFullData);
         setProcessedEvents(eventsWithColumns);
+        // Initialize with all events
+        setFilteredEvents(eventsWithColumns);
     }, []);
+
+    // Filter events based on selected period
+    useEffect(() => {
+        if (!processedEvents.length) return;
+        
+        if (selectedPeriod === 'all' && !isCustomRange) {
+            setFilteredEvents(processedEvents);
+        } else {
+            const range = isCustomRange ? selectionState.current.yearBounds : TIME_PERIODS[selectedPeriod];
+            if (range) {
+                const [startYear, endYear] = range;
+                const filtered = processedEvents.filter(event => 
+                    event.fields.startDate >= startYear && event.fields.startDate <= endYear
+                );
+                setFilteredEvents(filtered);
+            }
+        }
+    }, [processedEvents, selectedPeriod, isCustomRange]);
 
     // Calculate macro layout
     const calculateMacroLayout = useCallback((dimensions) => {
@@ -225,7 +258,7 @@ const EventsTimeline = () => {
 
     // Scroll event display to a specific year
     const scrollToYear = useCallback((targetYear) => {
-        if (!eventDisplayRef.current || !processedEvents.length) return;
+        if (!eventDisplayRef.current || !filteredEvents.length) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
@@ -265,7 +298,7 @@ const EventsTimeline = () => {
             const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
             container.scrollTop = relativeTop;
         }
-    }, [processedEvents]);
+    }, [filteredEvents]);
 
     // Calculate micro era layout - now uses selection bounds for view
     const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
@@ -343,7 +376,7 @@ const EventsTimeline = () => {
     // Update position indicators based on scroll position
     const updatePositionIndicators = useCallback(() => {
         if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
-        if (!selectionState.current.macroScaleInfo || !processedEvents.length) return;
+        if (!selectionState.current.macroScaleInfo || !filteredEvents.length) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
@@ -395,23 +428,16 @@ const EventsTimeline = () => {
             const match = headerText.match(/(-?\d+)/);
             topVisibleYear = match ? parseInt(match[1]) : 0;
         }
+
+        // Update floating header
+        setFloatingHeaderYear(topVisibleYear);
         
-        // Update macro indicator
+        // Update macro indicator using CSS class
         const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
         const macroContainer = macroContainerRef.current;
         if (macroContainer) {
             const macroDimensions = calculateDimensions(macroContainer);
-            macroIndicatorRef.current.style.cssText = `
-                position: absolute;
-                left: 0;
-                top: ${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px;
-                width: 100%;
-                height: 2px;
-                background: #ff0000;
-                z-index: 10;
-                pointer-events: none;
-                box-shadow: 0 0 2px rgba(255, 0, 0, 0.5);
-            `;
+            macroIndicatorRef.current.style.top = `${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px`;
         }
         
         // Update micro indicator if microchart has rendered
@@ -423,24 +449,109 @@ const EventsTimeline = () => {
             const eraLayout = calculateMicroEraLayout(microDimensions, viewRange);
             const microY = eraLayout.yScale(topVisibleYear);
             
-            microIndicatorRef.current.style.cssText = `
-                position: absolute;
-                right: 0;
-                top: ${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px;
-                width: 50%;
-                height: 2px;
-                background: #ff0000;
-                z-index: 10;
-                pointer-events: none;
-                box-shadow: 0 0 2px rgba(255, 0, 0, 0.5);
-            `;
+            microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
         }
-    }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
+    }, [calculateDimensions, calculateMicroEraLayout, filteredEvents]);
+
+    // Enhanced scroll handler with floating header logic
+    const handleEventScroll = useCallback(() => {
+        if (!eventDisplayRef.current || !filteredEvents.length) return;
+
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        
+        if (headers.length === 0) return;
+
+        // Find the topmost visible header
+        let topVisibleHeader = null;
+        let topVisibleYear = null;
+        const SWITCH_THRESHOLD = 20;
+        
+        for (const header of headers) {
+            const headerRect = header.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top;
+            
+            if (relativeTop >= -SWITCH_THRESHOLD) {
+                topVisibleHeader = header;
+                break;
+            }
+        }
+        
+        // If no header is visible from the top, use the last one that's above the viewport
+        if (!topVisibleHeader && headers.length > 0) {
+            for (let i = headers.length - 1; i >= 0; i--) {
+                const header = headers[i];
+                const headerRect = header.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const relativeTop = headerRect.top - containerRect.top;
+                
+                if (relativeTop < -SWITCH_THRESHOLD) {
+                    topVisibleHeader = header;
+                    break;
+                }
+            }
+        }
+        
+        if (!topVisibleHeader) {
+            topVisibleHeader = headers[0];
+        }
+        
+        // Parse year from header
+        const headerText = topVisibleHeader.textContent;
+        if (headerText.includes('BC|AD')) {
+            topVisibleYear = 0;
+        } else if (headerText.includes('BC')) {
+            const match = headerText.match(/(\d+)\s*BC/);
+            topVisibleYear = match ? -parseInt(match[1]) : 0;
+        } else {
+            const match = headerText.match(/(-?\d+)/);
+            topVisibleYear = match ? parseInt(match[1]) : 0;
+        }
+
+        // Update floating header logic
+        const floatingHeader = container.querySelector('.floating-header');
+        if (floatingHeader && topVisibleYear !== null) {
+            floatingHeader.textContent = formatYear(topVisibleYear);
+            floatingHeader.style.display = 'block';
+            setFloatingHeaderYear(topVisibleYear);
+            
+            // Hide corresponding regular header
+            headers.forEach((header, index) => {
+                const headerText = header.textContent;
+                let headerYear;
+                if (headerText.includes('BC|AD')) {
+                    headerYear = 0;
+                } else if (headerText.includes('BC')) {
+                    const match = headerText.match(/(\d+)\s*BC/);
+                    headerYear = match ? -parseInt(match[1]) : 0;
+                } else {
+                    const match = headerText.match(/(-?\d+)/);
+                    headerYear = match ? parseInt(match[1]) : 0;
+                }
+                
+                if (headerYear === topVisibleYear) {
+                    header.style.display = 'none';
+                } else {
+                    header.style.display = 'block';
+                }
+            });
+        }
+
+        // Update position indicators
+        updatePositionIndicators();
+    }, [filteredEvents, updatePositionIndicators]);
 
     // Create throttled indicator update
     const throttledIndicatorUpdate = useCallback(
         createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
         [updatePositionIndicators, createThrottledFunction]
+    );
+
+    // Create throttled scroll handler
+    const throttledScrollHandler = useCallback(
+        createThrottledFunction(handleEventScroll, UPDATE_THROTTLE_MS),
+        [handleEventScroll, createThrottledFunction]
     );
 
     // Render microchart - now uses selection for view range but shows all events
@@ -563,14 +674,7 @@ const EventsTimeline = () => {
             tooltip = d3.select(microContainerRef.current)
                 .append('div')
                 .attr('class', 'microchart-tooltip')
-                .style('opacity', 0)
-                .style('position', 'absolute')
-                .style('background', 'rgba(0, 0, 0, 0.8)')
-                .style('color', 'white')
-                .style('padding', '5px')
-                .style('border-radius', '3px')
-                .style('font-size', '12px')
-                .style('pointer-events', 'none');
+                .style('opacity', 0);
         }
 
         // Draw dots
@@ -583,8 +687,6 @@ const EventsTimeline = () => {
             .attr('cy', d => d.y)
             .attr('r', DOT_RADIUS)
             .attr('fill', d => d.color)
-            .attr('stroke', '#fff')
-            .attr('stroke-width', 1)
             .on('mouseover', function(event, d) {
                 tooltip.transition()
                     .duration(200)
@@ -618,6 +720,20 @@ const EventsTimeline = () => {
         // Update selection state
         selectionState.current.yearBounds = [startYear, endYear];
         
+        // Check if this matches a predefined period
+        const matchingPeriod = Object.keys(TIME_PERIODS).find(key => {
+            const [pStart, pEnd] = TIME_PERIODS[key];
+            return Math.abs(pStart - startYear) < 10 && Math.abs(pEnd - endYear) < 10;
+        });
+
+        if (matchingPeriod) {
+            setSelectedPeriod(matchingPeriod);
+            setIsCustomRange(false);
+        } else {
+            setSelectedPeriod('all');
+            setIsCustomRange(true);
+        }
+        
         // Update microchart with new view range
         renderMicrochart();
         
@@ -646,27 +762,22 @@ const EventsTimeline = () => {
         // Create fresh elements
         const overlay = document.createElement('div');
         overlay.className = 'selection-overlay';
-        overlay.style.cssText = 'position: absolute; cursor: move; border: 2px solid #333; background: rgba(119, 119, 119, 0.5); pointer-events: all;';
         container.appendChild(overlay);
 
         const topHandle = document.createElement('div');
         topHandle.className = 'top-handle';
-        topHandle.style.cssText = 'position: absolute; cursor: ns-resize; background: #333; pointer-events: all;';
         container.appendChild(topHandle);
 
         const bottomHandle = document.createElement('div');
         bottomHandle.className = 'bottom-handle';
-        bottomHandle.style.cssText = 'position: absolute; cursor: ns-resize; background: #333; pointer-events: all;';
         container.appendChild(bottomHandle);
         
         const topHandleText = document.createElement('div');
         topHandleText.className = 'top-handle-text';
-        topHandleText.style.cssText = 'position: absolute; pointer-events: none; text-align: center; font-size: 10px; color: #fff;';
         container.appendChild(topHandleText);
 
         const bottomHandleText = document.createElement('div');
         bottomHandleText.className = 'bottom-handle-text';
-        bottomHandleText.style.cssText = 'position: absolute; pointer-events: none; text-align: center; font-size: 10px; color: #fff;';
         container.appendChild(bottomHandleText);
 
         // Store references
@@ -853,9 +964,7 @@ const EventsTimeline = () => {
             .attr('x1', lineStart)
             .attr('y1', converters.yearToPixel)
             .attr('x2', x)
-            .attr('y2', converters.yearToPixel)
-            .attr('stroke', '#000')
-            .attr('stroke-width', 1);
+            .attr('y2', converters.yearToPixel);
 
         svg.selectAll('.year-label')
             .data(years)
@@ -864,9 +973,6 @@ const EventsTimeline = () => {
             .attr('class', 'year-label')
             .attr('x', x - LABEL_MARGIN)
             .attr('y', d => converters.yearToPixel(d) + 5)
-            .attr('text-anchor', 'end')
-            .attr('font-size', '12px')
-            .attr('fill', '#000')
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
 
         // Setup selection overlay
@@ -877,7 +983,7 @@ const EventsTimeline = () => {
 
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
-    // Events stuff - unchanged, still shows all events
+    // Events stuff - now shows filtered events
     const groupEventsByYear = useCallback((events) => {
         const groups = {};
         
@@ -963,9 +1069,9 @@ const EventsTimeline = () => {
     }, [expandedEvents]);
 
     const updateEventDisplay = useCallback(() => {
-        if (!eventDisplayRef.current || !processedEvents.length) return;
+        if (!eventDisplayRef.current || !filteredEvents.length) return;
 
-        const groupedEvents = groupEventsByYear(processedEvents);
+        const groupedEvents = groupEventsByYear(filteredEvents);
         const container = eventDisplayRef.current;
         const fragment = document.createDocumentFragment();
         
@@ -996,11 +1102,35 @@ const EventsTimeline = () => {
 
         // Update indicators after event display is updated
         throttledIndicatorUpdate();
-    }, [groupEventsByYear, createEventItem, processedEvents, throttledIndicatorUpdate]);
+    }, [groupEventsByYear, createEventItem, filteredEvents, throttledIndicatorUpdate]);
 
     const handlePeriodChange = useCallback((event) => {
-        setSelectedPeriod(event.target.value);
-    }, []);
+        const period = event.target.value;
+        setSelectedPeriod(period);
+        setIsCustomRange(false);
+        
+        // Update selection state to match the period
+        const range = TIME_PERIODS[period];
+        selectionState.current.yearBounds = range;
+        selectionState.current.currentViewRange = range;
+        
+        // Update microchart
+        renderMicrochart();
+        
+        // Scroll to start of period
+        if (period !== 'all' && range) {
+            scrollToYear(range[0]);
+        }
+        
+        // Update macro chart selection if it's rendered
+        if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
+            const { yearToPixel } = selectionState.current.macroScaleInfo;
+            const y0 = yearToPixel(range[0]);
+            const y1 = yearToPixel(range[1]);
+            selectionState.current.pixelBounds = [y0, y1];
+            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+        }
+    }, [renderMicrochart, scrollToYear]);
 
     // Refactored chart setup with shared ResizeObserver logic
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
@@ -1050,6 +1180,10 @@ const EventsTimeline = () => {
                 throttledIndicatorUpdate.cancel();
             }
             
+            if (throttledScrollHandler?.cancel) {
+                throttledScrollHandler.cancel();
+            }
+            
             // Clean up overlay elements
             cleanupOverlayElements();
             
@@ -1057,7 +1191,7 @@ const EventsTimeline = () => {
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
-    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, cleanupOverlayElements]);
+    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
 
     // Setup scroll listener for position indicators
     useEffect(() => {
@@ -1066,7 +1200,7 @@ const EventsTimeline = () => {
         const container = eventDisplayRef.current;
         
         const handleScroll = () => {
-            throttledIndicatorUpdate();
+            throttledScrollHandler();
         };
 
         container.addEventListener('scroll', handleScroll, { passive: true });
@@ -1078,7 +1212,7 @@ const EventsTimeline = () => {
         eventListenersRef.current.add(cleanup);
 
         return cleanup;
-    }, [throttledIndicatorUpdate]);
+    }, [throttledScrollHandler]);
 
     useEffect(() => {
         updateEventDisplay();
@@ -1090,7 +1224,7 @@ const EventsTimeline = () => {
         <div className="page-container">
             <div className="content-wrapper">
                 <header className="header">
-                    <h1 style={{ color: "black" }}><i>Timeline of the Bible</i></h1>
+                    <h1><i>Timeline of the Bible</i></h1>
                     <div className="header-controls">
                         <div className="order-1">
                             <form>
@@ -1102,7 +1236,7 @@ const EventsTimeline = () => {
                                                 type="radio" 
                                                 name="people-legend" 
                                                 value={period.value}
-                                                checked={selectedPeriod === period.value}
+                                                checked={!isCustomRange && selectedPeriod === period.value}
                                                 onChange={handlePeriodChange} 
                                             />
                                             <label htmlFor={`people-legend-${period.value}`}>

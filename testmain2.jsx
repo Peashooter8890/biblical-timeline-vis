@@ -62,7 +62,7 @@ const LINE_STROKE_WIDTH = 2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 
-const EventsTimeline = () => {
+const EventsTimelineOld = () => {
     // Minimal React state - only for things that need to trigger re-renders
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
@@ -1478,6 +1478,6 @@ const EventsTimeline = () => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <EventsTimeline />
+    <EventsTimelineOld />
   </React.StrictMode>
 );

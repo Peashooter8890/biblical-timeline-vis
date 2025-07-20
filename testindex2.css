@@ -58,7 +58,6 @@ body::-webkit-scrollbar {
     font-size: 1.5rem;
     line-height: 2rem;
     font-weight: normal;
-    color: black;
 }
 
 .header-controls {
@@ -103,7 +102,6 @@ body::-webkit-scrollbar {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    color: black;
 }
 
 #people-legend-all + label { border-bottom-color: var(--tw-gray-300); }
@@ -148,22 +146,6 @@ body::-webkit-scrollbar {
     box-sizing: border-box;
     position: relative;
     padding: 0;
-    background-color: #f0f0f0;
-    overflow: visible;
-}
-
-.macrochart-container svg {
-    width: 100% !important;
-    height: 100% !important;
-    display: block;
-    background-color: #f0f0f0;
-    overflow: visible;
-}
-
-.microchart-container svg {
-    width: 100% !important;
-    height: 100% !important;
-    display: block;
     background-color: #f0f0f0;
     overflow: visible;
 }
@@ -215,7 +197,57 @@ body::-webkit-scrollbar {
     z-index: 31;
 }
 
-/* Microchart specific styles */
+label {
+    color: black;
+}
+
+/* Media queries */
+@media (min-width: 768px) {
+    .header-controls {
+        flex-direction: row;
+        justify-content: space-between;
+        width: auto;
+        gap: 1rem;
+    }
+    .header h1 {
+        margin-top: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .header {
+        justify-content: space-between;
+    }
+    .header h1 {
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+    }
+}
+
+@media (max-width: 767px) {
+    .microchart-container {
+        display: none;
+    }
+}
+
+.microchart-container {
+    width: 100px;
+    height: 100%;
+    box-sizing: border-box;
+    position: relative;
+    padding: 0;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
+.microchart-container svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
 .microchart-line {
     stroke-width: 5px;
 }
@@ -246,11 +278,22 @@ body::-webkit-scrollbar {
     word-wrap: break-word;
 }
 
-/* Macrochart specific styles */
-.macrochart-root {
-    width: 100%;
+.macrochart-container {
+    width: 100px;
     height: 100%;
+    box-sizing: border-box;
     position: relative;
+    padding: 0;
+    background-color: #f0f0f0;
+    overflow: visible;
+}
+
+.macrochart-container svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    background-color: #f0f0f0;
+    overflow: visible;
 }
 
 .year-label {
@@ -263,13 +306,6 @@ body::-webkit-scrollbar {
     text-anchor: end;
 }
 
-.year-line {
-    stroke: #999;
-    stroke-width: 1px;
-    stroke-dasharray: 2,2;
-}
-
-/* Selection overlay styles */
 .selection-overlay {
     outline: none !important;
     box-shadow: none !important;
@@ -291,11 +327,23 @@ body::-webkit-scrollbar {
     display: none !important;
 }
 
+.macrochart-root {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.year-line {
+    stroke: #999;
+    stroke-width: 1px;
+    stroke-dasharray: 2,2;
+}
+
 .top-handle,
 .bottom-handle {
     position: absolute;
     background: #000;
-    opacity: 0.8;
+    opacity: 1;
     pointer-events: auto;
     cursor: ns-resize;
     z-index: 21;
@@ -318,7 +366,6 @@ body::-webkit-scrollbar {
     z-index: 22;
 }
 
-/* Event display styles */
 .event-display-container {
     flex-grow: 1;
     padding: 0 20px 10px 20px;
@@ -421,33 +468,4 @@ body::-webkit-scrollbar {
 
 .event-link {
     color: blue;
-}
-
-/* Media queries */
-@media (min-width: 768px) {
-    .header-controls {
-        flex-direction: row;
-        justify-content: space-between;
-        width: auto;
-        gap: 1rem;
-    }
-    .header h1 {
-        margin-top: 0;
-    }
-}
-
-@media (min-width: 1024px) {
-    .header {
-        justify-content: space-between;
-    }
-    .header h1 {
-        font-size: 1.875rem;
-        line-height: 2.25rem;
-    }
-}
-
-@media (max-width: 767px) {
-    .microchart-container {
-        display: none;
-    }
 }
