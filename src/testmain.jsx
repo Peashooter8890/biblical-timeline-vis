@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as d3 from 'd3';
 import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
+const getStyleOf = (fileName) => {};
 import { 
     formatYear, 
     parseDuration, 
@@ -14,8 +15,28 @@ import {
     formatLocations,
     formatVerses,
 } from './utils.jsx';
-import { PERIODS, DETAIL_FIELDS, TIME_RANGES } from './const.js';
 import './testindex.css';
+
+const TIME_RANGES = [
+    { start: -4100, end: -2200, color: '#5795ff' },
+    { start: -2199, end: -1600, color: '#ff7f00' },
+    { start: -1599, end: -1375, color: '#fc8eac' },
+    { start: -1374, end: -1052, color: '#89b4c3' },
+    { start: -1051, end: -931,  color: '#b2df8a' },
+    { start: -930,  end: -715,  color: '#fdbf6f' },
+    { start: -714,  end: -431,  color: '#cab2d6' },
+    { start: -430,  end: -1,    color: '#FFB6C1' },
+    { start: 0,     end: 150,   color: '#C4A484' }
+];
+
+const PERIODS = [
+    { value: 'all', label: 'ALL' },
+    { value: 'period1', label: '4101 BC - 3001 BC' },
+    { value: 'period2', label: '3000 BC - 2001 BC' },
+    { value: 'period3', label: '2000 BC - 1001 BC' },
+    { value: 'period4', label: '1000 BC - 1 BC' },
+    { value: 'period5', label: '1 AD - 150 AD' }
+];
 
 // Update frequency control
 const UPDATE_THROTTLE_MS = 33; // 30fps, as requested
@@ -404,9 +425,9 @@ const EventsTimeline = () => {
             
             microIndicatorRef.current.style.cssText = `
                 position: absolute;
-                left: 0;
+                right: 0;
                 top: ${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px;
-                width: 100%;
+                width: 50%;
                 height: 2px;
                 background: #ff0000;
                 z-index: 10;
@@ -625,7 +646,7 @@ const EventsTimeline = () => {
         // Create fresh elements
         const overlay = document.createElement('div');
         overlay.className = 'selection-overlay';
-        overlay.style.cssText = 'position: absolute; cursor: move; border: 2px solid #333; background: rgba(255,255,255,0.1); pointer-events: all;';
+        overlay.style.cssText = 'position: absolute; cursor: move; border: 2px solid #333; background: rgba(119, 119, 119, 0.5); pointer-events: all;';
         container.appendChild(overlay);
 
         const topHandle = document.createElement('div');
@@ -1064,6 +1085,8 @@ const EventsTimeline = () => {
     }, [updateEventDisplay, expandedEvents]);
 
     return (
+        <>
+        <style>{getStyleOf('style.css')}</style>
         <div className="page-container">
             <div className="content-wrapper">
                 <header className="header">
@@ -1105,6 +1128,7 @@ const EventsTimeline = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 
