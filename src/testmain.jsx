@@ -89,7 +89,6 @@ const EventsTimeline = () => {
 
     // Process events with proper column calculation on mount
     const [processedEvents, setProcessedEvents] = useState([]);
-    const [filteredEvents, setFilteredEvents] = useState([]);
 
     // Selection state (not React state to avoid re-renders)
     const selectionState = useRef({
@@ -111,33 +110,23 @@ const EventsTimeline = () => {
         cleanup: null
     });
 
+    const stateRef = useRef({
+        events: [],
+        selection: TIME_PERIODS.all,
+        currentViewRange: TIME_PERIODS.all,
+        groupedEvents: []
+    });
+
     // Event listener cleanup tracking
     const eventListenersRef = useRef(new Set());
 
     useEffect(() => {
         const eventsWithColumns = calculateColumns(eventsFullData);
         setProcessedEvents(eventsWithColumns);
-        // Initialize with all events
-        setFilteredEvents(eventsWithColumns);
+        // Initialize state ref
+        stateRef.current.events = eventsWithColumns;
+        stateRef.current.groupedEvents = groupEventsByYear(eventsWithColumns);
     }, []);
-
-    // Filter events based on selected period
-    useEffect(() => {
-        if (!processedEvents.length) return;
-        
-        if (selectedPeriod === 'all' && !isCustomRange) {
-            setFilteredEvents(processedEvents);
-        } else {
-            const range = isCustomRange ? selectionState.current.yearBounds : TIME_PERIODS[selectedPeriod];
-            if (range) {
-                const [startYear, endYear] = range;
-                const filtered = processedEvents.filter(event => 
-                    event.fields.startDate >= startYear && event.fields.startDate <= endYear
-                );
-                setFilteredEvents(filtered);
-            }
-        }
-    }, [processedEvents, selectedPeriod, isCustomRange]);
 
     // Calculate macro layout
     const calculateMacroLayout = useCallback((dimensions) => {
@@ -258,7 +247,7 @@ const EventsTimeline = () => {
 
     // Scroll event display to a specific year
     const scrollToYear = useCallback((targetYear) => {
-        if (!eventDisplayRef.current || !filteredEvents.length) return;
+        if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
@@ -298,7 +287,7 @@ const EventsTimeline = () => {
             const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
             container.scrollTop = relativeTop;
         }
-    }, [filteredEvents]);
+    }, [processedEvents]);
 
     // Calculate micro era layout - now uses selection bounds for view
     const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
@@ -376,7 +365,7 @@ const EventsTimeline = () => {
     // Update position indicators based on scroll position
     const updatePositionIndicators = useCallback(() => {
         if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
-        if (!selectionState.current.macroScaleInfo || !filteredEvents.length) return;
+        if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
@@ -451,96 +440,72 @@ const EventsTimeline = () => {
             
             microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
         }
-    }, [calculateDimensions, calculateMicroEraLayout, filteredEvents]);
+    }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
 
     // Enhanced scroll handler with floating header logic
     const handleEventScroll = useCallback(() => {
-        if (!eventDisplayRef.current || !filteredEvents.length) return;
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
         const container = eventDisplayRef.current;
-        const headers = container.querySelectorAll('.event-year-header');
+        const { scrollTop, scrollHeight, clientHeight } = container;
         
-        if (headers.length === 0) return;
+        const maxScroll = scrollHeight - clientHeight;
+        const scrollPercentage = maxScroll > 0 ? 
+            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
 
-        // Find the topmost visible header
-        let topVisibleHeader = null;
-        let topVisibleYear = null;
+        const headers = container.querySelectorAll('.event-year-header');
+        if (!headers.length) return;
+
+        const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5;
         const SWITCH_THRESHOLD = 20;
-        
-        for (const header of headers) {
-            const headerRect = header.getBoundingClientRect();
+
+        let topVisibleYear;
+
+        if (atBottom) {
+            topVisibleYear = stateRef.current.groupedEvents[stateRef.current.groupedEvents.length - 1].year;
+        } else {
             const containerRect = container.getBoundingClientRect();
-            const relativeTop = headerRect.top - containerRect.top;
+            const containerTop = containerRect.top;
             
-            if (relativeTop >= -SWITCH_THRESHOLD) {
-                topVisibleHeader = header;
-                break;
-            }
-        }
-        
-        // If no header is visible from the top, use the last one that's above the viewport
-        if (!topVisibleHeader && headers.length > 0) {
-            for (let i = headers.length - 1; i >= 0; i--) {
+            let activeHeaderIndex = 0;
+            
+            for (let i = 0; i < headers.length; i++) {
                 const header = headers[i];
                 const headerRect = header.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                const relativeTop = headerRect.top - containerRect.top;
+                const headerTop = headerRect.top;
                 
-                if (relativeTop < -SWITCH_THRESHOLD) {
-                    topVisibleHeader = header;
+                if (headerTop <= containerTop + SWITCH_THRESHOLD) {
+                    activeHeaderIndex = i;
+                } else {
                     break;
                 }
             }
-        }
-        
-        if (!topVisibleHeader) {
-            topVisibleHeader = headers[0];
-        }
-        
-        // Parse year from header
-        const headerText = topVisibleHeader.textContent;
-        if (headerText.includes('BC|AD')) {
-            topVisibleYear = 0;
-        } else if (headerText.includes('BC')) {
-            const match = headerText.match(/(\d+)\s*BC/);
-            topVisibleYear = match ? -parseInt(match[1]) : 0;
-        } else {
-            const match = headerText.match(/(-?\d+)/);
-            topVisibleYear = match ? parseInt(match[1]) : 0;
+
+            topVisibleYear = stateRef.current.groupedEvents[activeHeaderIndex].year;
         }
 
-        // Update floating header logic
+        // Update floating header
         const floatingHeader = container.querySelector('.floating-header');
-        if (floatingHeader && topVisibleYear !== null) {
-            floatingHeader.textContent = formatYear(topVisibleYear);
-            floatingHeader.style.display = 'block';
-            setFloatingHeaderYear(topVisibleYear);
-            
-            // Hide corresponding regular header
-            headers.forEach((header, index) => {
-                const headerText = header.textContent;
-                let headerYear;
-                if (headerText.includes('BC|AD')) {
-                    headerYear = 0;
-                } else if (headerText.includes('BC')) {
-                    const match = headerText.match(/(\d+)\s*BC/);
-                    headerYear = match ? -parseInt(match[1]) : 0;
-                } else {
-                    const match = headerText.match(/(-?\d+)/);
-                    headerYear = match ? parseInt(match[1]) : 0;
-                }
+        if (floatingHeader) {
+            if (topVisibleYear !== null) {
+                floatingHeader.textContent = formatYear(topVisibleYear);
+                floatingHeader.style.display = 'block';
+                setFloatingHeaderYear(topVisibleYear);
                 
-                if (headerYear === topVisibleYear) {
-                    header.style.display = 'none';
-                } else {
-                    header.style.display = 'block';
-                }
-            });
+                // Hide corresponding regular header
+                headers.forEach((header, index) => {
+                    if (stateRef.current.groupedEvents[index]?.year === topVisibleYear) {
+                        header.style.display = 'none';
+                    } else {
+                        header.style.display = 'block';
+                    }
+                });
+            }
         }
 
         // Update position indicators
         updatePositionIndicators();
-    }, [filteredEvents, updatePositionIndicators]);
+    }, [updatePositionIndicators]);
 
     // Create throttled indicator update
     const throttledIndicatorUpdate = useCallback(
@@ -1069,9 +1034,14 @@ const EventsTimeline = () => {
     }, [expandedEvents]);
 
     const updateEventDisplay = useCallback(() => {
-        if (!eventDisplayRef.current || !filteredEvents.length) return;
+        if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
+        const [startYear, endYear] = selectionState.current.currentViewRange;
+        const filteredEvents = stateRef.current.events.filter(event => 
+            event.fields.startDate >= startYear && event.fields.startDate <= endYear);
         const groupedEvents = groupEventsByYear(filteredEvents);
+        stateRef.current.groupedEvents = groupedEvents;
+
         const container = eventDisplayRef.current;
         const fragment = document.createDocumentFragment();
         
@@ -1102,35 +1072,41 @@ const EventsTimeline = () => {
 
         // Update indicators after event display is updated
         throttledIndicatorUpdate();
-    }, [groupEventsByYear, createEventItem, filteredEvents, throttledIndicatorUpdate]);
+    }, [groupEventsByYear, createEventItem, throttledIndicatorUpdate]);
 
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
+        
         setSelectedPeriod(period);
         setIsCustomRange(false);
         
-        // Update selection state to match the period
-        const range = TIME_PERIODS[period];
-        selectionState.current.yearBounds = range;
-        selectionState.current.currentViewRange = range;
+        const newRange = TIME_PERIODS[period];
         
-        // Update microchart
+        stateRef.current.selection = newRange;
+        stateRef.current.currentViewRange = newRange;
+        
+        // Update selection state
+        selectionState.current.yearBounds = newRange;
+        selectionState.current.currentViewRange = newRange;
+        
+        // Update displays
+        updateEventDisplay();
         renderMicrochart();
-        
-        // Scroll to start of period
-        if (period !== 'all' && range) {
-            scrollToYear(range[0]);
-        }
         
         // Update macro chart selection if it's rendered
         if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
             const { yearToPixel } = selectionState.current.macroScaleInfo;
-            const y0 = yearToPixel(range[0]);
-            const y1 = yearToPixel(range[1]);
+            const y0 = yearToPixel(newRange[0]);
+            const y1 = yearToPixel(newRange[1]);
             selectionState.current.pixelBounds = [y0, y1];
             selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
         }
-    }, [renderMicrochart, scrollToYear]);
+        
+        // Scroll to start of period
+        if (period !== 'all' && newRange) {
+            scrollToYear(newRange[0]);
+        }
+    }, [updateEventDisplay, renderMicrochart, scrollToYear]);
 
     // Refactored chart setup with shared ResizeObserver logic
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
