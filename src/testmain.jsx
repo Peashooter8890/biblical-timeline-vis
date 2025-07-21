@@ -47,10 +47,7 @@ const PERIODS = [
     { value: 'period5', label: '1 AD - 150 AD' }
 ];
 
-// Update frequency control
-const UPDATE_THROTTLE_MS = 33; // 30fps, as requested
-
-// Macrochart constants
+const UPDATE_THROTTLE_MS = 33; 
 const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const YEAR_LABEL_INTERVAL = 500;
@@ -59,24 +56,19 @@ const YEAR_LABEL_RANGE_END = 0;
 const LABEL_MARGIN = 15;
 const LABEL_LINE_LENGTH = 10;
 const COLOR_BAR_WIDTH_RATIO = 1/6;
-
-// Selection overlay constants
 const MIN_SELECTION_HEIGHT = 45;
 const HANDLE_HEIGHT = 14;
 const HANDLE_WIDTH_RATIO = 1/2;
-
-// Microchart constants - UPDATED for dynamic sizing
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 const FULL_RANGE = [-4100, 150];
 
-// UI constants
 const LAYOUT_CONFIG = {
-    SIDEBAR_RATIO: 0.4,        // 2/5 of available width
-    CONTENT_RATIO: 0.6,        // 3/5 of available width
-    MICROCHART_GAP: 20,        // Gap between microchart and event display
-    MACROCHART_WIDTH: 100,     // Fixed macrochart width
-    MICROCHART_MIN_WIDTH: 100, // Hide microchart when less than this
+    SIDEBAR_RATIO: 0.4,        
+    CONTENT_RATIO: 0.6,        
+    MICROCHART_GAP: 20,        
+    MACROCHART_WIDTH: 100,     
+    MICROCHART_MIN_WIDTH: 100, 
 };
 const MICROCHART_MAX_DOT_DIAMETER = 10
 const MICROCHART_COLUMNS = 10
@@ -94,14 +86,9 @@ const EventsTimeline = () => {
     const eventDisplayRef = useRef(null);
     const macroIndicatorRef = useRef(null);
     const microIndicatorRef = useRef(null);
-
-    // Process events with proper column calculation on mount
     const [processedEvents, setProcessedEvents] = useState([]);
-
-    // Master timeline scale (calculated once, never changes)
     const masterScale = useRef(null);
 
-    // Selection state (not React state to avoid re-renders)
     const selectionState = useRef({
         pixelBounds: [0, 0],
         yearBounds: FULL_RANGE,
@@ -111,7 +98,6 @@ const EventsTimeline = () => {
         currentViewRange: TIME_PERIODS.all
     });
 
-    // Overlay element references for cleanup
     const overlayElementsRef = useRef({
         overlay: null,
         topHandle: null,
@@ -128,10 +114,8 @@ const EventsTimeline = () => {
         groupedEvents: []
     });
 
-    // Event listener cleanup tracking
     const eventListenersRef = useRef(new Set());
 
-    // Calculate dynamic layout dimensions
     const calculateLayoutDimensions = useCallback(() => {
         if (!macroContainerRef.current) return null;
         
@@ -139,16 +123,13 @@ const EventsTimeline = () => {
         if (!timelineContainer) return null;
         
         const containerStyle = window.getComputedStyle(timelineContainer);
-        const containerWidth = timelineContainer.clientWidth; // Use clientWidth to exclude borders
+        const containerWidth = timelineContainer.clientWidth; 
         const gap = LAYOUT_CONFIG.MICROCHART_GAP;
-        
         const availableWidth = containerWidth - gap;
-        
         const sidebarWidth = Math.floor(availableWidth * LAYOUT_CONFIG.SIDEBAR_RATIO);
         const contentWidth = Math.floor(availableWidth * LAYOUT_CONFIG.CONTENT_RATIO);
         const microchartWidth = sidebarWidth - LAYOUT_CONFIG.MACROCHART_WIDTH;
-        
-        // Debug logging to check actual values
+
         console.log('Layout calculation:', {
             containerWidth,
             availableWidth,
@@ -168,13 +149,9 @@ const EventsTimeline = () => {
         };
     }, []);
 
-    // Calculate master timeline scale (done once, never changes)
     const calculateMasterTimelineScale = useCallback(() => {
         const [fullStart, fullEnd] = FULL_RANGE;
-        
-        // Use a large reference height for precision
         const referenceHeight = 10000;
-        
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
         
@@ -243,7 +220,6 @@ const EventsTimeline = () => {
         };
     }, []);
 
-    // Events grouping function
     const groupEventsByYear = useCallback((events) => {
         const groups = {};
         
@@ -261,16 +237,11 @@ const EventsTimeline = () => {
     useEffect(() => {
         const eventsWithColumns = calculateColumns(eventsFullData);
         setProcessedEvents(eventsWithColumns);
-        
-        // Initialize master scale (never changes after this)
         masterScale.current = calculateMasterTimelineScale();
-        
-        // Initialize state ref
         stateRef.current.events = eventsWithColumns;
         stateRef.current.groupedEvents = groupEventsByYear(eventsWithColumns);
     }, [calculateMasterTimelineScale, groupEventsByYear]);
 
-    // Calculate macro layout
     const calculateMacroLayout = useCallback((dimensions) => {
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
@@ -296,7 +267,6 @@ const EventsTimeline = () => {
         return { heights, positions };
     }, []);
 
-    // Create macro converters
     const createMacroConverters = useCallback((dimensions, { heights, positions }) => {
         const yearToPixel = (year) => {
             const rangeIndex = TIME_RANGES.findIndex(range => 
@@ -339,7 +309,6 @@ const EventsTimeline = () => {
         return { yearToPixel, pixelToYear, dimensions };
     }, []);
 
-    // Enhanced cleanup for overlay elements
     const cleanupOverlayElements = useCallback(() => {
         const elements = overlayElementsRef.current;
         const container = macroContainerRef.current;
@@ -347,8 +316,7 @@ const EventsTimeline = () => {
         if (container && elements.cleanup) {
             elements.cleanup();
         }
-        
-        // Remove DOM elements completely
+
         ['overlay', 'topHandle', 'bottomHandle', 'topHandleText', 'bottomHandleText'].forEach(key => {
             if (elements[key] && elements[key].parentNode) {
                 elements[key].parentNode.removeChild(elements[key]);
@@ -360,7 +328,6 @@ const EventsTimeline = () => {
         selectionState.current.overlayElements = null;
     }, []);
 
-    // Create throttled update function
     const createThrottledFunction = useCallback((func, delay) => {
         let timeoutId;
         let lastExecTime = 0;
@@ -387,30 +354,23 @@ const EventsTimeline = () => {
         return throttledFn;
     }, []);
 
-    // Scroll event display to a specific year
     const scrollToYear = useCallback((targetYear) => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
-        
-        // Find the closest year header
         let closestHeader = null;
         let minDifference = Infinity;
         
         headers.forEach((header, index) => {
             const headerText = header.textContent;
-            
-            // Parse year correctly, handling BC years
             let year;
             if (headerText.includes('BC|AD')) {
                 year = 0;
             } else if (headerText.includes('BC')) {
-                // Extract the number and make it negative for BC years
                 const match = headerText.match(/(\d+)\s*BC/);
                 year = match ? -parseInt(match[1]) : 0;
             } else {
-                // AD years (or other formats)
                 const match = headerText.match(/(-?\d+)/);
                 year = match ? parseInt(match[1]) : 0;
             }
@@ -431,10 +391,56 @@ const EventsTimeline = () => {
         }
     }, [processedEvents]);
 
-    // Calculate micro era layout - now uses selection bounds for view
+    const scrollToEvent = useCallback((eventID, eventData) => {
+        if (!eventDisplayRef.current || !eventID) return;
+
+        // Expand the event if not already expanded
+        if (eventData && eventData.title) {
+            setExpandedEvents(prevExpanded => {
+                const newExpanded = new Set(prevExpanded);
+                if (!newExpanded.has(eventData.title)) {
+                    newExpanded.add(eventData.title);
+                }
+                return newExpanded;
+            });
+        }
+
+        // Small delay to allow the DOM to update with the expansion
+        setTimeout(() => {
+            const container = eventDisplayRef.current;
+            const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
+            
+            if (eventElement) {
+                eventElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
+        }, 100);
+    }, []);
+
+    const applyConnectedHover = useCallback((eventID) => {
+        if (!microSvgRef.current || !eventID) return;
+
+        const svg = d3.select(microSvgRef.current);
+        svg.selectAll(`[data-event-id="${eventID}"]`)
+            .transition()
+            .duration(100)
+            .style('opacity', 0.5);
+    }, []);
+
+    const removeConnectedHover = useCallback((eventID) => {
+        if (!microSvgRef.current || !eventID) return;
+
+        const svg = d3.select(microSvgRef.current);
+        svg.selectAll(`[data-event-id="${eventID}"]`)
+            .transition()
+            .duration(100)
+            .style('opacity', 1.0);
+    }, []);
+
     const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
         const [startYear, endYear] = viewRange;
-        
         const relevantRanges = TIME_RANGES.filter(range => 
             !(range.end < startYear || range.start > endYear)
         );
@@ -459,7 +465,6 @@ const EventsTimeline = () => {
         
         const totalSpan = actualSpans.reduce((sum, span) => sum + span, 0);
         const numRanges = relevantRanges.length;
-        
         const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
         const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
         const equalHeightPerRange = equalPortionHeight / numRanges;
@@ -504,7 +509,6 @@ const EventsTimeline = () => {
         return { ranges: relevantRanges, heights, positions, yScale };
     }, []);
 
-    // Update position indicators based on scroll position
     const updatePositionIndicators = useCallback(() => {
         if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
         if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length || !masterScale.current) return;
@@ -514,10 +518,9 @@ const EventsTimeline = () => {
         
         if (headers.length === 0) return;
 
-        // Find the topmost visible header
         let topVisibleHeader = null;
         let topVisibleYear = null;
-        
+
         for (const header of headers) {
             const headerRect = header.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
@@ -528,8 +531,7 @@ const EventsTimeline = () => {
                 break;
             }
         }
-        
-        // If no header is visible from the top, use the last one that's above the viewport
+
         if (!topVisibleHeader && headers.length > 0) {
             for (let i = headers.length - 1; i >= 0; i--) {
                 const header = headers[i];
@@ -547,8 +549,7 @@ const EventsTimeline = () => {
         if (!topVisibleHeader) {
             topVisibleHeader = headers[0];
         }
-        
-        // Parse year from header
+
         const headerText = topVisibleHeader.textContent;
         if (headerText.includes('BC|AD')) {
             topVisibleYear = 0;
@@ -560,43 +561,33 @@ const EventsTimeline = () => {
             topVisibleYear = match ? parseInt(match[1]) : 0;
         }
 
-        // Update floating header
         setFloatingHeaderYear(topVisibleYear);
-        
-        // Update macro indicator using CSS class
         const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
         const macroContainer = macroContainerRef.current;
         if (macroContainer) {
             const macroDimensions = calculateDimensions(macroContainer);
             macroIndicatorRef.current.style.top = `${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px`;
         }
-        
-        // Update micro indicator using master scale with viewport mapping
+
         const microContainer = microContainerRef.current;
         if (microContainer && microSvgRef.current) {
             const microDimensions = calculateDimensions(microContainer);
             const [viewStart, viewEnd] = selectionState.current.yearBounds;
-            
-            // Use master scale for consistent positioning
             const masterViewStart = masterScale.current.yearToPixel(viewStart);
             const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
             const masterViewHeight = masterViewEnd - masterViewStart;
             const masterYearPos = masterScale.current.yearToPixel(topVisibleYear);
-            
-            // Convert to viewport coordinates
             const microY = ((masterYearPos - masterViewStart) / masterViewHeight) * microDimensions.height;
             
             microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
         }
     }, [calculateDimensions, processedEvents]);
 
-    // Enhanced scroll handler with floating header logic
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
         const container = eventDisplayRef.current;
         const { scrollTop, scrollHeight, clientHeight } = container;
-        
         const maxScroll = scrollHeight - clientHeight;
         const scrollPercentage = maxScroll > 0 ? 
             Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
@@ -614,7 +605,6 @@ const EventsTimeline = () => {
         } else {
             const containerRect = container.getBoundingClientRect();
             const containerTop = containerRect.top;
-            
             let activeHeaderIndex = 0;
             
             for (let i = 0; i < headers.length; i++) {
@@ -632,53 +622,54 @@ const EventsTimeline = () => {
             topVisibleYear = stateRef.current.groupedEvents[activeHeaderIndex].year;
         }
 
-        // Update floating header
         const floatingHeader = container.querySelector('.floating-header');
         if (floatingHeader) {
             if (topVisibleYear !== null) {
                 floatingHeader.textContent = formatYear(topVisibleYear);
                 floatingHeader.style.display = 'block';
                 setFloatingHeaderYear(topVisibleYear);
-                
-                // Hide corresponding regular header
+
                 headers.forEach((header, index) => {
-                    if (stateRef.current.groupedEvents[index]?.year === topVisibleYear) {
-                        header.style.display = 'none';
+                    const isFirstHeader = index === 0;
+                    const shouldHide = stateRef.current.groupedEvents[index]?.year === topVisibleYear;
+                    
+                    if (isFirstHeader) {
+                        if (shouldHide) {
+                            header.style.position = 'absolute';
+                            header.style.top = '-1000px';
+                        } else {
+                            header.style.position = 'static';
+                            header.style.top = 'auto';
+                        }
                     } else {
-                        header.style.display = 'block';
+                        header.style.visibility = shouldHide ? 'hidden' : 'visible';
                     }
                 });
             }
         }
 
-        // Update position indicators
         updatePositionIndicators();
     }, [updatePositionIndicators]);
 
-    // Create throttled indicator update
     const throttledIndicatorUpdate = useCallback(
         createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
         [updatePositionIndicators, createThrottledFunction]
     );
 
-    // Create throttled scroll handler
     const throttledScrollHandler = useCallback(
         createThrottledFunction(handleEventScroll, UPDATE_THROTTLE_MS),
         [handleEventScroll, createThrottledFunction]
     );
 
-    // FIXED: Render microchart with dynamic sizing
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
 
         const layoutDims = calculateLayoutDimensions();
         if (!layoutDims || !layoutDims.showMicrochart) {
-            // Hide microchart
             microContainerRef.current.classList.add('hidden');
             return;
         }
 
-        // Show microchart and set dimensions
         microContainerRef.current.classList.remove('hidden');
         microContainerRef.current.style.width = `${layoutDims.microchartWidth}px`;
 
@@ -691,22 +682,12 @@ const EventsTimeline = () => {
         ));
         const dynamicDotRadius = dynamicDotDiameter / 2;
         console.log(dynamicDotDiameter)
-        
-        // Original ratio: LINE_STROKE_WIDTH / (DOT_RADIUS * 2) = 2 / (3 * 2) = 1/3
         const dynamicLineWidth = Math.max(1, dynamicDotDiameter / 3);
-
-        // Use selection bounds for viewport clipping
         const [viewStart, viewEnd] = selectionState.current.yearBounds;
-        
-        // Calculate viewport bounds in master scale pixels
         const masterViewStart = masterScale.current.yearToPixel(viewStart);
         const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
         const masterViewHeight = masterViewEnd - masterViewStart;
-
-        // Show all events, positioned using master scale
         const allEvents = processedEvents;
-
-        // Process events by era
         const byEra = {};
         
         allEvents.forEach(d => {
@@ -720,7 +701,6 @@ const EventsTimeline = () => {
             byEra[era].push(d);
         });
 
-        // Create events for the view range (dots only)
        const processedEventsForDisplay = [];
 
         Object.keys(byEra).forEach(era => {
@@ -730,14 +710,9 @@ const EventsTimeline = () => {
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const column = getEffectiveColumn(d);
-                
-                // FIXED: Distribute evenly across full width using dynamic sizing
-                const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); // 0-based
-                // Position in center of each column's allocated space
+                const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); 
                 const columnWidth = dimensions.width / MICROCHART_COLUMNS;
                 const x = (effectiveColumn * columnWidth) + (columnWidth / 2);
-                
-                // Position using master scale, then convert to viewport coordinates
                 const masterY = masterScale.current.yearToPixel(d.fields.startDate);
                 const viewportY = ((masterY - masterViewStart) / masterViewHeight) * dimensions.height;
 
@@ -750,7 +725,6 @@ const EventsTimeline = () => {
             });
         });
 
-        // FIXED: Process lines with dynamic sizing
         const lines = [];
 
         allEvents.forEach(d => {
@@ -758,8 +732,6 @@ const EventsTimeline = () => {
             if (duration >= 1) {
                 const lineStart = parseFloat(d.fields.startDate);
                 const lineEnd = lineStart + duration;
-                
-                // Check if line intersects the viewport
                 const intersects = (
                     (lineStart >= viewStart && lineStart <= viewEnd) ||
                     (lineEnd >= viewStart && lineEnd <= viewEnd) ||
@@ -769,19 +741,13 @@ const EventsTimeline = () => {
                 if (intersects) {
                     const rangeInfo = getRangeInfo(d.fields.startDate);
                     const column = getEffectiveColumn(d);
-                    
-                    // FIXED: Use same positioning logic as dots
-                    const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); // 0-based
+                    const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); 
                     const columnWidth = dimensions.width / MICROCHART_COLUMNS;
                     const x = (effectiveColumn * columnWidth) + (columnWidth / 2);
-                    
                     const masterStartY = masterScale.current.yearToPixel(lineStart);
                     const masterEndY = masterScale.current.yearToPixel(lineEnd);
-                    
                     const startY = ((masterStartY - masterViewStart) / masterViewHeight) * dimensions.height;
                     const endY = ((masterEndY - masterViewStart) / masterViewHeight) * dimensions.height;
-                    
-                    // Constrain to viewport bounds
                     const y1 = Math.max(0, Math.min(dimensions.height, startY));
                     const y2 = Math.max(0, Math.min(dimensions.height, endY));
                     
@@ -791,13 +757,13 @@ const EventsTimeline = () => {
                         x2: x,
                         y2: y2,
                         color: rangeInfo.color,
-                        eventData: d.fields
+                        eventData: d.fields,
+                        eventID: d.fields.eventID
                     });
                 }
             }
         });
 
-        // Remove old tooltip
         const oldTooltip = microContainerRef.current.querySelector('.microchart-tooltip');
         if (oldTooltip) {
             oldTooltip.remove();
@@ -808,45 +774,29 @@ const EventsTimeline = () => {
             .attr('height', dimensions.height)
             .style('overflow', 'visible');
 
-        // Clear previous content
         svg.selectAll('*').remove();
         const g = svg.append('g')
             .attr('class', 'microchart-group')
-            // FIXED: Ensure group uses full width
             .attr('transform', `translate(0,0)`);
 
-        // FIXED: Draw lines with hover border effect (similar to dots)
         const lineGroups = g.selectAll('.microchart-line-group')
             .data(lines)
             .enter()
             .append('g')
             .attr('class', 'microchart-line-group');
 
-        // Draw border lines (thicker, black, initially transparent)
-        lineGroups
-            .append('line')
-            .attr('class', 'microchart-line-border')
-            .attr('x1', d => d.x1)
-            .attr('y1', d => d.y1)
-            .attr('x2', d => d.x2)
-            .attr('y2', d => d.y2)
-            .attr('stroke', 'black')
-            .style('stroke-width', `${dynamicLineWidth + 1.5}px`)
-            .style('opacity', 0) // Initially invisible
-            .style('pointer-events', 'none'); // Don't interfere with mouse events
-
-        // Draw main colored lines on top
         lineGroups
             .append('line')
             .attr('class', 'microchart-line-main')
+            .attr('data-event-id', d => d.eventID)
             .attr('x1', d => d.x1)
             .attr('y1', d => d.y1)
             .attr('x2', d => d.x2)
             .attr('y2', d => d.y2)
             .attr('stroke', d => d.color)
             .style('stroke-width', `${dynamicLineWidth}px`)
+            .style('cursor', 'pointer')
             .on('mouseover', function(event, d) {
-                // Show tooltip
                 tooltip.transition()
                     .duration(200)
                     .style('opacity', .9);
@@ -854,26 +804,19 @@ const EventsTimeline = () => {
                     .style('left', (event.layerX - TOOLTIP_OFFSET_X) + 'px')
                     .style('top', (event.layerY - TOOLTIP_OFFSET_Y) + 'px');
 
-                // Show black border on the parent group
-                d3.select(this.parentNode).select('.microchart-line-border')
-                    .transition()
-                    .duration(100)
-                    .style('opacity', 1);
+                applyConnectedHover(d.eventID);
             })
-            .on('mouseout', function() {
-                // Hide tooltip
+            .on('mouseout', function(event, d) {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
 
-                // Hide black border
-                d3.select(this.parentNode).select('.microchart-line-border')
-                    .transition()
-                    .duration(100)
-                    .style('opacity', 0);
+                removeConnectedHover(d.eventID);
+            })
+            .on('click', function(event, d) {
+                scrollToEvent(d.eventID, d.eventData);
             });
 
-        // Create tooltip
         let tooltip = d3.select(microContainerRef.current).select('.microchart-tooltip');
         if (tooltip.empty()) {
             tooltip = d3.select(microContainerRef.current)
@@ -882,16 +825,17 @@ const EventsTimeline = () => {
                 .style('opacity', 0);
         }
 
-        // FIXED: Draw dots with dynamic radius
         g.selectAll('.microchart-dot')
             .data(processedEventsForDisplay)
             .enter()
             .append('circle')
             .attr('class', 'microchart-dot')
+            .attr('data-event-id', d => d.eventID)
             .attr('cx', d => d.columnX)
             .attr('cy', d => d.y)
-            .attr('r', dynamicDotRadius) // FIXED: Dynamic radius
+            .attr('r', dynamicDotRadius) 
             .attr('fill', d => d.color)
+            .style('cursor', 'pointer')
             .on('mouseover', function(event, d) {
                 tooltip.transition()
                     .duration(200)
@@ -900,32 +844,26 @@ const EventsTimeline = () => {
                     .style('left', (event.layerX - TOOLTIP_OFFSET_X) + 'px')
                     .style('top', (event.layerY - TOOLTIP_OFFSET_Y) + 'px');
 
-                d3.select(this)
-                    .transition()
-                    .duration(100)
-                    .style('stroke', '#000');
+                applyConnectedHover(d.eventID);
             })
-            .on('mouseout', function() {
+            .on('mouseout', function(event, d) {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
 
-                d3.select(this)
-                    .transition()
-                    .duration(100)
-                    .style('stroke', '#fff');
+                removeConnectedHover(d.eventID);
+            })
+            .on('click', function(event, d) {
+                scrollToEvent(d.eventID, d);
             });
 
-        // Update indicators after microchart renders
         throttledIndicatorUpdate();
-    }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate]);
+    }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover, scrollToEvent]);
 
-    // Update layout dimensions
     const updateLayout = useCallback(() => {
         const layoutDims = calculateLayoutDimensions();
         if (!layoutDims) return;
 
-        // Update microchart width (or hide it)
         if (microContainerRef.current) {
             if (layoutDims.showMicrochart) {
                 microContainerRef.current.classList.remove('hidden');
@@ -935,23 +873,17 @@ const EventsTimeline = () => {
             }
         }
 
-        // Update event display width
         if (eventDisplayRef.current) {
             eventDisplayRef.current.style.width = `${layoutDims.contentWidth}px`;
         }
 
-        // Trigger microchart re-render if visible
         if (layoutDims.showMicrochart) {
             renderMicrochart();
         }
     }, [calculateLayoutDimensions, renderMicrochart]);
 
-    // Handle selection changes (this will update microchart and scroll events)
     const handleSelectionChange = useCallback((startYear, endYear) => {
-        // Update selection state
         selectionState.current.yearBounds = [startYear, endYear];
-        
-        // Check if this matches a predefined period
         const matchingPeriod = Object.keys(TIME_PERIODS).find(key => {
             const [pStart, pEnd] = TIME_PERIODS[key];
             return Math.abs(pStart - startYear) < 10 && Math.abs(pEnd - endYear) < 10;
@@ -964,33 +896,24 @@ const EventsTimeline = () => {
             setSelectedPeriod('all');
             setIsCustomRange(true);
         }
-        
-        // Update microchart with new view range
+
         renderMicrochart();
-        
-        // Scroll event display to the start of the selection
         scrollToYear(startYear);
     }, [renderMicrochart, scrollToYear]);
 
-    // Create throttled selection handler
     const throttledSelectionChange = useCallback(
         createThrottledFunction(handleSelectionChange, UPDATE_THROTTLE_MS),
         [handleSelectionChange, createThrottledFunction]
     );
 
-    
-    // Setup optimized macro overlay
     const setupMacroOverlay = useCallback((dimensions) => {
         const container = macroContainerRef.current;
         if (!container) return () => {};
 
-        // Clean up existing overlay first
         cleanupOverlayElements();
 
         const handleWidth = dimensions.width * HANDLE_WIDTH_RATIO;
         const handleLeft = (dimensions.width - handleWidth) / 2;
-
-        // Create fresh elements
         const overlay = document.createElement('div');
         overlay.className = 'selection-overlay';
         container.appendChild(overlay);
@@ -1011,7 +934,6 @@ const EventsTimeline = () => {
         bottomHandleText.className = 'bottom-handle-text';
         container.appendChild(bottomHandleText);
 
-        // Store references
         overlayElementsRef.current = {
             overlay,
             topHandle,
@@ -1021,7 +943,6 @@ const EventsTimeline = () => {
             cleanup: null
         };
 
-        // Update overlay positions
         const updateOverlayPosition = (y0, y1) => {
             if (!selectionState.current.macroScaleInfo) return;
 
@@ -1031,13 +952,11 @@ const EventsTimeline = () => {
             const elements = overlayElementsRef.current;
             if (!elements.overlay) return;
 
-            // Update overlay
             overlay.style.left = '0px';
             overlay.style.top = y0 + 'px';
             overlay.style.width = dimensions.width + 'px';
             overlay.style.height = height + 'px';
 
-            // Update handles
             topHandle.style.left = handleLeft + 'px';
             topHandle.style.top = (y0 - HANDLE_HEIGHT / 2) + 'px';
             topHandle.style.width = handleWidth + 'px';
@@ -1048,7 +967,6 @@ const EventsTimeline = () => {
             bottomHandle.style.width = handleWidth + 'px';
             bottomHandle.style.height = HANDLE_HEIGHT + 'px';
 
-            // Update handle text
             const { pixelToYear } = selectionState.current.macroScaleInfo;
             const commonTextStyle = `line-height: ${HANDLE_HEIGHT}px; width: ${handleWidth}px; left: ${handleLeft}px;`;
 
@@ -1058,16 +976,12 @@ const EventsTimeline = () => {
             bottomHandleText.style.cssText += commonTextStyle + `top: ${y1 - HANDLE_HEIGHT / 2}px;`;
             bottomHandleText.textContent = formatYear(Math.round(pixelToYear(y1)));
 
-            // Update pixel bounds
             selectionState.current.pixelBounds = [y0, y1];
-            
-            // Trigger throttled selection change
             const startYear = pixelToYear(y0);
             const endYear = pixelToYear(y1);
             throttledSelectionChange(startYear, endYear);
         };
 
-        // Create drag handlers
         const createDragHandler = (mode) => (startEvent) => {
             startEvent.preventDefault();
             selectionState.current.isDragging = true;
@@ -1103,7 +1017,6 @@ const EventsTimeline = () => {
             document.addEventListener('mouseup', handleUp);
         };
 
-        // Attach drag handlers
         const dragHandler = createDragHandler('drag');
         const resizeTopHandler = createDragHandler('resize-top');
         const resizeBottomHandler = createDragHandler('resize-bottom');
@@ -1112,15 +1025,11 @@ const EventsTimeline = () => {
         topHandle.addEventListener('mousedown', resizeTopHandler);
         bottomHandle.addEventListener('mousedown', resizeBottomHandler);
 
-        // Store update function
         selectionState.current.overlayElements = { updateOverlayPosition };
-
-        // Initialize position
         const initialY0 = selectionState.current.macroScaleInfo.yearToPixel(FULL_RANGE[0]);
         const initialY1 = selectionState.current.macroScaleInfo.yearToPixel(FULL_RANGE[1]);
         updateOverlayPosition(initialY0, initialY1);
 
-        // Return cleanup function
         const cleanup = () => {
             overlay.removeEventListener('mousedown', dragHandler);
             topHandle.removeEventListener('mousedown', resizeTopHandler);
@@ -1137,12 +1046,9 @@ const EventsTimeline = () => {
         return cleanup;
     }, [cleanupOverlayElements, throttledSelectionChange]);
 
-
-    // Render macrochart
     const renderMacrochart = useCallback(() => {
         if (!macroSvgRef.current || !macroContainerRef.current) return;
 
-        // Clean up previous overlay
         cleanupOverlayElements();
 
         const dimensions = calculateDimensions(macroContainerRef.current);
@@ -1150,8 +1056,6 @@ const EventsTimeline = () => {
 
         const layout = calculateMacroLayout(dimensions);
         const converters = createMacroConverters(dimensions, layout);
-
-        // Store scale info for selection overlay
         selectionState.current.macroScaleInfo = converters;
 
         const svg = d3.select(macroSvgRef.current)
@@ -1159,10 +1063,7 @@ const EventsTimeline = () => {
             .attr('height', dimensions.height)
             .style('overflow', 'visible');
 
-        // Clear previous content
         svg.selectAll('*').remove();
-
-        // Create color bars
         const width = dimensions.width * COLOR_BAR_WIDTH_RATIO;
         const x = dimensions.width - width;
         
@@ -1177,7 +1078,6 @@ const EventsTimeline = () => {
             .attr('height', (d, i) => layout.heights[i])
             .attr('fill', d => d.color);
 
-        // Create year markers
         const lineStart = x - LABEL_LINE_LENGTH;
         const years = [];
         for (let year = YEAR_LABEL_RANGE_START; year <= YEAR_LABEL_RANGE_END; year += YEAR_LABEL_INTERVAL) {
@@ -1206,18 +1106,15 @@ const EventsTimeline = () => {
             .attr('y', d => converters.yearToPixel(d) + 5)
             .text(d => d === 0 ? 'BC|AD' : `${Math.abs(d)} BC`);
 
-        // Setup selection overlay
         setupMacroOverlay(dimensions);
-
-        // Update indicators after macrochart renders
         throttledIndicatorUpdate();
 
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
-    // Events stuff - now shows filtered events
     const createEventItem = useCallback((event) => {
         const eventItem = document.createElement('div');
         eventItem.className = 'event-item';
+        eventItem.setAttribute('data-event-id', event.fields.eventID);
 
         const triangle = document.createElement('button');
         triangle.className = 'event-triangle';
@@ -1237,7 +1134,6 @@ const EventsTimeline = () => {
             triangle.classList.add('expanded');
             triangle.setAttribute('aria-label', 'Collapse event details');
 
-            // Add detail fields using proper formatters
             const detailFields = [
                 { key: 'duration', label: 'Duration', formatter: formatDuration },
                 { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
@@ -1256,8 +1152,7 @@ const EventsTimeline = () => {
                     const detail = document.createElement('div');
                     detail.className = 'event-detail';
                     const value = field.formatter ? field.formatter(event.fields[field.key]) : event.fields[field.key];
-                    
-                    // Handle React elements (like formatted participants/locations/verses)
+
                     if (React.isValidElement(value)) {
                         const tempDiv = document.createElement('div');
                         ReactDOM.render(value, tempDiv);
@@ -1270,16 +1165,40 @@ const EventsTimeline = () => {
             });
         }
 
-        triangle.addEventListener('click', () => {
-            const newExpanded = new Set(expandedEvents);
-            if (newExpanded.has(event.fields.title)) {
-                newExpanded.delete(event.fields.title);
-            } else {
-                newExpanded.add(event.fields.title);
-            }
-            setExpandedEvents(newExpanded);
-        });
-
+triangle.addEventListener('click', () => {
+    // 1. Capture where the event appears in the viewport BEFORE toggling
+    const container = eventDisplayRef.current;
+    const eventRect = eventItem.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const originalViewportPosition = eventRect.top - containerRect.top;
+    
+    // 2. Toggle the state
+    const newExpanded = new Set(expandedEvents);
+    if (newExpanded.has(event.fields.title)) {
+        newExpanded.delete(event.fields.title);
+    } else {
+        newExpanded.add(event.fields.title);
+    }
+    setExpandedEvents(newExpanded);
+    
+    // 3. After React re-renders, find NEW element and restore viewport position
+    setTimeout(() => {
+        if (!container) return;
+        
+        const newEventElement = container.querySelector(`[data-event-id="${event.fields.eventID}"]`);
+        if (!newEventElement) return;
+        
+        const newEventRect = newEventElement.getBoundingClientRect();
+        const newContainerRect = container.getBoundingClientRect();
+        const currentViewportPosition = newEventRect.top - newContainerRect.top;
+        
+        // Adjust scroll to restore original viewport position
+        const scrollAdjustment = currentViewportPosition - originalViewportPosition;
+        container.scrollTop += scrollAdjustment;
+        
+        throttledScrollHandler();
+    }, 50);
+});
         eventItem.appendChild(triangle);
         eventItem.appendChild(eventContent);
         return eventItem;
@@ -1321,8 +1240,6 @@ const EventsTimeline = () => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
-
-        // Update indicators after event display is updated
         throttledIndicatorUpdate();
     }, [groupEventsByYear, createEventItem, throttledIndicatorUpdate]);
 
@@ -1337,15 +1254,12 @@ const EventsTimeline = () => {
         stateRef.current.selection = newRange;
         stateRef.current.currentViewRange = newRange;
         
-        // Update selection state
         selectionState.current.yearBounds = newRange;
         selectionState.current.currentViewRange = newRange;
         
-        // Update displays
         updateEventDisplay();
         renderMicrochart();
-        
-        // Update macro chart selection if it's rendered
+
         if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
             const { yearToPixel } = selectionState.current.macroScaleInfo;
             const y0 = yearToPixel(newRange[0]);
@@ -1353,32 +1267,26 @@ const EventsTimeline = () => {
             selectionState.current.pixelBounds = [y0, y1];
             selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
         }
-        
-        // Scroll to start of period
+
         if (period !== 'all' && newRange) {
             scrollToYear(newRange[0]);
         }
     }, [updateEventDisplay, renderMicrochart, scrollToYear]);
 
-    // Refactored chart setup with shared ResizeObserver logic
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
         if (!containerRef.current) return null;
 
-        // Create SVG element if it doesn't exist
-        if (!svgRef.current) {
+                if (!svgRef.current) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             containerRef.current.appendChild(svg);
             svgRef.current = svg;
         }
 
-        // Initial render
         renderFunction();
 
-        // Setup resize observer
         const resizeObserver = new ResizeObserver(() => {
             window.requestAnimationFrame(() => {
                 if (containerRef.current) {
-                    // Update layout first, then render
                     if (chartName === 'micro') {
                         updateLayout();
                     } else {
@@ -1393,7 +1301,6 @@ const EventsTimeline = () => {
         return resizeObserver;
     }, [updateLayout]);
 
-    // Setup charts on mount and resize
     useEffect(() => {
         if (!processedEvents.length || !masterScale.current) return;
 
@@ -1403,8 +1310,7 @@ const EventsTimeline = () => {
         return () => {
             if (macroObserver) macroObserver.disconnect();
             if (microObserver) microObserver.disconnect();
-            
-            // Clean up throttled function
+
             if (throttledSelectionChange?.cancel) {
                 throttledSelectionChange.cancel();
             }
@@ -1416,17 +1322,13 @@ const EventsTimeline = () => {
             if (throttledScrollHandler?.cancel) {
                 throttledScrollHandler.cancel();
             }
-            
-            // Clean up overlay elements
+
             cleanupOverlayElements();
-            
-            // Clean up event listeners
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
     }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
 
-    // Setup scroll listener for position indicators
     useEffect(() => {
         if (!eventDisplayRef.current) return;
 
@@ -1437,8 +1339,7 @@ const EventsTimeline = () => {
         };
 
         container.addEventListener('scroll', handleScroll, { passive: true });
-        
-        // Store cleanup reference
+
         const cleanup = () => {
             container.removeEventListener('scroll', handleScroll);
         };
