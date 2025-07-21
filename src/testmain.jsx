@@ -90,6 +90,9 @@ const EventsTimeline = () => {
     // Process events with proper column calculation on mount
     const [processedEvents, setProcessedEvents] = useState([]);
 
+    // Master timeline scale (calculated once, never changes)
+    const masterScale = useRef(null);
+
     // Selection state (not React state to avoid re-renders)
     const selectionState = useRef({
         pixelBounds: [0, 0],
@@ -123,13 +126,107 @@ const EventsTimeline = () => {
     // Event listener cleanup tracking
     const eventListenersRef = useRef(new Set());
 
+    // Calculate master timeline scale (done once, never changes)
+    const calculateMasterTimelineScale = useCallback(() => {
+        const [fullStart, fullEnd] = FULL_RANGE;
+        
+        // Use a large reference height for precision
+        const referenceHeight = 10000;
+        
+        const totalSpan = TIME_RANGES.reduce((sum, range) => 
+            sum + Math.abs(range.end - range.start), 0);
+        
+        const numRanges = TIME_RANGES.length;
+        const equalPortionHeight = referenceHeight * EQUAL_DISTRIBUTION_AREA;
+        const proportionalPortionHeight = referenceHeight * PROPORTIONATE_DISTRIBUTION_AREA;
+        const equalHeightPerRange = equalPortionHeight / numRanges;
+        
+        const heights = TIME_RANGES.map(range => {
+            const span = Math.abs(range.end - range.start);
+            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
+            return equalHeightPerRange + proportionalHeight;
+        });
+
+        const positions = [];
+        let currentY = 0;
+        for (const height of heights) {
+            positions.push(currentY);
+            currentY += height;
+        }
+
+        const yearToPixel = (year) => {
+            const rangeIndex = TIME_RANGES.findIndex(range => 
+                year >= range.start && year <= range.end);
+            
+            if (rangeIndex === -1) {
+                if (year < TIME_RANGES[0].start) return positions[0];
+                if (year > TIME_RANGES[TIME_RANGES.length - 1].end) return referenceHeight;
+                return 0;
+            }
+            
+            const range = TIME_RANGES[rangeIndex];
+            const rangeSpan = range.end - range.start;
+            const positionInRange = (year - range.start) / rangeSpan;
+            
+            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
+        };
+
+        const pixelToYear = (pixel) => {
+            let rangeIndex = TIME_RANGES.length - 1;
+            for (let i = 0; i < positions.length - 1; i++) {
+                if (pixel < positions[i + 1]) {
+                    rangeIndex = i;
+                    break;
+                }
+            }
+
+            const range = TIME_RANGES[rangeIndex];
+            const rangeStart = positions[rangeIndex];
+            const rangeHeight = heights[rangeIndex];
+
+            if (rangeHeight <= 0) return range.start;
+
+            const pixelIntoRange = pixel - rangeStart;
+            const proportion = pixelIntoRange / rangeHeight;
+            const yearSpan = range.end - range.start;
+            return range.start + (proportion * yearSpan);
+        };
+
+        return { 
+            yearToPixel, 
+            pixelToYear, 
+            totalHeight: referenceHeight,
+            heights,
+            positions
+        };
+    }, []);
+
+    // Events grouping function
+    const groupEventsByYear = useCallback((events) => {
+        const groups = {};
+        
+        events.forEach(event => {
+            const key = event.fields.startDate;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(event);
+        });
+        
+        return Object.keys(groups)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(key => ({ year: Number(key), events: groups[key] }));
+    }, []);
+
     useEffect(() => {
         const eventsWithColumns = calculateColumns(eventsFullData);
         setProcessedEvents(eventsWithColumns);
+        
+        // Initialize master scale (never changes after this)
+        masterScale.current = calculateMasterTimelineScale();
+        
         // Initialize state ref
         stateRef.current.events = eventsWithColumns;
         stateRef.current.groupedEvents = groupEventsByYear(eventsWithColumns);
-    }, []);
+    }, [calculateMasterTimelineScale, groupEventsByYear]);
 
     // Calculate macro layout
     const calculateMacroLayout = useCallback((dimensions) => {
@@ -430,7 +527,7 @@ const EventsTimeline = () => {
     // Update position indicators based on scroll position
     const updatePositionIndicators = useCallback(() => {
         if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
-        if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length) return;
+        if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length || !masterScale.current) return;
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
@@ -494,18 +591,24 @@ const EventsTimeline = () => {
             macroIndicatorRef.current.style.top = `${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px`;
         }
         
-        // Update micro indicator if microchart has rendered
+        // Update micro indicator using master scale with viewport mapping
         const microContainer = microContainerRef.current;
         if (microContainer && microSvgRef.current) {
             const microDimensions = calculateDimensions(microContainer);
-            // Use the same era layout calculation as the microchart
-            const viewRange = selectionState.current.yearBounds;
-            const eraLayout = calculateMicroEraLayout(microDimensions, viewRange);
-            const microY = eraLayout.yScale(topVisibleYear);
+            const [viewStart, viewEnd] = selectionState.current.yearBounds;
+            
+            // Use master scale for consistent positioning
+            const masterViewStart = masterScale.current.yearToPixel(viewStart);
+            const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
+            const masterViewHeight = masterViewEnd - masterViewStart;
+            const masterYearPos = masterScale.current.yearToPixel(topVisibleYear);
+            
+            // Convert to viewport coordinates
+            const microY = ((masterYearPos - masterViewStart) / masterViewHeight) * microDimensions.height;
             
             microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
         }
-    }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
+    }, [calculateDimensions, processedEvents]);
 
     // Enhanced scroll handler with selection movement logic
     const handleEventScroll = useCallback(() => {
@@ -629,21 +732,22 @@ const EventsTimeline = () => {
         [handleEventScroll, createThrottledFunction]
     );
 
-    // Render microchart - now uses selection for view range but shows all events
+    // Render microchart with master scale and viewport clipping
     const renderMicrochart = useCallback(() => {
-        if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length) return;
+        if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
 
         const dimensions = calculateDimensions(microContainerRef.current);
         if (dimensions.width === 0 || dimensions.height === 0) return;
 
-        // Use selection bounds for view range, but filter to show all events in that range
-        const viewRange = selectionState.current.yearBounds;
-        const [startYear, endYear] = viewRange;
+        // Use selection bounds for viewport clipping
+        const [viewStart, viewEnd] = selectionState.current.yearBounds;
         
-        const eraLayout = calculateMicroEraLayout(dimensions, viewRange);
-        const yScale = eraLayout.yScale;
+        // Calculate viewport bounds in master scale pixels
+        const masterViewStart = masterScale.current.yearToPixel(viewStart);
+        const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
+        const masterViewHeight = masterViewEnd - masterViewStart;
 
-        // Show all events, not just filtered ones
+        // Show all events, positioned using master scale
         const allEvents = processedEvents;
 
         // Process events by era
@@ -666,7 +770,7 @@ const EventsTimeline = () => {
         
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => 
-                d.fields.startDate >= startYear && d.fields.startDate <= endYear);
+                d.fields.startDate >= viewStart && d.fields.startDate <= viewEnd);
             const maxColumns = STATIC_COLUMN_COUNT;
             
             eraEvents.forEach(d => {
@@ -674,13 +778,16 @@ const EventsTimeline = () => {
                 const column = getEffectiveColumn(d);
                 const columnWidth = dimensions.width / maxColumns;
                 const x = (column - 1) * columnWidth + (columnWidth / 2);
-                const y = yScale(d.fields.startDate);
+                
+                // Position using master scale, then convert to viewport coordinates
+                const masterY = masterScale.current.yearToPixel(d.fields.startDate);
+                const viewportY = ((masterY - masterViewStart) / masterViewHeight) * dimensions.height;
 
                 processedEventsForDisplay.push({
                     ...d.fields,
                     color: rangeInfo.color,
                     columnX: x,
-                    y
+                    y: viewportY
                 });
 
                 // Add lines for events with duration
@@ -690,14 +797,17 @@ const EventsTimeline = () => {
                     const lineEnd = lineStart + duration;
                     
                     const intersects = (
-                        (lineStart >= startYear && lineStart <= endYear) ||
-                        (lineEnd >= startYear && lineEnd <= endYear) ||
-                        (lineStart <= startYear && lineEnd >= endYear)
+                        (lineStart >= viewStart && lineStart <= viewEnd) ||
+                        (lineEnd >= viewStart && lineEnd <= viewEnd) ||
+                        (lineStart <= viewStart && lineEnd >= viewEnd)
                     );
 
                     if (intersects) {
-                        const startY = yScale(lineStart);
-                        const endY = yScale(lineEnd);
+                        const masterStartY = masterScale.current.yearToPixel(lineStart);
+                        const masterEndY = masterScale.current.yearToPixel(lineEnd);
+                        
+                        const startY = ((masterStartY - masterViewStart) / masterViewHeight) * dimensions.height;
+                        const endY = ((masterEndY - masterViewStart) / masterViewHeight) * dimensions.height;
                         
                         const buffer = dimensions.height * 0.1;
                         const y1 = Math.max(-buffer, Math.min(dimensions.height + buffer, startY));
@@ -788,7 +898,7 @@ const EventsTimeline = () => {
 
         // Update indicators after microchart renders
         throttledIndicatorUpdate();
-    }, [calculateDimensions, calculateMicroEraLayout, processedEvents, throttledIndicatorUpdate]);
+    }, [calculateDimensions, processedEvents, throttledIndicatorUpdate]);
 
     // Handle selection changes - now accepts source parameter
     const handleSelectionChange = useCallback((startYear, endYear, source = 'user') => {
@@ -1073,20 +1183,6 @@ const EventsTimeline = () => {
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
     // Events stuff - now shows filtered events
-    const groupEventsByYear = useCallback((events) => {
-        const groups = {};
-        
-        events.forEach(event => {
-            const key = event.fields.startDate;
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(event);
-        });
-        
-        return Object.keys(groups)
-            .sort((a, b) => Number(a) - Number(b))
-            .map(key => ({ year: Number(key), events: groups[key] }));
-    }, []);
-
     const createEventItem = useCallback((event) => {
         const eventItem = document.createElement('div');
         eventItem.className = 'event-item';
@@ -1263,7 +1359,7 @@ const EventsTimeline = () => {
 
     // Setup charts on mount and resize
     useEffect(() => {
-        if (!processedEvents.length) return;
+        if (!processedEvents.length || !masterScale.current) return;
 
         const macroObserver = setupChart(macroContainerRef, macroSvgRef, renderMacrochart, 'macro');
         const microObserver = setupChart(microContainerRef, microSvgRef, renderMicrochart, 'micro');
@@ -1292,7 +1388,7 @@ const EventsTimeline = () => {
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
-    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
+    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, masterScale.current, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
 
     // Setup scroll listener for position indicators
     useEffect(() => {
