@@ -111,7 +111,24 @@ const EventsTimeline = () => {
 
     const eventListenersRef = useRef(new Set());
 
-    // Formatting functions from EventDisplay
+    // PERFORMANCE FIX: Batch DOM state preservation
+    const preserveExpandedStates = useCallback(() => {
+        if (!eventDisplayRef.current) return new Map();
+        
+        const stateMap = new Map();
+        const existingEvents = eventDisplayRef.current.querySelectorAll('[data-event-id]');
+        
+        existingEvents.forEach(element => {
+            const eventId = element.getAttribute('data-event-id');
+            const triangle = element.querySelector('.event-triangle');
+            const isExpanded = triangle?.classList.contains('expanded') || false;
+            stateMap.set(eventId, isExpanded);
+        });
+        
+        return stateMap;
+    }, []);
+
+    // Formatting functions - simplified for performance
     const formatDuration = useCallback((duration) => {
         if (!duration) return '';
         
@@ -135,25 +152,11 @@ const EventsTimeline = () => {
         
         const participantIds = participants.split(',').map(id => id.trim());
         
-        return participantIds.map((id, index) => {
+        return participantIds.map(id => {
             const person = peopleData.find(p => p.fields.personLookup === id);
             const displayName = person ? person.fields.displayTitle : id;
-            
-            const link = document.createElement('a');
-            link.href = `https://theographic.netlify.app/person/${id}`;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.className = 'event-link';
-            link.textContent = displayName;
-            
-            const span = document.createElement('span');
-            span.appendChild(link);
-            if (index < participantIds.length - 1) {
-                span.appendChild(document.createTextNode(', '));
-            }
-            
-            return span;
-        });
+            return `<a href="https://theographic.netlify.app/person/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
+        }).join(', ');
     }, []);
 
     const formatLocations = useCallback((locations, placesData) => {
@@ -161,63 +164,28 @@ const EventsTimeline = () => {
         
         const locationIds = locations.split(',').map(id => id.trim());
         
-        return locationIds.map((id, index) => {
+        return locationIds.map(id => {
             const place = placesData.find(p => p.fields.placeLookup === id);
             const displayName = place ? place.fields.displayTitle : id;
-            
-            const link = document.createElement('a');
-            link.href = `https://theographic.netlify.app/place/${id}`;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.className = 'event-link';
-            link.textContent = displayName;
-            
-            const span = document.createElement('span');
-            span.appendChild(link);
-            if (index < locationIds.length - 1) {
-                span.appendChild(document.createTextNode(', '));
-            }
-            
-            return span;
-        });
+            return `<a href="https://theographic.netlify.app/place/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
+        }).join(', ');
     }, []);
 
     const formatVerses = useCallback((verses) => {
         if (!verses) return verses;
         
-        return verses.split(',').map((verse, index) => {
+        return verses.split(',').map(verse => {
             const trimmedVerse = verse.trim();
-            
             const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
             
             if (verseMatch) {
                 const [, book, chapter, verseNum] = verseMatch;
                 const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
-                
-                const link = document.createElement('a');
-                link.href = url;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.className = 'event-link';
-                link.textContent = trimmedVerse;
-                
-                const span = document.createElement('span');
-                span.appendChild(link);
-                if (index < verses.split(',').length - 1) {
-                    span.appendChild(document.createTextNode(', '));
-                }
-                
-                return span;
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="event-link">${trimmedVerse}</a>`;
             }
             
-            const span = document.createElement('span');
-            span.textContent = trimmedVerse;
-            if (index < verses.split(',').length - 1) {
-                span.appendChild(document.createTextNode(', '));
-            }
-            
-            return span;
-        });
+            return trimmedVerse;
+        }).join(', ');
     }, []);
 
     const calculateLayoutDimensions = useCallback(() => {
@@ -612,147 +580,147 @@ const EventsTimeline = () => {
         return { ranges: relevantRanges, heights, positions, yScale };
     }, []);
 
-    const updatePositionIndicators = useCallback(() => {
-        if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
-        if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length || !masterScale.current) return;
-
-        const container = eventDisplayRef.current;
-        const headers = container.querySelectorAll('.event-year-header');
-        
-        if (headers.length === 0) return;
-
-        let topVisibleHeader = null;
-        let topVisibleYear = null;
-
-        for (const header of headers) {
-            const headerRect = header.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-            const relativeTop = headerRect.top - containerRect.top;
-            
-            if (relativeTop >= 0) {
-                topVisibleHeader = header;
-                break;
-            }
-        }
-
-        if (!topVisibleHeader && headers.length > 0) {
-            for (let i = headers.length - 1; i >= 0; i--) {
-                const header = headers[i];
-                const headerRect = header.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                const relativeTop = headerRect.top - containerRect.top;
-                
-                if (relativeTop < 0) {
-                    topVisibleHeader = header;
-                    break;
-                }
-            }
-        }
-        
-        if (!topVisibleHeader) {
-            topVisibleHeader = headers[0];
-        }
-
-        const headerText = topVisibleHeader.textContent;
-        if (headerText.includes('BC|AD')) {
-            topVisibleYear = 0;
-        } else if (headerText.includes('BC')) {
-            const match = headerText.match(/(\d+)\s*BC/);
-            topVisibleYear = match ? -parseInt(match[1]) : 0;
-        } else {
-            const match = headerText.match(/(-?\d+)/);
-            topVisibleYear = match ? parseInt(match[1]) : 0;
-        }
-
-        setFloatingHeaderYear(topVisibleYear);
-        const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
-        const macroContainer = macroContainerRef.current;
-        if (macroContainer) {
-            const macroDimensions = calculateDimensions(macroContainer);
-            macroIndicatorRef.current.style.top = `${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px`;
-        }
-
-        const microContainer = microContainerRef.current;
-        if (microContainer && microSvgRef.current) {
-            const microDimensions = calculateDimensions(microContainer);
-            const [viewStart, viewEnd] = selectionState.current.yearBounds;
-            const masterViewStart = masterScale.current.yearToPixel(viewStart);
-            const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
-            const masterViewHeight = masterViewEnd - masterViewStart;
-            const masterYearPos = masterScale.current.yearToPixel(topVisibleYear);
-            const microY = ((masterYearPos - masterViewStart) / masterViewHeight) * microDimensions.height;
-            
-            microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
-        }
-    }, [calculateDimensions, processedEvents]);
-
-    const handleEventScroll = useCallback(() => {
-        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
+    // POSITION INDICATOR FIX: Separate floating header from position detection
+    const findTopVisibleYear = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return null;
 
         const container = eventDisplayRef.current;
         const { scrollTop, scrollHeight, clientHeight } = container;
         const maxScroll = scrollHeight - clientHeight;
-        const scrollPercentage = maxScroll > 0 ? 
-            Math.max(0, Math.min(1, scrollTop / maxScroll)) : 1;
-
-        const headers = container.querySelectorAll('.event-year-header');
-        if (!headers.length) return;
-
         const atBottom = maxScroll > 0 && scrollTop >= maxScroll - 5;
-        const SWITCH_THRESHOLD = 20;
-
-        let topVisibleYear;
 
         if (atBottom) {
-            topVisibleYear = stateRef.current.groupedEvents[stateRef.current.groupedEvents.length - 1].year;
-        } else {
-            const containerRect = container.getBoundingClientRect();
-            const containerTop = containerRect.top;
-            let activeHeaderIndex = 0;
-            
-            for (let i = 0; i < headers.length; i++) {
-                const header = headers[i];
-                const headerRect = header.getBoundingClientRect();
-                const headerTop = headerRect.top;
-                
-                if (headerTop <= containerTop + SWITCH_THRESHOLD) {
-                    activeHeaderIndex = i;
-                } else {
-                    break;
-                }
-            }
-
-            topVisibleYear = stateRef.current.groupedEvents[activeHeaderIndex].year;
+            return stateRef.current.groupedEvents[stateRef.current.groupedEvents.length - 1].year;
         }
 
-        const floatingHeader = container.querySelector('.floating-header');
-        if (floatingHeader) {
-            if (topVisibleYear !== null) {
+        // Use logical position instead of visual position for headers
+        const SWITCH_THRESHOLD = 20;
+        const containerRect = container.getBoundingClientRect();
+        const containerTop = containerRect.top;
+        
+        // Get all original header positions (ignoring any CSS modifications)
+        const yearHeaders = container.querySelectorAll('.event-year-header');
+        let activeGroupIndex = 0;
+        
+        for (let i = 0; i < yearHeaders.length; i++) {
+            const header = yearHeaders[i];
+            
+            // Store original styles for restoration
+            const originalStyles = {
+                opacity: header.style.opacity,
+                pointerEvents: header.style.pointerEvents,
+                position: header.style.position,
+                top: header.style.top
+            };
+            
+            // Temporarily reset to get true position (handle first header specially)
+            if (i === 0) {
+                // First header: restore to normal flow
+                header.style.position = 'static';
+                header.style.top = 'auto';
+            }
+            header.style.opacity = '1';
+            header.style.pointerEvents = 'auto';
+            
+            const headerRect = header.getBoundingClientRect();
+            const headerTop = headerRect.top;
+            
+            // Restore original styling
+            header.style.opacity = originalStyles.opacity;
+            header.style.pointerEvents = originalStyles.pointerEvents;
+            if (i === 0) {
+                header.style.position = originalStyles.position;
+                header.style.top = originalStyles.top;
+            }
+            
+            if (headerTop <= containerTop + SWITCH_THRESHOLD) {
+                activeGroupIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        return stateRef.current.groupedEvents[activeGroupIndex]?.year || null;
+    }, []);
+
+    const updatePositionIndicators = useCallback(() => {
+        if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
+        if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length || !masterScale.current) return;
+
+        const topVisibleYear = findTopVisibleYear();
+        
+        if (topVisibleYear !== null) {
+            setFloatingHeaderYear(topVisibleYear);
+            const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
+            const macroContainer = macroContainerRef.current;
+            if (macroContainer) {
+                const macroDimensions = calculateDimensions(macroContainer);
+                macroIndicatorRef.current.style.top = `${Math.max(0, Math.min(macroDimensions.height - 2, macroY - 1))}px`;
+            }
+
+            const microContainer = microContainerRef.current;
+            if (microContainer && microSvgRef.current) {
+                const microDimensions = calculateDimensions(microContainer);
+                const [viewStart, viewEnd] = selectionState.current.yearBounds;
+                const masterViewStart = masterScale.current.yearToPixel(viewStart);
+                const masterViewEnd = masterScale.current.yearToPixel(viewEnd);
+                const masterViewHeight = masterViewEnd - masterViewStart;
+                const masterYearPos = masterScale.current.yearToPixel(topVisibleYear);
+                const microY = ((masterYearPos - masterViewStart) / masterViewHeight) * microDimensions.height;
+                
+                microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
+            }
+        }
+    }, [calculateDimensions, findTopVisibleYear]);
+
+    // MODIFIED: handleEventScroll with hybrid header hiding logic
+    const handleEventScroll = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
+
+        const topVisibleYear = findTopVisibleYear();
+        
+        if (topVisibleYear !== null) {
+            const container = eventDisplayRef.current;
+            const floatingHeader = container.querySelector('.floating-header');
+            
+            if (floatingHeader) {
                 floatingHeader.textContent = formatYear(topVisibleYear);
                 floatingHeader.style.display = 'block';
                 setFloatingHeaderYear(topVisibleYear);
 
+                // Hybrid header hiding logic: treat first header differently
+                const headers = container.querySelectorAll('.event-year-header');
                 headers.forEach((header, index) => {
-                    const isFirstHeader = index === 0;
-                    const shouldHide = stateRef.current.groupedEvents[index]?.year === topVisibleYear;
+                    const groupYear = stateRef.current.groupedEvents[index]?.year;
+                    const shouldHide = groupYear === topVisibleYear;
                     
-                    if (isFirstHeader) {
-                        if (shouldHide) {
+                    if (shouldHide) {
+                        if (index === 0) {
+                            // First header: remove from document flow (no empty space)
                             header.style.position = 'absolute';
                             header.style.top = '-1000px';
+                            header.style.opacity = '1'; // Keep opacity normal
+                            header.style.pointerEvents = 'none';
                         } else {
+                            // Other headers: use opacity (keep in flow for position detection)
                             header.style.position = 'static';
                             header.style.top = 'auto';
+                            header.style.opacity = '0';
+                            header.style.pointerEvents = 'none';
                         }
                     } else {
-                        header.style.visibility = shouldHide ? 'hidden' : 'visible';
+                        // Not hidden: restore normal state
+                        header.style.position = 'static';
+                        header.style.top = 'auto';
+                        header.style.opacity = '1';
+                        header.style.pointerEvents = 'auto';
                     }
                 });
             }
         }
 
         updatePositionIndicators();
-    }, [updatePositionIndicators]);
+    }, [findTopVisibleYear, updatePositionIndicators]);
 
     const throttledIndicatorUpdate = useCallback(
         createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
@@ -1214,7 +1182,8 @@ const EventsTimeline = () => {
 
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
-    const createEventItem = useCallback((event) => {
+    // PERFORMANCE FIX: Modified createEventItem with batched state preservation
+    const createEventItem = useCallback((event, expandedStatesMap) => {
         const eventItem = document.createElement('div');
         eventItem.className = 'event-item';
         eventItem.setAttribute('data-event-id', event.fields.eventID);
@@ -1232,7 +1201,6 @@ const EventsTimeline = () => {
         eventTitle.textContent = event.fields.title;
         eventContent.appendChild(eventTitle);
 
-        // Create details container (always present but hidden with CSS)
         const eventDetails = document.createElement('div');
         eventDetails.className = 'event-details';
         
@@ -1254,39 +1222,20 @@ const EventsTimeline = () => {
                 const detail = document.createElement('div');
                 detail.className = 'event-detail';
                 
-                const labelSpan = document.createElement('span');
-                labelSpan.textContent = `${field.label}: `;
-                detail.appendChild(labelSpan);
-
                 if (field.formatter) {
                     const formattedValue = field.formatter(event.fields[field.key]);
-                    if (Array.isArray(formattedValue)) {
-                        // For arrays of DOM elements (participants, locations, verses)
-                        formattedValue.forEach(element => {
-                            detail.appendChild(element);
-                        });
-                    } else {
-                        // For simple strings (duration)
-                        const valueSpan = document.createElement('span');
-                        valueSpan.textContent = formattedValue;
-                        detail.appendChild(valueSpan);
-                    }
+                    detail.innerHTML = `${field.label}: ${formattedValue}`;
                 } else {
-                    // For fields without formatters
-                    const valueSpan = document.createElement('span');
-                    valueSpan.textContent = event.fields[field.key];
-                    detail.appendChild(valueSpan);
+                    detail.textContent = `${field.label}: ${event.fields[field.key]}`;
                 }
                 
                 eventDetails.appendChild(detail);
             }
         });
 
-        // Check if this event already exists in DOM and preserve its expansion state
-        const existingElement = eventDisplayRef.current?.querySelector(`[data-event-id="${event.fields.eventID}"]`);
-        const isCurrentlyExpanded = existingElement?.querySelector('.event-triangle')?.classList.contains('expanded') || false;
+        // Use batched state map instead of individual DOM query
+        const isCurrentlyExpanded = expandedStatesMap.get(event.fields.eventID) || false;
 
-        // Set initial state based on existing DOM state (not React state)
         if (isCurrentlyExpanded) {
             triangle.classList.add('expanded');
             triangle.setAttribute('aria-label', 'Collapse event details');
@@ -1333,8 +1282,12 @@ const EventsTimeline = () => {
         return eventItem;
     }, [formatDuration, formatParticipants, formatLocations, formatVerses]);
 
+    // MODIFIED: updateEventDisplay with performance improvements
     const updateEventDisplay = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
+
+        // Batch preserve states before rebuilding
+        const expandedStatesMap = preserveExpandedStates();
 
         const [startYear, endYear] = selectionState.current.currentViewRange;
         const filteredEvents = stateRef.current.events.filter(event => 
@@ -1362,7 +1315,8 @@ const EventsTimeline = () => {
                 fragment.appendChild(yearHeader);
 
                 group.events.forEach(event => {
-                    fragment.appendChild(createEventItem(event));
+                    // Pass the batched state map to avoid individual queries
+                    fragment.appendChild(createEventItem(event, expandedStatesMap));
                 });
             });
         }
@@ -1370,7 +1324,7 @@ const EventsTimeline = () => {
         container.innerHTML = '';
         container.appendChild(fragment);
         throttledIndicatorUpdate();
-    }, [groupEventsByYear, createEventItem, throttledIndicatorUpdate]);
+    }, [preserveExpandedStates, groupEventsByYear, createEventItem, throttledIndicatorUpdate]);
 
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
@@ -1477,7 +1431,6 @@ const EventsTimeline = () => {
         return cleanup;
     }, [throttledScrollHandler]);
 
-    // REMOVED: The useEffect that depended on expandedEvents
     useEffect(() => {
         updateEventDisplay();
     }, [updateEventDisplay]);
