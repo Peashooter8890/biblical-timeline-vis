@@ -266,6 +266,10 @@ body::-webkit-scrollbar {
     z-index: 1000;
     max-width: 200px;
     word-wrap: break-word;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* Macrochart specific styles */

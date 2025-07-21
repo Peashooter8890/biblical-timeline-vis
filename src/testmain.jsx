@@ -721,7 +721,7 @@ const EventsTimeline = () => {
         });
 
         // Create events for the view range (dots only)
-        const processedEventsForDisplay = [];
+       const processedEventsForDisplay = [];
 
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => 
@@ -815,19 +815,38 @@ const EventsTimeline = () => {
             // FIXED: Ensure group uses full width
             .attr('transform', `translate(0,0)`);
 
-        // FIXED: Draw lines with dynamic width
-        g.selectAll('.microchart-line')
+        // FIXED: Draw lines with hover border effect (similar to dots)
+        const lineGroups = g.selectAll('.microchart-line-group')
             .data(lines)
             .enter()
+            .append('g')
+            .attr('class', 'microchart-line-group');
+
+        // Draw border lines (thicker, black, initially transparent)
+        lineGroups
             .append('line')
-            .attr('class', 'microchart-line')
+            .attr('class', 'microchart-line-border')
+            .attr('x1', d => d.x1)
+            .attr('y1', d => d.y1)
+            .attr('x2', d => d.x2)
+            .attr('y2', d => d.y2)
+            .attr('stroke', 'black')
+            .style('stroke-width', `${dynamicLineWidth + 1.5}px`)
+            .style('opacity', 0) // Initially invisible
+            .style('pointer-events', 'none'); // Don't interfere with mouse events
+
+        // Draw main colored lines on top
+        lineGroups
+            .append('line')
+            .attr('class', 'microchart-line-main')
             .attr('x1', d => d.x1)
             .attr('y1', d => d.y1)
             .attr('x2', d => d.x2)
             .attr('y2', d => d.y2)
             .attr('stroke', d => d.color)
-            .style('stroke-width', `${dynamicLineWidth}px`) // FIXED: Dynamic line width
+            .style('stroke-width', `${dynamicLineWidth}px`)
             .on('mouseover', function(event, d) {
+                // Show tooltip
                 tooltip.transition()
                     .duration(200)
                     .style('opacity', .9);
@@ -835,20 +854,23 @@ const EventsTimeline = () => {
                     .style('left', (event.layerX - TOOLTIP_OFFSET_X) + 'px')
                     .style('top', (event.layerY - TOOLTIP_OFFSET_Y) + 'px');
 
-                d3.select(this)
+                // Show black border on the parent group
+                d3.select(this.parentNode).select('.microchart-line-border')
                     .transition()
                     .duration(100)
-                    .style('stroke', '#000');
+                    .style('opacity', 1);
             })
             .on('mouseout', function() {
+                // Hide tooltip
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
 
-                d3.select(this)
+                // Hide black border
+                d3.select(this.parentNode).select('.microchart-line-border')
                     .transition()
                     .duration(100)
-                    .style('stroke', null);
+                    .style('opacity', 0);
             });
 
         // Create tooltip
