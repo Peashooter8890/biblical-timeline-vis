@@ -100,6 +100,9 @@ const EventsTimeline = () => {
         currentViewRange: TIME_PERIODS.all
     });
 
+    // Source tracking for selection changes to prevent circular updates
+    const selectionChangeSource = useRef('user');
+
     // Overlay element references for cleanup
     const overlayElementsRef = useRef({
         overlay: null,
@@ -243,6 +246,68 @@ const EventsTimeline = () => {
         };
         
         return throttledFn;
+    }, []);
+
+    // Helper functions for finding visible event boundaries
+    const findTopVisibleEventYear = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return null;
+
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        const containerRect = container.getBoundingClientRect();
+        
+        for (const header of headers) {
+            const headerRect = header.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top;
+            
+            // Consider header visible if it's within the viewport (accounting for floating header)
+            if (relativeTop >= -10 && relativeTop <= containerRect.height) {
+                const headerText = header.textContent;
+                
+                if (headerText.includes('BC|AD')) {
+                    return 0;
+                } else if (headerText.includes('BC')) {
+                    const match = headerText.match(/(\d+)\s*BC/);
+                    return match ? -parseInt(match[1]) : null;
+                } else {
+                    const match = headerText.match(/(-?\d+)/);
+                    return match ? parseInt(match[1]) : null;
+                }
+            }
+        }
+        
+        return null;
+    }, []);
+
+    const findBottomVisibleEventYear = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return null;
+
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        const containerRect = container.getBoundingClientRect();
+        let bottomYear = null;
+        
+        for (const header of headers) {
+            const headerRect = header.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top;
+            
+            // Consider header visible if it's within the viewport
+            if (relativeTop >= 0 && relativeTop <= containerRect.height) {
+                const headerText = header.textContent;
+                
+                if (headerText.includes('BC|AD')) {
+                    bottomYear = 0;
+                } else if (headerText.includes('BC')) {
+                    const match = headerText.match(/(\d+)\s*BC/);
+                    bottomYear = match ? -parseInt(match[1]) : bottomYear;
+                } else {
+                    const match = headerText.match(/(-?\d+)/);
+                    bottomYear = match ? parseInt(match[1]) : bottomYear;
+                }
+            }
+        }
+        
+        return bottomYear;
     }, []);
 
     // Scroll event display to a specific year
@@ -442,7 +507,7 @@ const EventsTimeline = () => {
         }
     }, [calculateDimensions, calculateMicroEraLayout, processedEvents]);
 
-    // Enhanced scroll handler with floating header logic
+    // Enhanced scroll handler with selection movement logic
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
@@ -503,9 +568,54 @@ const EventsTimeline = () => {
             }
         }
 
+        // NEW: Selection movement logic
+        const topYear = findTopVisibleEventYear();
+        const bottomYear = findBottomVisibleEventYear();
+        
+        if (topYear !== null && bottomYear !== null) {
+            const [currentStart, currentEnd] = selectionState.current.yearBounds;
+            const currentSpan = currentEnd - currentStart;
+            let newStart = currentStart;
+            let newEnd = currentEnd;
+            let needsMovement = false;
+            
+            // Move selection up when top visible event is above current selection
+            if (topYear < currentStart) {
+                newStart = topYear;
+                newEnd = topYear + currentSpan;
+                needsMovement = true;
+            }
+            // Move selection down when bottom visible event is below current selection  
+            else if (bottomYear > currentEnd) {
+                newEnd = bottomYear;
+                newStart = bottomYear - currentSpan;
+                needsMovement = true;
+            }
+            
+            // Clamp to valid range
+            if (needsMovement) {
+                const [globalStart, globalEnd] = FULL_RANGE;
+                
+                if (newStart < globalStart) {
+                    newStart = globalStart;
+                    newEnd = Math.min(globalEnd, newStart + currentSpan);
+                }
+                if (newEnd > globalEnd) {
+                    newEnd = globalEnd;
+                    newStart = Math.max(globalStart, newEnd - currentSpan);
+                }
+                
+                // Only move if the bounds actually changed
+                if (newStart !== currentStart || newEnd !== currentEnd) {
+                    selectionChangeSource.current = 'scroll';
+                    throttledSelectionChange(newStart, newEnd, 'scroll');
+                }
+            }
+        }
+
         // Update position indicators
         updatePositionIndicators();
-    }, [updatePositionIndicators]);
+    }, [updatePositionIndicators, findTopVisibleEventYear, findBottomVisibleEventYear]);
 
     // Create throttled indicator update
     const throttledIndicatorUpdate = useCallback(
@@ -680,8 +790,8 @@ const EventsTimeline = () => {
         throttledIndicatorUpdate();
     }, [calculateDimensions, calculateMicroEraLayout, processedEvents, throttledIndicatorUpdate]);
 
-    // Handle selection changes (this will update microchart and scroll events)
-    const handleSelectionChange = useCallback((startYear, endYear) => {
+    // Handle selection changes - now accepts source parameter
+    const handleSelectionChange = useCallback((startYear, endYear, source = 'user') => {
         // Update selection state
         selectionState.current.yearBounds = [startYear, endYear];
         
@@ -699,11 +809,22 @@ const EventsTimeline = () => {
             setIsCustomRange(true);
         }
         
-        // Update microchart with new view range
+        // Always update microchart and overlay
         renderMicrochart();
         
-        // Scroll event display to the start of the selection
-        scrollToYear(startYear);
+        // Update macro overlay position if it exists (without triggering selection change)
+        if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
+            const { yearToPixel } = selectionState.current.macroScaleInfo;
+            const y0 = yearToPixel(startYear);
+            const y1 = yearToPixel(endYear);
+            selectionState.current.pixelBounds = [y0, y1];
+            selectionState.current.overlayElements.updateOverlayPosition(y0, y1, false);
+        }
+        
+        // Only scroll event display for user-initiated changes (not scroll-initiated)
+        if (source === 'user') {
+            scrollToYear(startYear);
+        }
     }, [renderMicrochart, scrollToYear]);
 
     // Create throttled selection handler
@@ -755,8 +876,8 @@ const EventsTimeline = () => {
             cleanup: null
         };
 
-        // Update overlay positions
-        const updateOverlayPosition = (y0, y1) => {
+        // Update overlay positions - separated visual update from logic update
+        const updateOverlayPosition = (y0, y1, triggerSelection = true) => {
             if (!selectionState.current.macroScaleInfo) return;
 
             const height = y1 - y0;
@@ -795,10 +916,13 @@ const EventsTimeline = () => {
             // Update pixel bounds
             selectionState.current.pixelBounds = [y0, y1];
             
-            // Trigger throttled selection change
-            const startYear = pixelToYear(y0);
-            const endYear = pixelToYear(y1);
-            throttledSelectionChange(startYear, endYear);
+            // Only trigger selection change if requested (prevents circular calls)
+            if (triggerSelection) {
+                const startYear = pixelToYear(y0);
+                const endYear = pixelToYear(y1);
+                selectionChangeSource.current = 'user';
+                throttledSelectionChange(startYear, endYear, 'user');
+            }
         };
 
         // Create drag handlers
@@ -849,10 +973,10 @@ const EventsTimeline = () => {
         // Store update function
         selectionState.current.overlayElements = { updateOverlayPosition };
 
-        // Initialize position
+        // Initialize position (without triggering selection change)
         const initialY0 = selectionState.current.macroScaleInfo.yearToPixel(FULL_RANGE[0]);
         const initialY1 = selectionState.current.macroScaleInfo.yearToPixel(FULL_RANGE[1]);
-        updateOverlayPosition(initialY0, initialY1);
+        updateOverlayPosition(initialY0, initialY1, false);
 
         // Return cleanup function
         const cleanup = () => {
@@ -1089,17 +1213,18 @@ const EventsTimeline = () => {
         selectionState.current.yearBounds = newRange;
         selectionState.current.currentViewRange = newRange;
         
-        // Update displays
+        // Update displays with 'user' source
+        selectionChangeSource.current = 'user';
         updateEventDisplay();
         renderMicrochart();
         
-        // Update macro chart selection if it's rendered
+        // Update macro chart selection if it's rendered (without triggering selection change)
         if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
             const { yearToPixel } = selectionState.current.macroScaleInfo;
             const y0 = yearToPixel(newRange[0]);
             const y1 = yearToPixel(newRange[1]);
             selectionState.current.pixelBounds = [y0, y1];
-            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+            selectionState.current.overlayElements.updateOverlayPosition(y0, y1, false);
         }
         
         // Scroll to start of period
