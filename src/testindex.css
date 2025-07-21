@@ -467,9 +467,3 @@ body::-webkit-scrollbar {
         line-height: 2.25rem;
     }
 }
-
-@media (max-width: 767px) {
-    .microchart-container {
-        display: none;
-    }
-}

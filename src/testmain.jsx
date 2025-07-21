@@ -685,11 +685,13 @@ const EventsTimeline = () => {
         const dimensions = calculateDimensions(microContainerRef.current);
         if (dimensions.width === 0 || dimensions.height === 0) return;
         
-        const dynamicDotDiameter = Math.min(MICROCHART_MAX_DOT_DIAMETER, (dimensions.width / ((2 * MICROCHART_COLUMNS) - 1)));
+        const dynamicDotDiameter = Math.max(6, Math.min(
+            MICROCHART_MAX_DOT_DIAMETER, 
+            (dimensions.width / ((2 * MICROCHART_COLUMNS) - 1))
+        ));
         const dynamicDotRadius = dynamicDotDiameter / 2;
         console.log(dynamicDotDiameter)
         
-        // FIXED: Scale line width proportionally (maintain aspect ratio with original constants)
         // Original ratio: LINE_STROKE_WIDTH / (DOT_RADIUS * 2) = 2 / (3 * 2) = 1/3
         const dynamicLineWidth = Math.max(1, dynamicDotDiameter / 3);
 
