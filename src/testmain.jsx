@@ -65,12 +65,9 @@ const MIN_SELECTION_HEIGHT = 45;
 const HANDLE_HEIGHT = 14;
 const HANDLE_WIDTH_RATIO = 1/2;
 
-// Microchart constants
-const DOT_RADIUS = 3;
-const LINE_STROKE_WIDTH = 2;
+// Microchart constants - UPDATED for dynamic sizing
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
-const STATIC_COLUMN_COUNT = 10;
 const FULL_RANGE = [-4100, 150];
 
 // UI constants
@@ -80,8 +77,9 @@ const LAYOUT_CONFIG = {
     MICROCHART_GAP: 20,        // Gap between microchart and event display
     MACROCHART_WIDTH: 100,     // Fixed macrochart width
     MICROCHART_MIN_WIDTH: 100, // Hide microchart when less than this
-    DOT_SPACING_RATIO: 2       // Gap between dots = diameter * this ratio
 };
+const MICROCHART_MAX_DOT_DIAMETER = 10
+const MICROCHART_COLUMNS = 10
 
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
@@ -140,12 +138,24 @@ const EventsTimeline = () => {
         const timelineContainer = macroContainerRef.current.closest('.timeline-container');
         if (!timelineContainer) return null;
         
-        const containerRect = timelineContainer.getBoundingClientRect();
-        const availableWidth = containerRect.width - LAYOUT_CONFIG.MICROCHART_GAP;
+        const containerStyle = window.getComputedStyle(timelineContainer);
+        const containerWidth = timelineContainer.clientWidth; // Use clientWidth to exclude borders
+        const gap = LAYOUT_CONFIG.MICROCHART_GAP;
+        
+        const availableWidth = containerWidth - gap;
         
         const sidebarWidth = Math.floor(availableWidth * LAYOUT_CONFIG.SIDEBAR_RATIO);
         const contentWidth = Math.floor(availableWidth * LAYOUT_CONFIG.CONTENT_RATIO);
         const microchartWidth = sidebarWidth - LAYOUT_CONFIG.MACROCHART_WIDTH;
+        
+        // Debug logging to check actual values
+        console.log('Layout calculation:', {
+            containerWidth,
+            availableWidth,
+            sidebarWidth,
+            microchartWidth,
+            minWidth: LAYOUT_CONFIG.MICROCHART_MIN_WIDTH
+        });
         
         const showMicrochart = microchartWidth >= LAYOUT_CONFIG.MICROCHART_MIN_WIDTH;
         
@@ -657,7 +667,7 @@ const EventsTimeline = () => {
         [handleEventScroll, createThrottledFunction]
     );
 
-    // Render microchart with master scale and viewport clipping
+    // FIXED: Render microchart with dynamic sizing
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
 
@@ -674,12 +684,14 @@ const EventsTimeline = () => {
 
         const dimensions = calculateDimensions(microContainerRef.current);
         if (dimensions.width === 0 || dimensions.height === 0) return;
-
-        // Calculate dynamic column count based on dot spacing
-        const dotDiameter = DOT_RADIUS * 2;
-        const dotSpacing = dotDiameter * LAYOUT_CONFIG.DOT_SPACING_RATIO;
-        const unitWidth = dotDiameter + dotSpacing;
-        const dynamicColumnCount = Math.max(1, Math.floor(dimensions.width / unitWidth));
+        
+        const dynamicDotDiameter = Math.min(MICROCHART_MAX_DOT_DIAMETER, (dimensions.width / ((2 * MICROCHART_COLUMNS) - 1)));
+        const dynamicDotRadius = dynamicDotDiameter / 2;
+        console.log(dynamicDotDiameter)
+        
+        // FIXED: Scale line width proportionally (maintain aspect ratio with original constants)
+        // Original ratio: LINE_STROKE_WIDTH / (DOT_RADIUS * 2) = 2 / (3 * 2) = 1/3
+        const dynamicLineWidth = Math.max(1, dynamicDotDiameter / 3);
 
         // Use selection bounds for viewport clipping
         const [viewStart, viewEnd] = selectionState.current.yearBounds;
@@ -708,7 +720,7 @@ const EventsTimeline = () => {
 
         // Create events for the view range (dots only)
         const processedEventsForDisplay = [];
-        
+
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => 
                 d.fields.startDate >= viewStart && d.fields.startDate <= viewEnd);
@@ -716,8 +728,12 @@ const EventsTimeline = () => {
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const column = getEffectiveColumn(d);
-                const columnWidth = dimensions.width / dynamicColumnCount;
-                const x = (Math.min(column - 1, dynamicColumnCount - 1)) * columnWidth + (columnWidth / 2);
+                
+                // FIXED: Distribute evenly across full width using dynamic sizing
+                const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); // 0-based
+                // Position in center of each column's allocated space
+                const columnWidth = dimensions.width / MICROCHART_COLUMNS;
+                const x = (effectiveColumn * columnWidth) + (columnWidth / 2);
                 
                 // Position using master scale, then convert to viewport coordinates
                 const masterY = masterScale.current.yearToPixel(d.fields.startDate);
@@ -732,9 +748,9 @@ const EventsTimeline = () => {
             });
         });
 
-        // Process lines separately - check ALL events for line intersections
+        // FIXED: Process lines with dynamic sizing
         const lines = [];
-        
+
         allEvents.forEach(d => {
             const duration = parseDuration(d.fields.duration);
             if (duration >= 1) {
@@ -751,8 +767,11 @@ const EventsTimeline = () => {
                 if (intersects) {
                     const rangeInfo = getRangeInfo(d.fields.startDate);
                     const column = getEffectiveColumn(d);
-                    const columnWidth = dimensions.width / dynamicColumnCount;
-                    const x = (Math.min(column - 1, dynamicColumnCount - 1)) * columnWidth + (columnWidth / 2);
+                    
+                    // FIXED: Use same positioning logic as dots
+                    const effectiveColumn = Math.min(column - 1, MICROCHART_COLUMNS - 1); // 0-based
+                    const columnWidth = dimensions.width / MICROCHART_COLUMNS;
+                    const x = (effectiveColumn * columnWidth) + (columnWidth / 2);
                     
                     const masterStartY = masterScale.current.yearToPixel(lineStart);
                     const masterEndY = masterScale.current.yearToPixel(lineEnd);
@@ -789,9 +808,12 @@ const EventsTimeline = () => {
 
         // Clear previous content
         svg.selectAll('*').remove();
-        const g = svg.append('g').attr('class', 'microchart-group');
+        const g = svg.append('g')
+            .attr('class', 'microchart-group')
+            // FIXED: Ensure group uses full width
+            .attr('transform', `translate(0,0)`);
 
-        // Draw lines
+        // FIXED: Draw lines with dynamic width
         g.selectAll('.microchart-line')
             .data(lines)
             .enter()
@@ -802,7 +824,7 @@ const EventsTimeline = () => {
             .attr('x2', d => d.x2)
             .attr('y2', d => d.y2)
             .attr('stroke', d => d.color)
-            .style('stroke-width', `${LINE_STROKE_WIDTH}px`)
+            .style('stroke-width', `${dynamicLineWidth}px`) // FIXED: Dynamic line width
             .on('mouseover', function(event, d) {
                 tooltip.transition()
                     .duration(200)
@@ -836,7 +858,7 @@ const EventsTimeline = () => {
                 .style('opacity', 0);
         }
 
-        // Draw dots
+        // FIXED: Draw dots with dynamic radius
         g.selectAll('.microchart-dot')
             .data(processedEventsForDisplay)
             .enter()
@@ -844,7 +866,7 @@ const EventsTimeline = () => {
             .attr('class', 'microchart-dot')
             .attr('cx', d => d.columnX)
             .attr('cy', d => d.y)
-            .attr('r', DOT_RADIUS)
+            .attr('r', dynamicDotRadius) // FIXED: Dynamic radius
             .attr('fill', d => d.color)
             .on('mouseover', function(event, d) {
                 tooltip.transition()
@@ -879,11 +901,25 @@ const EventsTimeline = () => {
         const layoutDims = calculateLayoutDimensions();
         if (!layoutDims) return;
 
+        // Update microchart width (or hide it)
+        if (microContainerRef.current) {
+            if (layoutDims.showMicrochart) {
+                microContainerRef.current.classList.remove('hidden');
+                microContainerRef.current.style.width = `${layoutDims.microchartWidth}px`;
+            } else {
+                microContainerRef.current.classList.add('hidden');
+            }
+        }
+
+        // Update event display width
         if (eventDisplayRef.current) {
             eventDisplayRef.current.style.width = `${layoutDims.contentWidth}px`;
         }
 
-        renderMicrochart();
+        // Trigger microchart re-render if visible
+        if (layoutDims.showMicrochart) {
+            renderMicrochart();
+        }
     }, [calculateLayoutDimensions, renderMicrochart]);
 
     // Handle selection changes (this will update microchart and scroll events)
