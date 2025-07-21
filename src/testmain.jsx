@@ -111,6 +111,11 @@ const EventsTimeline = () => {
 
     const eventListenersRef = useRef(new Set());
 
+    const scrollStateRef = useRef({
+        isProgrammaticScroll: false,
+        programmaticScrollTimeout: null
+    });
+
     // PERFORMANCE FIX: Batch DOM state preservation
     const preserveExpandedStates = useCallback(() => {
         if (!eventDisplayRef.current) return new Map();
@@ -463,122 +468,7 @@ const EventsTimeline = () => {
         }
     }, [processedEvents]);
 
-    const scrollToEvent = useCallback((eventID, eventData) => {
-        if (!eventDisplayRef.current || !eventID) return;
-
-        // Only manipulate CSS, no React state updates
-        setTimeout(() => {
-            const container = eventDisplayRef.current;
-            const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
-            
-            if (eventElement && eventData && eventData.title) {
-                const triangle = eventElement.querySelector('.event-triangle');
-                const eventDetails = eventElement.querySelector('.event-details');
-                
-                if (triangle && eventDetails && !triangle.classList.contains('expanded')) {
-                    triangle.classList.add('expanded');
-                    triangle.setAttribute('aria-label', 'Collapse event details');
-                    eventDetails.classList.remove('collapsed');
-                    eventDetails.classList.add('expanded');
-                }
-                
-                eventElement.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start' 
-                });
-            }
-        }, 100);
-    }, []);
-
-    const applyConnectedHover = useCallback((eventID) => {
-        if (!microSvgRef.current || !eventID) return;
-
-        const svg = d3.select(microSvgRef.current);
-        svg.selectAll(`[data-event-id="${eventID}"]`)
-            .transition()
-            .duration(100)
-            .style('opacity', 0.5);
-    }, []);
-
-    const removeConnectedHover = useCallback((eventID) => {
-        if (!microSvgRef.current || !eventID) return;
-
-        const svg = d3.select(microSvgRef.current);
-        svg.selectAll(`[data-event-id="${eventID}"]`)
-            .transition()
-            .duration(100)
-            .style('opacity', 1.0);
-    }, []);
-
-    const calculateMicroEraLayout = useCallback((dimensions, viewRange) => {
-        const [startYear, endYear] = viewRange;
-        const relevantRanges = TIME_RANGES.filter(range => 
-            !(range.end < startYear || range.start > endYear)
-        );
-        
-        if (relevantRanges.length === 0) {
-            return {
-                ranges: [],
-                heights: [],
-                positions: [],
-                yScale: (year) => {
-                    const progress = (year - startYear) / (endYear - startYear);
-                    return progress * dimensions.height;
-                }
-            };
-        }
-        
-        const actualSpans = relevantRanges.map(range => {
-            const actualStart = Math.max(range.start, startYear);
-            const actualEnd = Math.min(range.end, endYear);
-            return actualEnd - actualStart;
-        });
-        
-        const totalSpan = actualSpans.reduce((sum, span) => sum + span, 0);
-        const numRanges = relevantRanges.length;
-        const equalPortionHeight = dimensions.height * EQUAL_DISTRIBUTION_AREA;
-        const proportionalPortionHeight = dimensions.height * PROPORTIONATE_DISTRIBUTION_AREA;
-        const equalHeightPerRange = equalPortionHeight / numRanges;
-        
-        const heights = actualSpans.map(span => {
-            const proportionalHeight = (span / totalSpan) * proportionalPortionHeight;
-            return equalHeightPerRange + proportionalHeight;
-        });
-        
-        const positions = [];
-        let currentY = 0;
-        for (const height of heights) {
-            positions.push(currentY);
-            currentY += height;
-        }
-        
-        const yScale = (year) => {
-            const rangeIndex = relevantRanges.findIndex(range => 
-                year >= Math.max(range.start, startYear) && 
-                year <= Math.min(range.end, endYear)
-            );
-            
-            if (rangeIndex === -1) {
-                if (year < startYear) return 0;
-                if (year > endYear) return dimensions.height;
-                
-                const progress = (year - startYear) / (endYear - startYear);
-                return progress * dimensions.height;
-            }
-            
-            const range = relevantRanges[rangeIndex];
-            const rangeStart = Math.max(range.start, startYear);
-            const rangeEnd = Math.min(range.end, endYear);
-            const rangeSpan = rangeEnd - rangeStart;
-            
-            if (rangeSpan <= 0) return positions[rangeIndex];
-            
-            const positionInRange = (year - rangeStart) / rangeSpan;
-            return positions[rangeIndex] + (positionInRange * heights[rangeIndex]);
-        };
-        
-        return { ranges: relevantRanges, heights, positions, yScale };
-    }, []);
+    
 
     // POSITION INDICATOR FIX: Separate floating header from position detection
     const findTopVisibleYear = useCallback(() => {
@@ -677,6 +567,12 @@ const EventsTimeline = () => {
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
+        // Skip header hiding during programmatic scroll
+        if (scrollStateRef.current.isProgrammaticScroll) {
+            updatePositionIndicators();
+            return;
+        }
+
         const topVisibleYear = findTopVisibleYear();
         
         if (topVisibleYear !== null) {
@@ -721,6 +617,111 @@ const EventsTimeline = () => {
 
         updatePositionIndicators();
     }, [findTopVisibleYear, updatePositionIndicators]);
+
+    const scrollToEvent = useCallback(async (eventID, eventData) => {
+        if (!eventDisplayRef.current || !eventID) return;
+
+        const container = eventDisplayRef.current;
+        
+        // Set programmatic scroll flag and clear any existing timeout
+        scrollStateRef.current.isProgrammaticScroll = true;
+        if (scrollStateRef.current.programmaticScrollTimeout) {
+            clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
+        }
+
+        // Restore all headers to their normal state before calculating scroll position
+        const headers = container.querySelectorAll('.event-year-header');
+        headers.forEach(header => {
+            header.style.position = 'static';
+            header.style.top = 'auto';
+            header.style.opacity = '1';
+            header.style.pointerEvents = 'auto';
+        });
+
+        const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
+        if (!eventElement) {
+            // Re-enable header hiding if event not found
+            scrollStateRef.current.isProgrammaticScroll = false;
+            return;
+        }
+
+        const triangle = eventElement.querySelector('.event-triangle');
+        const eventDetails = eventElement.querySelector('.event-details');
+        const isAlreadyExpanded = triangle?.classList.contains('expanded') || false;
+
+        // Step 1: Handle expansion if needed
+        if (triangle && eventDetails && !isAlreadyExpanded) {
+            triangle.classList.add('expanded');
+            eventDetails.classList.remove('collapsed');
+            eventDetails.classList.add('expanded');
+            
+            // Wait for expansion animation to complete
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Step 2: Ensure all DOM updates are complete
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        // Step 3: Set up floating header
+        const floatingHeader = container.querySelector('.floating-header');
+        if (floatingHeader && eventData) {
+            floatingHeader.textContent = formatYear(eventData.startDate);
+            floatingHeader.style.display = 'block';
+            
+            // Ensure header layout is complete
+            floatingHeader.offsetHeight;
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+
+        // Step 4: Calculate and perform scroll
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = eventElement.getBoundingClientRect();
+        
+        if (containerRect.height > 0 && elementRect.height > 0) {
+            const floatingHeaderHeight = floatingHeader ? 
+                floatingHeader.getBoundingClientRect().height : 0;
+            
+            const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
+            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight - 5);
+            
+            container.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+
+            // Set timeout to re-enable header hiding after scroll completes
+            // Use a longer timeout to account for smooth scrolling duration
+            scrollStateRef.current.programmaticScrollTimeout = setTimeout(() => {
+                scrollStateRef.current.isProgrammaticScroll = false;
+                // Trigger one final scroll handler to restore proper header state
+                handleEventScroll();
+            }, 1000); // Adjust timing as needed
+        } else {
+            // Re-enable header hiding if scroll calculation fails
+            scrollStateRef.current.isProgrammaticScroll = false;
+        }
+    }, [handleEventScroll]);
+
+    const applyConnectedHover = useCallback((eventID) => {
+        if (!microSvgRef.current || !eventID) return;
+
+        const svg = d3.select(microSvgRef.current);
+        svg.selectAll(`[data-event-id="${eventID}"]`)
+            .transition()
+            .duration(100)
+            .style('opacity', 0.5);
+    }, []);
+
+    const removeConnectedHover = useCallback((eventID) => {
+        if (!microSvgRef.current || !eventID) return;
+
+        const svg = d3.select(microSvgRef.current);
+        svg.selectAll(`[data-event-id="${eventID}"]`)
+            .transition()
+            .duration(100)
+            .style('opacity', 1.0);
+    }, []);
 
     const throttledIndicatorUpdate = useCallback(
         createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
@@ -1383,7 +1384,6 @@ const EventsTimeline = () => {
 
         return resizeObserver;
     }, [updateLayout]);
-
     useEffect(() => {
         if (!processedEvents.length || !masterScale.current) return;
 
@@ -1406,12 +1406,17 @@ const EventsTimeline = () => {
                 throttledScrollHandler.cancel();
             }
 
+            // Clear programmatic scroll timeout
+            if (scrollStateRef.current.programmaticScrollTimeout) {
+                clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
+            }
+
             cleanupOverlayElements();
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
     }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
-
+        
     useEffect(() => {
         if (!eventDisplayRef.current) return;
 
