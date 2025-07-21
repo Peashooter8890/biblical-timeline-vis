@@ -3,6 +3,11 @@
     --tw-gray-300: rgb(203 213 225);
     --tw-gray-800: rgb(30 41 59);
     --tw-blue-500: rgb(14 165 233);
+    --sidebar-ratio: 0.4; /* 2/5 */
+    --content-ratio: 0.6; /* 3/5 */
+    --microchart-gap: 20px;
+    --macrochart-width: 100px;
+    --microchart-min-width: 100px; /* Hide when less than this */
 }
 
 body, html {
@@ -133,6 +138,7 @@ body::-webkit-scrollbar {
     flex-grow: 1;
     min-height: 0;
     overflow: visible;
+    gap: var(--microchart-gap);
 }
 
 .sidebar {
@@ -140,16 +146,33 @@ body::-webkit-scrollbar {
     flex-direction: row;
     border-right: 1px solid #ccc;
     background-color: #f0f0f0;
+    flex-shrink: 0;
 }
 
-.macrochart-container, .microchart-container {
-    width: 100px;
+.macrochart-container {
+    width: var(--macrochart-width);
     height: 100%;
     box-sizing: border-box;
     position: relative;
     padding: 0;
     background-color: #f0f0f0;
     overflow: visible;
+    flex-shrink: 0;
+}
+
+.microchart-container {
+    height: 100%;
+    box-sizing: border-box;
+    position: relative;
+    padding: 0;
+    background-color: #f0f0f0;
+    overflow: visible;
+    flex-shrink: 0;
+    /* Width will be set dynamically via JavaScript */
+}
+
+.microchart-container.hidden {
+    display: none;
 }
 
 .macrochart-container svg {

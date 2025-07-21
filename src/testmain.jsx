@@ -73,6 +73,16 @@ const TOOLTIP_OFFSET_Y = 50;
 const STATIC_COLUMN_COUNT = 10;
 const FULL_RANGE = [-4100, 150];
 
+// UI constants
+const LAYOUT_CONFIG = {
+    SIDEBAR_RATIO: 0.4,        // 2/5 of available width
+    CONTENT_RATIO: 0.6,        // 3/5 of available width
+    MICROCHART_GAP: 20,        // Gap between microchart and event display
+    MACROCHART_WIDTH: 100,     // Fixed macrochart width
+    MICROCHART_MIN_WIDTH: 100, // Hide microchart when less than this
+    DOT_SPACING_RATIO: 2       // Gap between dots = diameter * this ratio
+};
+
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
@@ -122,6 +132,31 @@ const EventsTimeline = () => {
 
     // Event listener cleanup tracking
     const eventListenersRef = useRef(new Set());
+
+    // Calculate dynamic layout dimensions
+    const calculateLayoutDimensions = useCallback(() => {
+        if (!macroContainerRef.current) return null;
+        
+        const timelineContainer = macroContainerRef.current.closest('.timeline-container');
+        if (!timelineContainer) return null;
+        
+        const containerRect = timelineContainer.getBoundingClientRect();
+        const availableWidth = containerRect.width - LAYOUT_CONFIG.MICROCHART_GAP;
+        
+        const sidebarWidth = Math.floor(availableWidth * LAYOUT_CONFIG.SIDEBAR_RATIO);
+        const contentWidth = Math.floor(availableWidth * LAYOUT_CONFIG.CONTENT_RATIO);
+        const microchartWidth = sidebarWidth - LAYOUT_CONFIG.MACROCHART_WIDTH;
+        
+        const showMicrochart = microchartWidth >= LAYOUT_CONFIG.MICROCHART_MIN_WIDTH;
+        
+        return {
+            availableWidth,
+            sidebarWidth: showMicrochart ? sidebarWidth : LAYOUT_CONFIG.MACROCHART_WIDTH,
+            microchartWidth: showMicrochart ? microchartWidth : 0,
+            contentWidth: showMicrochart ? contentWidth : availableWidth - LAYOUT_CONFIG.MACROCHART_WIDTH,
+            showMicrochart
+        };
+    }, []);
 
     // Calculate master timeline scale (done once, never changes)
     const calculateMasterTimelineScale = useCallback(() => {
@@ -626,8 +661,25 @@ const EventsTimeline = () => {
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
 
+        const layoutDims = calculateLayoutDimensions();
+        if (!layoutDims || !layoutDims.showMicrochart) {
+            // Hide microchart
+            microContainerRef.current.classList.add('hidden');
+            return;
+        }
+
+        // Show microchart and set dimensions
+        microContainerRef.current.classList.remove('hidden');
+        microContainerRef.current.style.width = `${layoutDims.microchartWidth}px`;
+
         const dimensions = calculateDimensions(microContainerRef.current);
         if (dimensions.width === 0 || dimensions.height === 0) return;
+
+        // Calculate dynamic column count based on dot spacing
+        const dotDiameter = DOT_RADIUS * 2;
+        const dotSpacing = dotDiameter * LAYOUT_CONFIG.DOT_SPACING_RATIO;
+        const unitWidth = dotDiameter + dotSpacing;
+        const dynamicColumnCount = Math.max(1, Math.floor(dimensions.width / unitWidth));
 
         // Use selection bounds for viewport clipping
         const [viewStart, viewEnd] = selectionState.current.yearBounds;
@@ -655,19 +707,17 @@ const EventsTimeline = () => {
         });
 
         // Create events for the view range (dots only)
-// Create events for the view range (dots only)
         const processedEventsForDisplay = [];
         
         Object.keys(byEra).forEach(era => {
             const eraEvents = byEra[era].filter(d => 
                 d.fields.startDate >= viewStart && d.fields.startDate <= viewEnd);
-            const maxColumns = STATIC_COLUMN_COUNT;
             
             eraEvents.forEach(d => {
                 const rangeInfo = getRangeInfo(d.fields.startDate);
                 const column = getEffectiveColumn(d);
-                const columnWidth = dimensions.width / maxColumns;
-                const x = (column - 1) * columnWidth + (columnWidth / 2);
+                const columnWidth = dimensions.width / dynamicColumnCount;
+                const x = (Math.min(column - 1, dynamicColumnCount - 1)) * columnWidth + (columnWidth / 2);
                 
                 // Position using master scale, then convert to viewport coordinates
                 const masterY = masterScale.current.yearToPixel(d.fields.startDate);
@@ -682,9 +732,8 @@ const EventsTimeline = () => {
             });
         });
 
-        // Process lines separately - check ALL events for line intersections, not just viewport-visible events
+        // Process lines separately - check ALL events for line intersections
         const lines = [];
-        const maxColumns = STATIC_COLUMN_COUNT;
         
         allEvents.forEach(d => {
             const duration = parseDuration(d.fields.duration);
@@ -702,8 +751,8 @@ const EventsTimeline = () => {
                 if (intersects) {
                     const rangeInfo = getRangeInfo(d.fields.startDate);
                     const column = getEffectiveColumn(d);
-                    const columnWidth = dimensions.width / maxColumns;
-                    const x = (column - 1) * columnWidth + (columnWidth / 2);
+                    const columnWidth = dimensions.width / dynamicColumnCount;
+                    const x = (Math.min(column - 1, dynamicColumnCount - 1)) * columnWidth + (columnWidth / 2);
                     
                     const masterStartY = masterScale.current.yearToPixel(lineStart);
                     const masterEndY = masterScale.current.yearToPixel(lineEnd);
@@ -711,7 +760,7 @@ const EventsTimeline = () => {
                     const startY = ((masterStartY - masterViewStart) / masterViewHeight) * dimensions.height;
                     const endY = ((masterEndY - masterViewStart) / masterViewHeight) * dimensions.height;
                     
-                    // Constrain to viewport bounds (no buffer to ensure proper clipping)
+                    // Constrain to viewport bounds
                     const y1 = Math.max(0, Math.min(dimensions.height, startY));
                     const y2 = Math.max(0, Math.min(dimensions.height, endY));
                     
@@ -721,7 +770,7 @@ const EventsTimeline = () => {
                         x2: x,
                         y2: y2,
                         color: rangeInfo.color,
-                        eventData: d.fields  // Store event data for tooltip
+                        eventData: d.fields
                     });
                 }
             }
@@ -823,7 +872,19 @@ const EventsTimeline = () => {
 
         // Update indicators after microchart renders
         throttledIndicatorUpdate();
-    }, [calculateDimensions, processedEvents, throttledIndicatorUpdate]);
+    }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate]);
+
+    // Update layout dimensions
+    const updateLayout = useCallback(() => {
+        const layoutDims = calculateLayoutDimensions();
+        if (!layoutDims) return;
+
+        if (eventDisplayRef.current) {
+            eventDisplayRef.current.style.width = `${layoutDims.contentWidth}px`;
+        }
+
+        renderMicrochart();
+    }, [calculateLayoutDimensions, renderMicrochart]);
 
     // Handle selection changes (this will update microchart and scroll events)
     const handleSelectionChange = useCallback((startYear, endYear) => {
@@ -1257,15 +1318,20 @@ const EventsTimeline = () => {
         const resizeObserver = new ResizeObserver(() => {
             window.requestAnimationFrame(() => {
                 if (containerRef.current) {
-                    renderFunction();
+                    // Update layout first, then render
+                    if (chartName === 'micro') {
+                        updateLayout();
+                    } else {
+                        renderFunction();
+                    }
                 }
             });
         });
 
-        resizeObserver.observe(containerRef.current);
+        resizeObserver.observe(containerRef.current.closest('.timeline-container') || containerRef.current);
 
         return resizeObserver;
-    }, []);
+    }, [updateLayout]);
 
     // Setup charts on mount and resize
     useEffect(() => {
