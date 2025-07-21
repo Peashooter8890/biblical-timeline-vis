@@ -10,10 +10,6 @@ import {
     calculateColumns, 
     getEffectiveColumn, 
     calculateDimensions,
-    formatDuration,
-    formatParticipants,
-    formatLocations,
-    formatVerses,
 } from './utils.jsx';
 import './testindex.css';
 
@@ -76,7 +72,6 @@ const MICROCHART_COLUMNS = 10
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
-    const [expandedEvents, setExpandedEvents] = useState(new Set());
     const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
 
     const macroContainerRef = useRef(null);
@@ -115,6 +110,115 @@ const EventsTimeline = () => {
     });
 
     const eventListenersRef = useRef(new Set());
+
+    // Formatting functions from EventDisplay
+    const formatDuration = useCallback((duration) => {
+        if (!duration) return '';
+        
+        const match = duration.match(/^(\d+)([DY])$/);
+        if (!match) return duration;
+        
+        const [, number, unit] = match;
+        const num = parseInt(number, 10);
+        
+        if (unit === 'D') {
+            return num === 1 ? '1 Day' : `${num} Days`;
+        } else if (unit === 'Y') {
+            return num === 1 ? '1 Year' : `${num} Years`;
+        }
+        
+        return duration;
+    }, []);
+
+    const formatParticipants = useCallback((participants, peopleData) => {
+        if (!participants || !peopleData.length) return participants;
+        
+        const participantIds = participants.split(',').map(id => id.trim());
+        
+        return participantIds.map((id, index) => {
+            const person = peopleData.find(p => p.fields.personLookup === id);
+            const displayName = person ? person.fields.displayTitle : id;
+            
+            const link = document.createElement('a');
+            link.href = `https://theographic.netlify.app/person/${id}`;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'event-link';
+            link.textContent = displayName;
+            
+            const span = document.createElement('span');
+            span.appendChild(link);
+            if (index < participantIds.length - 1) {
+                span.appendChild(document.createTextNode(', '));
+            }
+            
+            return span;
+        });
+    }, []);
+
+    const formatLocations = useCallback((locations, placesData) => {
+        if (!locations || !placesData.length) return locations;
+        
+        const locationIds = locations.split(',').map(id => id.trim());
+        
+        return locationIds.map((id, index) => {
+            const place = placesData.find(p => p.fields.placeLookup === id);
+            const displayName = place ? place.fields.displayTitle : id;
+            
+            const link = document.createElement('a');
+            link.href = `https://theographic.netlify.app/place/${id}`;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'event-link';
+            link.textContent = displayName;
+            
+            const span = document.createElement('span');
+            span.appendChild(link);
+            if (index < locationIds.length - 1) {
+                span.appendChild(document.createTextNode(', '));
+            }
+            
+            return span;
+        });
+    }, []);
+
+    const formatVerses = useCallback((verses) => {
+        if (!verses) return verses;
+        
+        return verses.split(',').map((verse, index) => {
+            const trimmedVerse = verse.trim();
+            
+            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
+            
+            if (verseMatch) {
+                const [, book, chapter, verseNum] = verseMatch;
+                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'event-link';
+                link.textContent = trimmedVerse;
+                
+                const span = document.createElement('span');
+                span.appendChild(link);
+                if (index < verses.split(',').length - 1) {
+                    span.appendChild(document.createTextNode(', '));
+                }
+                
+                return span;
+            }
+            
+            const span = document.createElement('span');
+            span.textContent = trimmedVerse;
+            if (index < verses.split(',').length - 1) {
+                span.appendChild(document.createTextNode(', '));
+            }
+            
+            return span;
+        });
+    }, []);
 
     const calculateLayoutDimensions = useCallback(() => {
         if (!macroContainerRef.current) return null;
@@ -394,23 +498,22 @@ const EventsTimeline = () => {
     const scrollToEvent = useCallback((eventID, eventData) => {
         if (!eventDisplayRef.current || !eventID) return;
 
-        // Expand the event if not already expanded
-        if (eventData && eventData.title) {
-            setExpandedEvents(prevExpanded => {
-                const newExpanded = new Set(prevExpanded);
-                if (!newExpanded.has(eventData.title)) {
-                    newExpanded.add(eventData.title);
-                }
-                return newExpanded;
-            });
-        }
-
-        // Small delay to allow the DOM to update with the expansion
+        // Only manipulate CSS, no React state updates
         setTimeout(() => {
             const container = eventDisplayRef.current;
             const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
             
-            if (eventElement) {
+            if (eventElement && eventData && eventData.title) {
+                const triangle = eventElement.querySelector('.event-triangle');
+                const eventDetails = eventElement.querySelector('.event-details');
+                
+                if (triangle && eventDetails && !triangle.classList.contains('expanded')) {
+                    triangle.classList.add('expanded');
+                    triangle.setAttribute('aria-label', 'Collapse event details');
+                    eventDetails.classList.remove('collapsed');
+                    eventDetails.classList.add('expanded');
+                }
+                
                 eventElement.scrollIntoView({ 
                     behavior: 'smooth', 
                     block: 'start' 
@@ -1129,80 +1232,106 @@ const EventsTimeline = () => {
         eventTitle.textContent = event.fields.title;
         eventContent.appendChild(eventTitle);
 
-        const isExpanded = expandedEvents.has(event.fields.title);
-        if (isExpanded) {
+        // Create details container (always present but hidden with CSS)
+        const eventDetails = document.createElement('div');
+        eventDetails.className = 'event-details';
+        
+        const detailFields = [
+            { key: 'duration', label: 'Duration', formatter: formatDuration },
+            { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
+            { key: 'groups', label: 'Groups' },
+            { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
+            { key: 'verses', label: 'Verses', formatter: formatVerses },
+            { key: 'partOf', label: 'Part Of' },
+            { key: 'predecessor', label: 'Predecessor' },
+            { key: 'lag', label: 'Lag', formatter: formatDuration },
+            { key: 'lagType', label: 'Lag Type' },
+            { key: 'notes', label: 'Notes' }
+        ];
+
+        detailFields.forEach(field => {
+            if (event.fields[field.key]) {
+                const detail = document.createElement('div');
+                detail.className = 'event-detail';
+                
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = `${field.label}: `;
+                detail.appendChild(labelSpan);
+
+                if (field.formatter) {
+                    const formattedValue = field.formatter(event.fields[field.key]);
+                    if (Array.isArray(formattedValue)) {
+                        // For arrays of DOM elements (participants, locations, verses)
+                        formattedValue.forEach(element => {
+                            detail.appendChild(element);
+                        });
+                    } else {
+                        // For simple strings (duration)
+                        const valueSpan = document.createElement('span');
+                        valueSpan.textContent = formattedValue;
+                        detail.appendChild(valueSpan);
+                    }
+                } else {
+                    // For fields without formatters
+                    const valueSpan = document.createElement('span');
+                    valueSpan.textContent = event.fields[field.key];
+                    detail.appendChild(valueSpan);
+                }
+                
+                eventDetails.appendChild(detail);
+            }
+        });
+
+        // Check if this event already exists in DOM and preserve its expansion state
+        const existingElement = eventDisplayRef.current?.querySelector(`[data-event-id="${event.fields.eventID}"]`);
+        const isCurrentlyExpanded = existingElement?.querySelector('.event-triangle')?.classList.contains('expanded') || false;
+
+        // Set initial state based on existing DOM state (not React state)
+        if (isCurrentlyExpanded) {
             triangle.classList.add('expanded');
             triangle.setAttribute('aria-label', 'Collapse event details');
-
-            const detailFields = [
-                { key: 'duration', label: 'Duration', formatter: formatDuration },
-                { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
-                { key: 'groups', label: 'Groups' },
-                { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
-                { key: 'verses', label: 'Verses', formatter: formatVerses },
-                { key: 'partOf', label: 'Part Of' },
-                { key: 'predecessor', label: 'Predecessor' },
-                { key: 'lag', label: 'Lag', formatter: formatDuration },
-                { key: 'lagType', label: 'Lag Type' },
-                { key: 'notes', label: 'Notes' }
-            ];
-
-            detailFields.forEach(field => {
-                if (event.fields[field.key]) {
-                    const detail = document.createElement('div');
-                    detail.className = 'event-detail';
-                    const value = field.formatter ? field.formatter(event.fields[field.key]) : event.fields[field.key];
-
-                    if (React.isValidElement(value)) {
-                        const tempDiv = document.createElement('div');
-                        ReactDOM.render(value, tempDiv);
-                        detail.innerHTML = `${field.label}: ${tempDiv.innerHTML}`;
-                    } else {
-                        detail.textContent = `${field.label}: ${value}`;
-                    }
-                    eventContent.appendChild(detail);
-                }
-            });
+            eventDetails.classList.add('expanded');
+        } else {
+            triangle.setAttribute('aria-label', 'Expand event details');
+            eventDetails.classList.add('collapsed');
         }
 
-triangle.addEventListener('click', () => {
-    // 1. Capture where the event appears in the viewport BEFORE toggling
-    const container = eventDisplayRef.current;
-    const eventRect = eventItem.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const originalViewportPosition = eventRect.top - containerRect.top;
-    
-    // 2. Toggle the state
-    const newExpanded = new Set(expandedEvents);
-    if (newExpanded.has(event.fields.title)) {
-        newExpanded.delete(event.fields.title);
-    } else {
-        newExpanded.add(event.fields.title);
-    }
-    setExpandedEvents(newExpanded);
-    
-    // 3. After React re-renders, find NEW element and restore viewport position
-    setTimeout(() => {
-        if (!container) return;
-        
-        const newEventElement = container.querySelector(`[data-event-id="${event.fields.eventID}"]`);
-        if (!newEventElement) return;
-        
-        const newEventRect = newEventElement.getBoundingClientRect();
-        const newContainerRect = container.getBoundingClientRect();
-        const currentViewportPosition = newEventRect.top - newContainerRect.top;
-        
-        // Adjust scroll to restore original viewport position
-        const scrollAdjustment = currentViewportPosition - originalViewportPosition;
-        container.scrollTop += scrollAdjustment;
-        
-        throttledScrollHandler();
-    }, 50);
-});
+        eventContent.appendChild(eventDetails);
+
+        triangle.addEventListener('click', () => {
+            const container = eventDisplayRef.current;
+            const eventRect = eventItem.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const originalViewportPosition = eventRect.top - containerRect.top;
+            
+            const isCurrentlyExpanded = triangle.classList.contains('expanded');
+            
+            if (isCurrentlyExpanded) {
+                triangle.classList.remove('expanded');
+                triangle.setAttribute('aria-label', 'Expand event details');
+                eventDetails.classList.remove('expanded');
+                eventDetails.classList.add('collapsed');
+            } else {
+                triangle.classList.add('expanded');
+                triangle.setAttribute('aria-label', 'Collapse event details');
+                eventDetails.classList.remove('collapsed');
+                eventDetails.classList.add('expanded');
+            }
+            
+            setTimeout(() => {
+                const newEventRect = eventItem.getBoundingClientRect();
+                const newContainerRect = container.getBoundingClientRect();
+                const newViewportPosition = newEventRect.top - newContainerRect.top;
+                
+                const drift = newViewportPosition - originalViewportPosition;
+                container.scrollTop += drift;
+            }, 300);
+        });
+
         eventItem.appendChild(triangle);
         eventItem.appendChild(eventContent);
         return eventItem;
-    }, [expandedEvents]);
+    }, [formatDuration, formatParticipants, formatLocations, formatVerses]);
 
     const updateEventDisplay = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
@@ -1348,13 +1477,39 @@ triangle.addEventListener('click', () => {
         return cleanup;
     }, [throttledScrollHandler]);
 
+    // REMOVED: The useEffect that depended on expandedEvents
     useEffect(() => {
         updateEventDisplay();
-    }, [updateEventDisplay, expandedEvents]);
+    }, [updateEventDisplay]);
 
     return (
         <>
         <style>{getStyleOf('style.css')}</style>
+        <style>{`
+            .event-details {
+                transition: max-height 0.3s ease, opacity 0.3s ease;
+                overflow: hidden;
+            }
+            
+            .event-details.collapsed {
+                max-height: 0;
+                opacity: 0;
+            }
+            
+            .event-details.expanded {
+                max-height: 500px; /* Adjust as needed for content */
+                opacity: 1;
+            }
+            
+            .event-link {
+                color: #007acc;
+                text-decoration: none;
+            }
+            
+            .event-link:hover {
+                text-decoration: underline;
+            }
+        `}</style>
         <div className="page-container">
             <div className="content-wrapper">
                 <header className="header">
