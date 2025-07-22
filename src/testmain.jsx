@@ -582,8 +582,10 @@ const EventsTimeline = () => {
 
         const container = eventDisplayRef.current;
         const headers = container.querySelectorAll('.event-year-header');
-        let closestHeader = null;
-        let minDifference = Infinity;
+        
+        // Find the exact year or the first year greater than or equal to target
+        let targetHeader = null;
+        let fallbackHeader = null;
         
         headers.forEach((header, index) => {
             const headerText = header.textContent;
@@ -598,21 +600,26 @@ const EventsTimeline = () => {
                 year = match ? parseInt(match[1]) : 0;
             }
             
-            const difference = Math.abs(year - targetYear);
-            
-            if (difference < minDifference) {
-                minDifference = difference;
-                closestHeader = header;
+            // Exact match takes priority
+            if (year === targetYear) {
+                targetHeader = header;
+            } 
+            // If no exact match, find first year >= target
+            else if (!targetHeader && year >= targetYear && !fallbackHeader) {
+                fallbackHeader = header;
             }
         });
         
-        if (closestHeader) {
+        // Use exact match if found, otherwise use fallback
+        const headerToUse = targetHeader || fallbackHeader || headers[0];
+        
+        if (headerToUse) {
             const containerRect = container.getBoundingClientRect();
-            const headerRect = closestHeader.getBoundingClientRect();
+            const headerRect = headerToUse.getBoundingClientRect();
             const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
             container.scrollTop = relativeTop;
         }
-    }, [processedEvents]);
+    }, []);
 
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
