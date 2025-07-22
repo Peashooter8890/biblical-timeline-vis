@@ -477,3 +477,27 @@ body::-webkit-scrollbar {
         line-height: 2.25rem;
     }
 }
+
+.event-details {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+}
+
+.event-details.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+.event-details.expanded {
+    max-height: 500px; /* Adjust as needed for content */
+    opacity: 1;
+}
+
+.event-link {
+    color: #007acc;
+    text-decoration: none;
+}
+
+.event-link:hover {
+    text-decoration: underline;
+}

@@ -1294,16 +1294,14 @@ const EventsTimeline = () => {
         return eventItem;
     }, [formatDuration, formatParticipants, formatLocations, formatVerses]);
 
-    // MODIFIED: updateEventDisplay with initial scroll position setting
     const updateEventDisplay = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
         // Batch preserve states before rebuilding
         const expandedStatesMap = preserveExpandedStates();
 
-        const [startYear, endYear] = selectionState.current.currentViewRange;
-        const filteredEvents = stateRef.current.events.filter(event => 
-            event.fields.startDate >= startYear && event.fields.startDate <= endYear);
+        // Remove filtering - show all events
+        const filteredEvents = stateRef.current.events;
         const groupedEvents = groupEventsByYear(filteredEvents);
         stateRef.current.groupedEvents = groupedEvents;
 
@@ -1337,35 +1335,33 @@ const EventsTimeline = () => {
         container.appendChild(fragment);
     }, [preserveExpandedStates, groupEventsByYear, createEventItem, calculateMaxScrollPosition, throttledIndicatorUpdate]);
 
-    const handlePeriodChange = useCallback((event) => {
-        const period = event.target.value;
-        
-        setSelectedPeriod(period);
-        setIsCustomRange(false);
-        
-        const newRange = TIME_PERIODS[period];
-        
-        stateRef.current.selection = newRange;
-        stateRef.current.currentViewRange = newRange;
-        
-        selectionState.current.yearBounds = newRange;
-        selectionState.current.currentViewRange = newRange;
-        
-        updateEventDisplay();
-        renderMicrochart();
+const handlePeriodChange = useCallback((event) => {
+    const period = event.target.value;
+    
+    setSelectedPeriod(period);
+    setIsCustomRange(false);
+    
+    const newRange = TIME_PERIODS[period];
+    
+    stateRef.current.selection = newRange;
+    
+    selectionState.current.yearBounds = newRange;
+    
+    // No need to call updateEventDisplay since we're not filtering anymore
+    renderMicrochart();
 
-        if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
-            const { yearToPixel } = selectionState.current.macroScaleInfo;
-            const y0 = yearToPixel(newRange[0]);
-            const y1 = yearToPixel(newRange[1]);
-            selectionState.current.pixelBounds = [y0, y1];
-            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
-        }
+    if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
+        const { yearToPixel } = selectionState.current.macroScaleInfo;
+        const y0 = yearToPixel(newRange[0]);
+        const y1 = yearToPixel(newRange[1]);
+        selectionState.current.pixelBounds = [y0, y1];
+        selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+    }
 
-        if (period !== 'all' && newRange) {
-            scrollToYear(newRange[0]);
-        }
-    }, [updateEventDisplay, renderMicrochart, scrollToYear]);
+    if (period !== 'all' && newRange) {
+        scrollToYear(newRange[0]);
+    }
+}, [renderMicrochart, scrollToYear]);
 
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
         if (!containerRef.current) return null;
@@ -1474,31 +1470,6 @@ useEffect(() => {
     return (
         <>
         <style>{getStyleOf('style.css')}</style>
-        <style>{`
-            .event-details {
-                transition: max-height 0.3s ease, opacity 0.3s ease;
-                overflow: hidden;
-            }
-            
-            .event-details.collapsed {
-                max-height: 0;
-                opacity: 0;
-            }
-            
-            .event-details.expanded {
-                max-height: 500px; /* Adjust as needed for content */
-                opacity: 1;
-            }
-            
-            .event-link {
-                color: #007acc;
-                text-decoration: none;
-            }
-            
-            .event-link:hover {
-                text-decoration: underline;
-            }
-        `}</style>
         <div className="page-container">
             <div className="content-wrapper">
                 <header className="header">
