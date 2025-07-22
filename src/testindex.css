@@ -113,22 +113,22 @@ body::-webkit-scrollbar {
 }
 
 #people-legend-all + label { border-bottom-color: var(--tw-gray-300); }
-#people-legend-period1 + label { border-bottom-color: #5795ff; }
-#people-legend-period2 + label { border-bottom-color: #5795ff; }
-#people-legend-period3 + label { border-bottom-color: #ff7f00; }
-#people-legend-period4 + label { border-bottom-color: #fdbf6f; }
-#people-legend-period5 + label { border-bottom-color: #C4A484; }
+#people-legend-period1 + label { border-bottom-color: #b10404ff; }
+#people-legend-period2 + label { border-bottom-color: #b10404ff; }
+#people-legend-period3 + label { border-bottom-color: #670b61ff; }
+#people-legend-period4 + label { border-bottom-color: #006400; }
+#people-legend-period5 + label { border-bottom-color: #aa7003ff; }
 
 #people-legend input[type="radio"]:checked + label {
     font-weight: 700;
 }
 
 #people-legend-all:checked + label { background-color: var(--tw-gray-300); color: black; }
-#people-legend-period1:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
-#people-legend-period2:checked + label { background-color: #5795ff; color: white; border-color: #5795ff; }
-#people-legend-period3:checked + label { background-color: #ff7f00; color: white; border-color: #ff7f00; }
-#people-legend-period4:checked + label { background-color: #fdbf6f; color: black; border-color: #fdbf6f; }
-#people-legend-period5:checked + label { background-color: #C4A484; color: white; border-color: #C4A484; }
+#people-legend-period1:checked + label { background-color: #b10404ff; color: white; border-color: #b10404ff; }
+#people-legend-period2:checked + label { background-color: #b10404ff; color: white; border-color: #b10404ff; }
+#people-legend-period3:checked + label { background-color: #670b61ff; color: white; border-color: #670b61ff; }
+#people-legend-period4:checked + label { background-color: #006400; color: white; border-color: #006400; }
+#people-legend-period5:checked + label { background-color: #aa7003ff; color: white; border-color: #aa7003ff; }
 
 /* Timeline container styles */
 .timeline-container {
