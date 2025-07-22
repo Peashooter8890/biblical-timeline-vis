@@ -90,83 +90,39 @@ const EventsTimeline = () => {
         programmaticScrollTimeout: null
     });
 
-    // PERFORMANCE FIX: Batch DOM state preservation
-    const preserveExpandedStates = useCallback(() => {
-        if (!eventDisplayRef.current) return new Map();
-        
-        const stateMap = new Map();
-        const existingEvents = eventDisplayRef.current.querySelectorAll('[data-event-id]');
-        
-        existingEvents.forEach(element => {
-            const eventId = element.getAttribute('data-event-id');
-            const triangle = element.querySelector('.event-triangle');
-            const isExpanded = triangle?.classList.contains('expanded') || false;
-            stateMap.set(eventId, isExpanded);
-        });
-        
-        return stateMap;
-    }, []);
+    // NEW: Dynamic selection state to prevent circular updates
+    const dynamicSelectionState = useRef({
+        isUpdating: false
+    });
 
-    // Formatting functions - simplified for performance
-    const formatDuration = useCallback((duration) => {
-        if (!duration) return '';
+    // UTILITY FUNCTIONS (no dependencies)
+    const createThrottledFunction = useCallback((func, delay) => {
+        let timeoutId;
+        let lastExecTime = 0;
         
-        const match = duration.match(/^(\d+)([DY])$/);
-        if (!match) return duration;
-        
-        const [, number, unit] = match;
-        const num = parseInt(number, 10);
-        
-        if (unit === 'D') {
-            return num === 1 ? '' : `${num} Days`;
-        } else if (unit === 'Y') {
-            return num === 1 ? '1 Year' : `${num} Years`;
-        }
-        
-        return duration;
-    }, []);
-
-    const formatParticipants = useCallback((participants, peopleData) => {
-        if (!participants || !peopleData.length) return participants;
-        
-        const participantIds = participants.split(',').map(id => id.trim());
-        
-        return participantIds.map(id => {
-            const person = peopleData.find(p => p.fields.personLookup === id);
-            const displayName = person ? person.fields.displayTitle : id;
-            return `<a href="https://theographic.netlify.app/person/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
-        }).join(', ');
-    }, []);
-
-    const formatLocations = useCallback((locations, placesData) => {
-        if (!locations || !placesData.length) return locations;
-        
-        const locationIds = locations.split(',').map(id => id.trim());
-        
-        return locationIds.map(id => {
-            const place = placesData.find(p => p.fields.placeLookup === id);
-            const displayName = place ? place.fields.displayTitle : id;
-            return `<a href="https://theographic.netlify.app/place/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
-        }).join(', ');
-    }, []);
-
-    const formatVerses = useCallback((verses) => {
-        if (!verses) return verses;
-        
-        return verses.split(',').map(verse => {
-            const trimmedVerse = verse.trim();
-            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
+        const throttledFn = (...args) => {
+            const currentTime = Date.now();
             
-            if (verseMatch) {
-                const [, book, chapter, verseNum] = verseMatch;
-                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
-                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="event-link">${trimmedVerse}</a>`;
+            if (currentTime - lastExecTime > delay) {
+                func.apply(this, args);
+                lastExecTime = currentTime;
+            } else {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                    lastExecTime = Date.now();
+                }, delay - (currentTime - lastExecTime));
             }
-            
-            return trimmedVerse;
-        }).join(', ');
+        };
+        
+        throttledFn.cancel = () => {
+            clearTimeout(timeoutId);
+        };
+        
+        return throttledFn;
     }, []);
 
+    // HELPER FUNCTIONS (basic calculations)
     const calculateLayoutDimensions = useCallback(() => {
         if (!macroContainerRef.current) return null;
         
@@ -274,14 +230,6 @@ const EventsTimeline = () => {
             .map(key => ({ year: Number(key), events: groups[key] }));
     }, []);
 
-    useEffect(() => {
-        const eventsWithColumns = calculateColumns(eventsFullData);
-        setProcessedEvents(eventsWithColumns);
-        masterScale.current = calculateMasterTimelineScale();
-        stateRef.current.events = eventsWithColumns;
-        stateRef.current.groupedEvents = groupEventsByYear(eventsWithColumns);
-    }, [calculateMasterTimelineScale, groupEventsByYear]);
-
     const calculateMacroLayout = useCallback((dimensions) => {
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
@@ -368,70 +316,6 @@ const EventsTimeline = () => {
         selectionState.current.overlayElements = null;
     }, []);
 
-    const createThrottledFunction = useCallback((func, delay) => {
-        let timeoutId;
-        let lastExecTime = 0;
-        
-        const throttledFn = (...args) => {
-            const currentTime = Date.now();
-            
-            if (currentTime - lastExecTime > delay) {
-                func.apply(this, args);
-                lastExecTime = currentTime;
-            } else {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    func.apply(this, args);
-                    lastExecTime = Date.now();
-                }, delay - (currentTime - lastExecTime));
-            }
-        };
-        
-        throttledFn.cancel = () => {
-            clearTimeout(timeoutId);
-        };
-        
-        return throttledFn;
-    }, []);
-
-    const scrollToYear = useCallback((targetYear) => {
-        if (!eventDisplayRef.current || !stateRef.current.events.length) return;
-
-        const container = eventDisplayRef.current;
-        const headers = container.querySelectorAll('.event-year-header');
-        let closestHeader = null;
-        let minDifference = Infinity;
-        
-        headers.forEach((header, index) => {
-            const headerText = header.textContent;
-            let year;
-            if (headerText.includes('BC|AD')) {
-                year = 0;
-            } else if (headerText.includes('BC')) {
-                const match = headerText.match(/(\d+)\s*BC/);
-                year = match ? -parseInt(match[1]) : 0;
-            } else {
-                const match = headerText.match(/(-?\d+)/);
-                year = match ? parseInt(match[1]) : 0;
-            }
-            
-            const difference = Math.abs(year - targetYear);
-            
-            if (difference < minDifference) {
-                minDifference = difference;
-                closestHeader = header;
-            }
-        });
-        
-        if (closestHeader) {
-            const containerRect = container.getBoundingClientRect();
-            const headerRect = closestHeader.getBoundingClientRect();
-            const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
-            container.scrollTop = relativeTop;
-        }
-    }, [processedEvents]);
-
-    // NEW: Calculate maximum scroll position to prevent over-scrolling
     const calculateMaxScrollPosition = useCallback(() => {
         if (!eventDisplayRef.current) return 0;
         
@@ -452,7 +336,83 @@ const EventsTimeline = () => {
         return maxScrollTop;
     }, []);
 
-    // POSITION INDICATOR FIX: Separate floating header from position detection
+    // FORMATTING FUNCTIONS
+    const formatDuration = useCallback((duration) => {
+        if (!duration) return '';
+        
+        const match = duration.match(/^(\d+)([DY])$/);
+        if (!match) return duration;
+        
+        const [, number, unit] = match;
+        const num = parseInt(number, 10);
+        
+        if (unit === 'D') {
+            return num === 1 ? '' : `${num} Days`;
+        } else if (unit === 'Y') {
+            return num === 1 ? '1 Year' : `${num} Years`;
+        }
+        
+        return duration;
+    }, []);
+
+    const formatParticipants = useCallback((participants, peopleData) => {
+        if (!participants || !peopleData.length) return participants;
+        
+        const participantIds = participants.split(',').map(id => id.trim());
+        
+        return participantIds.map(id => {
+            const person = peopleData.find(p => p.fields.personLookup === id);
+            const displayName = person ? person.fields.displayTitle : id;
+            return `<a href="https://theographic.netlify.app/person/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
+        }).join(', ');
+    }, []);
+
+    const formatLocations = useCallback((locations, placesData) => {
+        if (!locations || !placesData.length) return locations;
+        
+        const locationIds = locations.split(',').map(id => id.trim());
+        
+        return locationIds.map(id => {
+            const place = placesData.find(p => p.fields.placeLookup === id);
+            const displayName = place ? place.fields.displayTitle : id;
+            return `<a href="https://theographic.netlify.app/place/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
+        }).join(', ');
+    }, []);
+
+    const formatVerses = useCallback((verses) => {
+        if (!verses) return verses;
+        
+        return verses.split(',').map(verse => {
+            const trimmedVerse = verse.trim();
+            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
+            
+            if (verseMatch) {
+                const [, book, chapter, verseNum] = verseMatch;
+                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="event-link">${trimmedVerse}</a>`;
+            }
+            
+            return trimmedVerse;
+        }).join(', ');
+    }, []);
+
+    const preserveExpandedStates = useCallback(() => {
+        if (!eventDisplayRef.current) return new Map();
+        
+        const stateMap = new Map();
+        const existingEvents = eventDisplayRef.current.querySelectorAll('[data-event-id]');
+        
+        existingEvents.forEach(element => {
+            const eventId = element.getAttribute('data-event-id');
+            const triangle = element.querySelector('.event-triangle');
+            const isExpanded = triangle?.classList.contains('expanded') || false;
+            stateMap.set(eventId, isExpanded);
+        });
+        
+        return stateMap;
+    }, []);
+
+    // CORE FUNCTIONS (in dependency order)
     const findTopVisibleYear = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return null;
 
@@ -510,6 +470,47 @@ const EventsTimeline = () => {
         return stateRef.current.groupedEvents[activeGroupIndex]?.year || null;
     }, []);
 
+    const findBottomVisibleYear = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return null;
+
+        const container = eventDisplayRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const containerBottom = containerRect.bottom;
+        
+        const yearHeaders = container.querySelectorAll('.event-year-header');
+        let bottomVisibleYear = null;
+        
+        // Check headers from bottom to top to find the last visible one
+        for (let i = yearHeaders.length - 1; i >= 0; i--) {
+            const header = yearHeaders[i];
+            
+            // Temporarily reset styles to get true position
+            const originalStyles = {
+                opacity: header.style.opacity,
+                position: header.style.position,
+                top: header.style.top
+            };
+            
+            header.style.position = 'static';
+            header.style.top = 'auto';
+            header.style.opacity = '1';
+            
+            const headerRect = header.getBoundingClientRect();
+            
+            // Restore original styles
+            header.style.opacity = originalStyles.opacity;
+            header.style.position = originalStyles.position;
+            header.style.top = originalStyles.top;
+            
+            if (headerRect.top <= containerBottom) {
+                bottomVisibleYear = stateRef.current.groupedEvents[i]?.year;
+                break;
+            }
+        }
+        
+        return bottomVisibleYear;
+    }, []);
+
     const updatePositionIndicators = useCallback(() => {
         if (!eventDisplayRef.current || !macroIndicatorRef.current || !microIndicatorRef.current) return;
         if (!selectionState.current.macroScaleInfo || !stateRef.current.events.length || !masterScale.current) return;
@@ -550,141 +551,10 @@ const EventsTimeline = () => {
         }
     }, [calculateDimensions, findTopVisibleYear]);
 
-    const handleEventScroll = useCallback(() => {
-        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
-
-        // Apply scroll constraint for user scrolling (not programmatic)
-        if (!scrollStateRef.current.isProgrammaticScroll) {
-            const container = eventDisplayRef.current;
-            const maxScrollTop = calculateMaxScrollPosition();
-
-            if (container.scrollTop < maxScrollTop) {
-                container.scrollTop = maxScrollTop;
-                return; // Exit early if we corrected the scroll
-            }
-        }
-
-        const topVisibleYear = findTopVisibleYear();
-        
-        if (topVisibleYear !== null) {
-            const container = eventDisplayRef.current;
-            const floatingHeader = container.querySelector('.floating-header');
-            
-            if (floatingHeader) {
-                floatingHeader.textContent = formatYear(topVisibleYear);
-                floatingHeader.style.display = 'block';
-                setFloatingHeaderYear(topVisibleYear);
-
-                // Modified header hiding logic: never hide last header
-                const headers = container.querySelectorAll('.event-year-header');
-                headers.forEach((header, index) => {
-                    const groupYear = stateRef.current.groupedEvents[index]?.year;
-                    const shouldHide = groupYear === topVisibleYear;
-                    
-                    if (shouldHide && index < headers.length - 1) { // Never hide last header
-                        // Non-last headers: use opacity (keep in flow for position detection)
-                        header.style.position = 'static';
-                        header.style.top = 'auto';
-                        header.style.opacity = '0';
-                        header.style.pointerEvents = 'none';
-                    } else {
-                        // Not hidden or last header: restore normal state
-                        header.style.position = 'static';
-                        header.style.top = 'auto';
-                        header.style.opacity = '1';
-                        header.style.pointerEvents = 'auto';
-                    }
-                });
-            }
-        }
-
-        updatePositionIndicators();
-    }, [findTopVisibleYear, updatePositionIndicators, calculateMaxScrollPosition]);
-
-    const scrollToEvent = useCallback(async (eventID, eventData) => {
-        if (!eventDisplayRef.current || !eventID) return;
-
-        const container = eventDisplayRef.current;
-        
-        // Set programmatic scroll flag and clear any existing timeout
-        scrollStateRef.current.isProgrammaticScroll = true;
-        if (scrollStateRef.current.programmaticScrollTimeout) {
-            clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
-        }
-
-        // Restore all headers to their normal state before calculating scroll position
-        const headers = container.querySelectorAll('.event-year-header');
-        headers.forEach(header => {
-            header.style.position = 'static';
-            header.style.top = 'auto';
-            header.style.opacity = '1';
-            header.style.pointerEvents = 'auto';
-        });
-
-        const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
-        if (!eventElement) {
-            // Re-enable header hiding if event not found
-            scrollStateRef.current.isProgrammaticScroll = false;
-            return;
-        }
-
-        const triangle = eventElement.querySelector('.event-triangle');
-        const eventDetails = eventElement.querySelector('.event-details');
-        const isAlreadyExpanded = triangle?.classList.contains('expanded') || false;
-
-        // Step 1: Handle expansion if needed
-        if (triangle && eventDetails && !isAlreadyExpanded) {
-            triangle.classList.add('expanded');
-            eventDetails.classList.remove('collapsed');
-            eventDetails.classList.add('expanded');
-            
-            // Wait for expansion animation to complete
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-
-        // Step 2: Ensure all DOM updates are complete
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => requestAnimationFrame(resolve));
-
-        // Step 3: Set up floating header
-        const floatingHeader = container.querySelector('.floating-header');
-        if (floatingHeader && eventData) {
-            floatingHeader.textContent = formatYear(eventData.startDate);
-            floatingHeader.style.display = 'block';
-            
-            // Ensure header layout is complete
-            floatingHeader.offsetHeight;
-            await new Promise(resolve => requestAnimationFrame(resolve));
-        }
-
-        // Step 4: Calculate and perform scroll
-        const containerRect = container.getBoundingClientRect();
-        const elementRect = eventElement.getBoundingClientRect();
-        
-        if (containerRect.height > 0 && elementRect.height > 0) {
-            const floatingHeaderHeight = floatingHeader ? 
-                floatingHeader.getBoundingClientRect().height : 0;
-            
-            const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
-            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight);
-            
-            container.scrollTo({
-                top: targetScrollTop,
-                behavior: 'smooth'
-            });
-
-            // Set timeout to re-enable header hiding after scroll completes
-            // Use a longer timeout to account for smooth scrolling duration
-            scrollStateRef.current.programmaticScrollTimeout = setTimeout(() => {
-                scrollStateRef.current.isProgrammaticScroll = false;
-                // Trigger one final scroll handler to restore proper header state
-                handleEventScroll();
-            }, 1000); // Adjust timing as needed
-        } else {
-            // Re-enable header hiding if scroll calculation fails
-            scrollStateRef.current.isProgrammaticScroll = false;
-        }
-    }, [handleEventScroll]);
+    const throttledIndicatorUpdate = useCallback(
+        createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
+        [updatePositionIndicators, createThrottledFunction]
+    );
 
     const applyConnectedHover = useCallback((eventID) => {
         if (!microSvgRef.current || !eventID) return;
@@ -706,15 +576,42 @@ const EventsTimeline = () => {
             .style('opacity', 1.0);
     }, []);
 
-    const throttledIndicatorUpdate = useCallback(
-        createThrottledFunction(updatePositionIndicators, UPDATE_THROTTLE_MS),
-        [updatePositionIndicators, createThrottledFunction]
-    );
+    const scrollToYear = useCallback((targetYear) => {
+        if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
-    const throttledScrollHandler = useCallback(
-        createThrottledFunction(handleEventScroll, UPDATE_THROTTLE_MS),
-        [handleEventScroll, createThrottledFunction]
-    );
+        const container = eventDisplayRef.current;
+        const headers = container.querySelectorAll('.event-year-header');
+        let closestHeader = null;
+        let minDifference = Infinity;
+        
+        headers.forEach((header, index) => {
+            const headerText = header.textContent;
+            let year;
+            if (headerText.includes('BC|AD')) {
+                year = 0;
+            } else if (headerText.includes('BC')) {
+                const match = headerText.match(/(\d+)\s*BC/);
+                year = match ? -parseInt(match[1]) : 0;
+            } else {
+                const match = headerText.match(/(-?\d+)/);
+                year = match ? parseInt(match[1]) : 0;
+            }
+            
+            const difference = Math.abs(year - targetYear);
+            
+            if (difference < minDifference) {
+                minDifference = difference;
+                closestHeader = header;
+            }
+        });
+        
+        if (closestHeader) {
+            const containerRect = container.getBoundingClientRect();
+            const headerRect = closestHeader.getBoundingClientRect();
+            const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+            container.scrollTop = relativeTop;
+        }
+    }, [processedEvents]);
 
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
@@ -889,7 +786,7 @@ const EventsTimeline = () => {
             .attr('cy', d => d.y)
             .attr('r', dynamicDotRadius) 
             .attr('fill', d => d.color)
-            .style('stroke-width', `${Math.max(1, dynamicDotDiameter / 5)}px`) // <-- Add this line
+            .style('stroke-width', `${Math.max(1, dynamicDotDiameter / 5)}px`)
             .style('cursor', 'pointer')
             .on('mouseover', function(event, d) {
                 tooltip.transition()
@@ -919,7 +816,217 @@ const EventsTimeline = () => {
         }
 
         throttledIndicatorUpdate();
-    }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover, scrollToEvent]);
+    }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover]);
+
+    const handleDynamicSelectionUpdate = useCallback(() => {
+        if (!selectionState.current.macroScaleInfo || dynamicSelectionState.current.isUpdating) return;
+        
+        const topVisibleYear = findTopVisibleYear();
+        const bottomVisibleYear = findBottomVisibleYear();
+        const [currentStart, currentEnd] = selectionState.current.yearBounds;
+        
+        if (topVisibleYear === null || bottomVisibleYear === null) return;
+        
+        // Check if visible range is outside current selection bounds
+        const needsUpdate = topVisibleYear < currentStart || bottomVisibleYear > currentEnd;
+        if (!needsUpdate) return;
+        
+        // Calculate current pixel height to preserve it
+        const { yearToPixel, pixelToYear } = selectionState.current.macroScaleInfo;
+        const currentPixelHeight = yearToPixel(currentEnd) - yearToPixel(currentStart);
+        
+        let newStart = currentStart;
+        let newEnd = currentEnd;
+        
+        if (topVisibleYear < currentStart) {
+            // Scrolled up beyond selection - move selection start up
+            newStart = topVisibleYear;
+            // Preserve pixel height by calculating corresponding end year
+            const newStartPixel = yearToPixel(newStart);
+            const newEndPixel = newStartPixel + currentPixelHeight;
+            newEnd = pixelToYear(newEndPixel);
+        } else if (bottomVisibleYear > currentEnd) {
+            // Scrolled down beyond selection - move selection end down
+            newEnd = bottomVisibleYear;
+            // Preserve pixel height by calculating corresponding start year
+            const newEndPixel = yearToPixel(newEnd);
+            const newStartPixel = newEndPixel - currentPixelHeight;
+            newStart = pixelToYear(newStartPixel);
+        }
+        
+        // Set flag to prevent circular updates
+        dynamicSelectionState.current.isUpdating = true;
+        
+        // Update internal state
+        selectionState.current.yearBounds = [newStart, newEnd];
+        
+        // Update macro overlay position directly
+        if (selectionState.current.overlayElements && selectionState.current.overlayElements.updateOverlayPosition) {
+            const y0 = yearToPixel(newStart);
+            const y1 = yearToPixel(newEnd);
+            selectionState.current.pixelBounds = [y0, y1];
+            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+        }
+        
+        // Update microchart directly (this renders based on selectionState.current.yearBounds)
+        renderMicrochart();
+        
+        // Update UI to reflect custom range
+        setSelectedPeriod('all');
+        setIsCustomRange(true);
+        
+        // Clear the flag
+        dynamicSelectionState.current.isUpdating = false;
+    }, [findTopVisibleYear, findBottomVisibleYear, renderMicrochart]);
+
+    const throttledDynamicSelectionUpdate = useCallback(
+        createThrottledFunction(handleDynamicSelectionUpdate, UPDATE_THROTTLE_MS),
+        [handleDynamicSelectionUpdate, createThrottledFunction]
+    );
+
+    const handleEventScroll = useCallback(() => {
+        if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
+
+        // Apply scroll constraint for user scrolling (not programmatic)
+        if (!scrollStateRef.current.isProgrammaticScroll) {
+            const container = eventDisplayRef.current;
+            const maxScrollTop = calculateMaxScrollPosition();
+
+            if (container.scrollTop < maxScrollTop) {
+                container.scrollTop = maxScrollTop;
+                return; // Exit early if we corrected the scroll
+            }
+        }
+
+        const topVisibleYear = findTopVisibleYear();
+        
+        if (topVisibleYear !== null) {
+            const container = eventDisplayRef.current;
+            const floatingHeader = container.querySelector('.floating-header');
+            
+            if (floatingHeader) {
+                floatingHeader.textContent = formatYear(topVisibleYear);
+                floatingHeader.style.display = 'block';
+                setFloatingHeaderYear(topVisibleYear);
+
+                // Modified header hiding logic: never hide last header
+                const headers = container.querySelectorAll('.event-year-header');
+                headers.forEach((header, index) => {
+                    const groupYear = stateRef.current.groupedEvents[index]?.year;
+                    const shouldHide = groupYear === topVisibleYear;
+                    
+                    if (shouldHide && index < headers.length - 1) { // Never hide last header
+                        // Non-last headers: use opacity (keep in flow for position detection)
+                        header.style.position = 'static';
+                        header.style.top = 'auto';
+                        header.style.opacity = '0';
+                        header.style.pointerEvents = 'none';
+                    } else {
+                        // Not hidden or last header: restore normal state
+                        header.style.position = 'static';
+                        header.style.top = 'auto';
+                        header.style.opacity = '1';
+                        header.style.pointerEvents = 'auto';
+                    }
+                });
+            }
+        }
+
+        updatePositionIndicators();
+        
+        // NEW: Add dynamic selection update
+        throttledDynamicSelectionUpdate();
+    }, [findTopVisibleYear, updatePositionIndicators, calculateMaxScrollPosition, throttledDynamicSelectionUpdate]);
+
+    const scrollToEvent = useCallback(async (eventID, eventData) => {
+        if (!eventDisplayRef.current || !eventID) return;
+
+        const container = eventDisplayRef.current;
+        
+        // Set programmatic scroll flag and clear any existing timeout
+        scrollStateRef.current.isProgrammaticScroll = true;
+        if (scrollStateRef.current.programmaticScrollTimeout) {
+            clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
+        }
+
+        // Restore all headers to their normal state before calculating scroll position
+        const headers = container.querySelectorAll('.event-year-header');
+        headers.forEach(header => {
+            header.style.position = 'static';
+            header.style.top = 'auto';
+            header.style.opacity = '1';
+            header.style.pointerEvents = 'auto';
+        });
+
+        const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
+        if (!eventElement) {
+            // Re-enable header hiding if event not found
+            scrollStateRef.current.isProgrammaticScroll = false;
+            return;
+        }
+
+        const triangle = eventElement.querySelector('.event-triangle');
+        const eventDetails = eventElement.querySelector('.event-details');
+        const isAlreadyExpanded = triangle?.classList.contains('expanded') || false;
+
+        // Step 1: Handle expansion if needed
+        if (triangle && eventDetails && !isAlreadyExpanded) {
+            triangle.classList.add('expanded');
+            eventDetails.classList.remove('collapsed');
+            eventDetails.classList.add('expanded');
+            
+            // Wait for expansion animation to complete
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Step 2: Ensure all DOM updates are complete
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        // Step 3: Set up floating header
+        const floatingHeader = container.querySelector('.floating-header');
+        if (floatingHeader && eventData) {
+            floatingHeader.textContent = formatYear(eventData.startDate);
+            floatingHeader.style.display = 'block';
+            
+            // Ensure header layout is complete
+            floatingHeader.offsetHeight;
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+
+        // Step 4: Calculate and perform scroll
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = eventElement.getBoundingClientRect();
+        
+        if (containerRect.height > 0 && elementRect.height > 0) {
+            const floatingHeaderHeight = floatingHeader ? 
+                floatingHeader.getBoundingClientRect().height : 0;
+            
+            const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
+            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight);
+            
+            container.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+
+            // Set timeout to re-enable header hiding after scroll completes
+            // Use a longer timeout to account for smooth scrolling duration
+            scrollStateRef.current.programmaticScrollTimeout = setTimeout(() => {
+                scrollStateRef.current.isProgrammaticScroll = false;
+                // Trigger one final scroll handler to restore proper header state
+                handleEventScroll();
+            }, 1000); // Adjust timing as needed
+        } else {
+            // Re-enable header hiding if scroll calculation fails
+            scrollStateRef.current.isProgrammaticScroll = false;
+        }
+    }, [handleEventScroll]);
+
+    const throttledScrollHandler = useCallback(
+        createThrottledFunction(handleEventScroll, UPDATE_THROTTLE_MS),
+        [handleEventScroll, createThrottledFunction]
+    );
 
     const updateLayout = useCallback(() => {
         const layoutDims = calculateLayoutDimensions();
@@ -944,6 +1051,9 @@ const EventsTimeline = () => {
     }, [calculateLayoutDimensions, renderMicrochart]);
 
     const handleSelectionChange = useCallback((startYear, endYear) => {
+        // Skip if this is a dynamic update to prevent circular calls
+        if (dynamicSelectionState.current.isUpdating) return;
+        
         selectionState.current.yearBounds = [startYear, endYear];
         const matchingPeriod = Object.keys(TIME_PERIODS).find(key => {
             const [pStart, pEnd] = TIME_PERIODS[key];
@@ -1172,7 +1282,6 @@ const EventsTimeline = () => {
 
     }, [calculateDimensions, calculateMacroLayout, createMacroConverters, setupMacroOverlay, cleanupOverlayElements, throttledIndicatorUpdate]);
 
-    // PERFORMANCE FIX: Modified createEventItem with batched state preservation
     const createEventItem = useCallback((event, expandedStatesMap) => {
         const eventItem = document.createElement('div');
         eventItem.className = 'event-item';
@@ -1333,7 +1442,7 @@ const EventsTimeline = () => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
-    }, [preserveExpandedStates, groupEventsByYear, createEventItem, calculateMaxScrollPosition, throttledIndicatorUpdate]);
+    }, [preserveExpandedStates, groupEventsByYear, createEventItem]);
 
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
@@ -1366,7 +1475,7 @@ const EventsTimeline = () => {
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
         if (!containerRef.current) return null;
 
-                if (!svgRef.current) {
+        if (!svgRef.current) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             containerRef.current.appendChild(svg);
             svgRef.current = svg;
@@ -1391,7 +1500,16 @@ const EventsTimeline = () => {
         return resizeObserver;
     }, [updateLayout]);
 
-    // cleanup
+    // INITIALIZATION
+    useEffect(() => {
+        const eventsWithColumns = calculateColumns(eventsFullData);
+        setProcessedEvents(eventsWithColumns);
+        masterScale.current = calculateMasterTimelineScale();
+        stateRef.current.events = eventsWithColumns;
+        stateRef.current.groupedEvents = groupEventsByYear(eventsWithColumns);
+    }, [calculateMasterTimelineScale, groupEventsByYear]);
+
+    // MAIN CHART SETUP AND CLEANUP
     useEffect(() => {
         if (!processedEvents.length || !masterScale.current) return;
 
@@ -1414,6 +1532,10 @@ const EventsTimeline = () => {
                 throttledScrollHandler.cancel();
             }
 
+            if (throttledDynamicSelectionUpdate?.cancel) {
+                throttledDynamicSelectionUpdate.cancel();
+            }
+
             // Clear programmatic scroll timeout
             if (scrollStateRef.current.programmaticScrollTimeout) {
                 clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
@@ -1428,8 +1550,9 @@ const EventsTimeline = () => {
             eventListenersRef.current.forEach(cleanup => cleanup());
             eventListenersRef.current.clear();
         };
-    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
+    }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, throttledDynamicSelectionUpdate, cleanupOverlayElements]);
         
+    // EVENT DISPLAY SCROLL LISTENERS
     useEffect(() => {
         if (!eventDisplayRef.current) return;
 
@@ -1464,8 +1587,9 @@ const EventsTimeline = () => {
             container.removeEventListener('wheel', preventUnwantedScroll);
             container.removeEventListener('touchmove', preventUnwantedScroll);
         };
-    }, [calculateMaxScrollPosition, handleEventScroll]);  // Include dependencies to avoid stale values
+    }, [calculateMaxScrollPosition, handleEventScroll]);
 
+    // EVENT DISPLAY UPDATE
     useEffect(() => {
         updateEventDisplay();
     }, [updateEventDisplay]);
