@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as d3 from 'd3';
-import { eventsFullData, peopleFullData, placesFullData } from './teststuff.js';
+import { eventsFullData, peopleFullData, placesFullData, eventsChildrenData } from './teststuff.js';
 const getStyleOf = (fileName) => {};
 import { 
     formatYear, 
@@ -1214,7 +1214,7 @@ const EventsTimeline = () => {
 
         const eventDetails = document.createElement('div');
         eventDetails.className = 'event-details';
-        
+
         const detailFields = [
             { key: 'duration', label: 'Duration', formatter: formatDuration },
             { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
@@ -1245,6 +1245,28 @@ const EventsTimeline = () => {
                 eventDetails.appendChild(detail);
             }
         });
+
+        // --- NEW: Add Events That are Part of This ---
+        // Find if this event has children in eventsChildrenData
+        const childrenObj = eventsChildrenData.find(
+            obj => obj.eventID === event.fields.eventID
+        );
+        if (childrenObj && Array.isArray(childrenObj.eventChildren) && childrenObj.eventChildren.length > 0) {
+            // Get displayTitle for each child eventID
+            const childTitles = childrenObj.eventChildren
+                .map(childID => {
+                    const childEvent = eventsFullData.find(ev => ev.fields.eventID === childID);
+                    return childEvent ? childEvent.fields.title : null;
+                })
+                .filter(Boolean);
+
+            if (childTitles.length > 0) {
+                const detail = document.createElement('div');
+                detail.className = 'event-detail';
+                detail.innerHTML = `Events That are Part of This: ${childTitles.map((t, i) => `<span>${t}</span>`).join(', ')}`;
+                eventDetails.appendChild(detail);
+            }
+        }
 
         // Use batched state map instead of individual DOM query
         const isCurrentlyExpanded = expandedStatesMap.get(event.fields.eventID) || false;

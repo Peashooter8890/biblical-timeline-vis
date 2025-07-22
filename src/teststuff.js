@@ -35503,7 +35503,7 @@ export const placesFullData = [
   }
 ];
 
-export const eventsChildren = [
+export const eventsChildrenData = [
   {
     "eventID": "4",
     "eventChildren": [
@@ -35884,4 +35884,4 @@ export const eventsChildren = [
   }
 ]
 
-export const bibleChapterVersesCount = []
+export const bibleChapterVersesCountData = []
