@@ -415,6 +415,10 @@ body::-webkit-scrollbar {
     margin-top: 2px;
     transition: transform 0.2s ease;
     flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .event-triangle:hover {
@@ -489,7 +493,6 @@ body::-webkit-scrollbar {
 }
 
 .event-details.expanded {
-    max-height: 500px; /* Adjust as needed for content */
     opacity: 1;
 }
 

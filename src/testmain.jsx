@@ -144,7 +144,7 @@ const EventsTimeline = () => {
         const num = parseInt(number, 10);
         
         if (unit === 'D') {
-            return num === 1 ? '1 Day' : `${num} Days`;
+            return num === 1 ? '' : `${num} Days`;
         } else if (unit === 'Y') {
             return num === 1 ? '1 Year' : `${num} Years`;
         }
@@ -577,7 +577,6 @@ const EventsTimeline = () => {
         }
     }, [calculateDimensions, findTopVisibleYear]);
 
-    // MODIFIED: handleEventScroll with improved logic - never hide first header, add scroll constraints
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
@@ -1223,24 +1222,26 @@ const EventsTimeline = () => {
             { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
             { key: 'verses', label: 'Verses', formatter: formatVerses },
             { key: 'partOf', label: 'Part Of' },
-            { key: 'predecessor', label: 'Predecessor' },
-            { key: 'lag', label: 'Lag', formatter: formatDuration },
-            { key: 'lagType', label: 'Lag Type' },
             { key: 'notes', label: 'Notes' }
         ];
 
         detailFields.forEach(field => {
             if (event.fields[field.key]) {
+                let formattedValue = field.formatter
+                    ? field.formatter(event.fields[field.key])
+                    : event.fields[field.key];
+
+                if (field.key === 'duration' && formattedValue === '') return;
+
                 const detail = document.createElement('div');
                 detail.className = 'event-detail';
-                
+
                 if (field.formatter) {
-                    const formattedValue = field.formatter(event.fields[field.key]);
                     detail.innerHTML = `${field.label}: ${formattedValue}`;
                 } else {
                     detail.textContent = `${field.label}: ${event.fields[field.key]}`;
                 }
-                
+
                 eventDetails.appendChild(detail);
             }
         });
@@ -1442,10 +1443,7 @@ useEffect(() => {
             return;
         }
 
-        // For touch: Prevent if moving downward (which scrolls up) at the top
         if (e.type === 'touchmove' && atTop) {
-            // Simple check: if touch is moving down (positive dy), prevent if at top
-            // You may need to track touch start position for precision
             e.preventDefault();
         }
     };
