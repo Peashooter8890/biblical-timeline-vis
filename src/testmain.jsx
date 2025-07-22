@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import * as d3 from 'd3';
-import { eventsFullData, peopleFullData, placesFullData, eventsChildrenData } from './teststuff.js';
+import { eventsFullData } from './teststuff.js';
 const getStyleOf = (fileName) => {};
 import {
     TIME_RANGES,
@@ -358,45 +358,9 @@ const EventsTimeline = () => {
         return duration;
     }, []);
 
-    const formatParticipants = useCallback((participants, peopleData) => {
-        if (!participants || !peopleData.length) return participants;
-        
-        const participantIds = participants.split(',').map(id => id.trim());
-        
-        return participantIds.map(id => {
-            const person = peopleData.find(p => p.fields.personLookup === id);
-            const displayName = person ? person.fields.displayTitle : id;
-            return `<a href="https://theographic.netlify.app/person/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
-        }).join(', ');
-    }, []);
-
-    const formatLocations = useCallback((locations, placesData) => {
-        if (!locations || !placesData.length) return locations;
-        
-        const locationIds = locations.split(',').map(id => id.trim());
-        
-        return locationIds.map(id => {
-            const place = placesData.find(p => p.fields.placeLookup === id);
-            const displayName = place ? place.fields.displayTitle : id;
-            return `<a href="https://theographic.netlify.app/place/${id}" target="_blank" rel="noopener noreferrer" class="event-link">${displayName}</a>`;
-        }).join(', ');
-    }, []);
-
-    const formatVerses = useCallback((verses) => {
-        if (!verses) return verses;
-        
-        return verses.split(',').map(verse => {
-            const trimmedVerse = verse.trim();
-            const verseMatch = trimmedVerse.match(/^([a-zA-Z0-9]+)\.(\d+)\.(\d+)$/);
-            
-            if (verseMatch) {
-                const [, book, chapter, verseNum] = verseMatch;
-                const url = `https://theographic.netlify.app/${book}#${book}.${chapter}.${verseNum}`;
-                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="event-link">${trimmedVerse}</a>`;
-            }
-            
-            return trimmedVerse;
-        }).join(', ');
+    const formatArrayField = useCallback((arrayValue) => {
+        if (!arrayValue || !Array.isArray(arrayValue)) return '';
+        return arrayValue.join(', ');
     }, []);
 
     const preserveExpandedStates = useCallback(() => {
@@ -1475,10 +1439,10 @@ const EventsTimeline = () => {
 
         const detailFields = [
             { key: 'duration', label: 'Duration', formatter: formatDuration },
-            { key: 'participants', label: 'Participants', formatter: (val) => formatParticipants(val, peopleFullData) },
-            { key: 'groups', label: 'Groups' },
-            { key: 'locations', label: 'Locations', formatter: (val) => formatLocations(val, placesFullData) },
-            { key: 'verses', label: 'Verses', formatter: formatVerses },
+            { key: 'participants', label: 'Participants', formatter: formatArrayField },
+            { key: 'groups', label: 'Groups', formatter: formatArrayField },
+            { key: 'locations', label: 'Locations', formatter: formatArrayField },
+            { key: 'verses', label: 'Verses', formatter: formatArrayField },
             { key: 'partOf', label: 'Part Of' },
             { key: 'notes', label: 'Notes' }
         ];
@@ -1493,38 +1457,20 @@ const EventsTimeline = () => {
 
                 const detail = document.createElement('div');
                 detail.className = 'event-detail';
-
-                if (field.formatter) {
-                    detail.innerHTML = `${field.label}: ${formattedValue}`;
-                } else {
-                    detail.textContent = `${field.label}: ${event.fields[field.key]}`;
-                }
-
+                detail.innerHTML = `<strong>${field.label}:</strong> ${formattedValue}`;
                 eventDetails.appendChild(detail);
             }
         });
 
-        const childrenObj = eventsChildrenData.find(
-            obj => obj.eventID === event.fields.eventID
-        );
-        if (childrenObj && Array.isArray(childrenObj.eventChildren) && childrenObj.eventChildren.length > 0) {
-            // Get displayTitle for each child eventID
-            const childTitles = childrenObj.eventChildren
-                .map(childID => {
-                    const childEvent = eventsFullData.find(ev => ev.fields.eventID === childID);
-                    return childEvent ? childEvent.fields.title : null;
-                })
-                .filter(Boolean);
-
-            if (childTitles.length > 0) {
-                const detail = document.createElement('div');
-                detail.className = 'event-detail';
-                detail.innerHTML = `Events That are Part of This: ${childTitles.map((t, i) => `<span>${t}</span>`).join(', ')}`;
-                eventDetails.appendChild(detail);
-            }
+        // Updated children logic using eventsPartOf
+        if (event.fields.eventsPartOf && Array.isArray(event.fields.eventsPartOf) && event.fields.eventsPartOf.length > 0) {
+            const detail = document.createElement('div');
+            detail.className = 'event-detail';
+            detail.innerHTML = `<strong>Events Part of This:</strong> ${event.fields.eventsPartOf.join(', ')}`;
+            eventDetails.appendChild(detail);
         }
 
-        // Use batched state map instead of individual DOM query
+        // Rest of the function remains the same...
         const isCurrentlyExpanded = expandedStatesMap.get(event.fields.eventID) || false;
 
         if (isCurrentlyExpanded) {
@@ -1571,7 +1517,7 @@ const EventsTimeline = () => {
         eventItem.appendChild(triangle);
         eventItem.appendChild(eventContent);
         return eventItem;
-    }, [formatDuration, formatParticipants, formatLocations, formatVerses]);
+    }, [formatDuration, formatArrayField]);
 
     const updateEventDisplay = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
