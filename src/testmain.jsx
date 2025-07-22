@@ -31,6 +31,7 @@ const HANDLE_WIDTH_RATIO = 1/2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 const FULL_RANGE = [-4150, 80];
+const CHART_WHEEL_SENSITIVITY = 0.5;
 
 const LAYOUT_CONFIG = {
     SIDEBAR_RATIO: 0.4,        
@@ -1268,6 +1269,114 @@ const EventsTimeline = () => {
         return cleanup;
     }, [cleanupOverlayElements, throttledSelectionChange]);
 
+    const setupWheelScrolling = useCallback(() => {
+        if (!macroContainerRef.current || !microContainerRef.current) return () => {};
+
+        const macroWheelHandler = (event) => {
+            // Only handle if we have a valid overlay and not currently dragging
+            if (!selectionState.current.macroScaleInfo || 
+                !overlayElementsRef.current.overlay || 
+                selectionState.current.isDragging) {
+                return;
+            }
+
+            event.preventDefault();
+            
+            const { dimensions } = selectionState.current.macroScaleInfo;
+            const [currentY0, currentY1] = selectionState.current.pixelBounds;
+            const currentHeight = currentY1 - currentY0;
+            console.log(currentHeight);
+
+            // Check if selection is already full range (nowhere to move)
+            if (currentY0 <= 0 && currentY1 >= dimensions.height) {
+                return;
+            }
+            
+            // Calculate movement (adjust sensitivity as needed)
+            const movement = event.deltaY * CHART_WHEEL_SENSITIVITY;
+            let newY0 = currentY0 + movement;
+            let newY1 = currentY1 + movement;
+            
+            // Constrain to bounds
+            if (newY0 < 0) {
+                newY0 = 0;
+                newY1 = currentHeight;
+            }
+            if (newY1 > dimensions.height) {
+                newY1 = dimensions.height;
+                newY0 = dimensions.height - currentHeight;
+            }
+            
+            // Update overlay position
+            if (selectionState.current.overlayElements && selectionState.current.overlayElements.updateOverlayPosition) {
+                selectionState.current.overlayElements.updateOverlayPosition(newY0, newY1);
+            }
+        };
+
+        const microWheelHandler = (event) => {
+            // Only handle if we have valid scales and not currently dragging
+            if (!selectionState.current.macroScaleInfo || 
+                !masterScale.current ||
+                !overlayElementsRef.current.overlay || 
+                selectionState.current.isDragging) {
+                return;
+            }
+
+            event.preventDefault();
+            
+            const { dimensions } = selectionState.current.macroScaleInfo;
+            const [currentY0, currentY1] = selectionState.current.pixelBounds;
+            const currentHeight = currentY1 - currentY0;
+            
+            // Check if selection is already full range
+            if (currentY0 <= 0 && currentY1 >= dimensions.height) {
+                return;
+            }
+            
+            // For microchart, we need to convert the wheel movement to macrochart coordinates
+            // The microchart represents the currently selected range
+            const microDimensions = calculateDimensions(microContainerRef.current);
+            if (microDimensions.height === 0) return;
+            
+            // Calculate movement relative to the microchart height
+            const microMovement = event.deltaY * CHART_WHEEL_SENSITIVITY;
+            // Convert to macrochart movement (proportional to current selection size)
+            const macroMovement = (microMovement / microDimensions.height) * currentHeight;
+            
+            let newY0 = currentY0 + macroMovement;
+            let newY1 = currentY1 + macroMovement;
+            
+            // Constrain to bounds
+            if (newY0 < 0) {
+                newY0 = 0;
+                newY1 = currentHeight;
+            }
+            if (newY1 > dimensions.height) {
+                newY1 = dimensions.height;
+                newY0 = dimensions.height - currentHeight;
+            }
+            
+            // Update overlay position
+            if (selectionState.current.overlayElements && selectionState.current.overlayElements.updateOverlayPosition) {
+                selectionState.current.overlayElements.updateOverlayPosition(newY0, newY1);
+            }
+        };
+
+        // Add event listeners
+        macroContainerRef.current.addEventListener('wheel', macroWheelHandler, { passive: false });
+        microContainerRef.current.addEventListener('wheel', microWheelHandler, { passive: false });
+
+        // Return cleanup function
+        return () => {
+            if (macroContainerRef.current) {
+                macroContainerRef.current.removeEventListener('wheel', macroWheelHandler);
+            }
+            if (microContainerRef.current) {
+                microContainerRef.current.removeEventListener('wheel', microWheelHandler);
+            }
+        };
+    }, [calculateDimensions]);
+
     const renderMacrochart = useCallback(() => {
         if (!macroSvgRef.current || !macroContainerRef.current) return;
 
@@ -1567,9 +1676,13 @@ const EventsTimeline = () => {
         const macroObserver = setupChart(macroContainerRef, macroSvgRef, renderMacrochart, 'macro');
         const microObserver = setupChart(microContainerRef, microSvgRef, renderMicrochart, 'micro');
 
+        const wheelCleanup = setupWheelScrolling();
+
         return () => {
             if (macroObserver) macroObserver.disconnect();
             if (microObserver) microObserver.disconnect();
+
+            if (wheelCleanup) wheelCleanup();
 
             if (throttledSelectionChange?.cancel) {
                 throttledSelectionChange.cancel();
