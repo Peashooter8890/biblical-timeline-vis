@@ -602,20 +602,20 @@ const EventsTimeline = () => {
                 floatingHeader.style.display = 'block';
                 setFloatingHeaderYear(topVisibleYear);
 
-                // Modified header hiding logic: never hide first header
+                // Modified header hiding logic: never hide last header
                 const headers = container.querySelectorAll('.event-year-header');
                 headers.forEach((header, index) => {
                     const groupYear = stateRef.current.groupedEvents[index]?.year;
                     const shouldHide = groupYear === topVisibleYear;
                     
-                    if (shouldHide && index > 0) { // Never hide first header (index 0)
-                        // Non-first headers: use opacity (keep in flow for position detection)
+                    if (shouldHide && index < headers.length - 1) { // Never hide last header
+                        // Non-last headers: use opacity (keep in flow for position detection)
                         header.style.position = 'static';
                         header.style.top = 'auto';
                         header.style.opacity = '0';
                         header.style.pointerEvents = 'none';
                     } else {
-                        // Not hidden or first header: restore normal state
+                        // Not hidden or last header: restore normal state
                         header.style.position = 'static';
                         header.style.top = 'auto';
                         header.style.opacity = '1';
