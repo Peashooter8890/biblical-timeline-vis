@@ -218,11 +218,36 @@ body::-webkit-scrollbar {
 .microchart-position-indicator {
     position: absolute;
     right: 0;
-    width: 50%;
+    width: 10%;
     height: 2px;
     background-color: red;
     z-index: 30;
     pointer-events: none;
+}
+
+.microchart-indicator-text {
+    background: rgba(0, 0, 0, 0.7);
+    position: absolute;
+    right: 10%;
+    width: 40%;
+    max-width: 150px;
+    height: 20px;
+    border: 2px solid red;
+    border-radius: 5px;
+    z-index: 31;
+    pointer-events: none;
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .microchart-position-indicator::after {

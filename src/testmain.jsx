@@ -81,6 +81,7 @@ const EventsTimeline = () => {
     const eventDisplayRef = useRef(null);
     const macroIndicatorRef = useRef(null);
     const microIndicatorRef = useRef(null);
+    const microIndicatorTextRef = useRef(null);
     const [processedEvents, setProcessedEvents] = useState([]);
     const masterScale = useRef(null);
 
@@ -572,7 +573,17 @@ const EventsTimeline = () => {
                 const masterYearPos = masterScale.current.yearToPixel(topVisibleYear);
                 const microY = ((masterYearPos - masterViewStart) / masterViewHeight) * microDimensions.height;
                 
+                // Position the indicator line
                 microIndicatorRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 2, microY - 1))}px`;
+                
+                // Position the text box vertically centered relative to the indicator line
+                if (microIndicatorTextRef.current) {
+                    microIndicatorTextRef.current.textContent = formatYear(topVisibleYear);
+                    // Center the 20px high text box relative to the 2px high indicator line
+                    // Offset: (textHeight - indicatorHeight) / 2 = (20 - 2) / 2 = 9px
+                    const textY = microY - 9;
+                    microIndicatorTextRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 20, textY))}px`;
+                }
             }
         }
     }, [calculateDimensions, findTopVisibleYear]);
@@ -938,6 +949,13 @@ const EventsTimeline = () => {
             .on('click', function(event, d) {
                 scrollToEvent(d.eventID, d);
             });
+
+        if (!microIndicatorTextRef.current && microContainerRef.current) {
+            const textElement = document.createElement('div');
+            textElement.className = 'microchart-indicator-text';
+            microContainerRef.current.appendChild(textElement);
+            microIndicatorTextRef.current = textElement;
+        }
 
         throttledIndicatorUpdate();
     }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover, scrollToEvent]);
@@ -1413,6 +1431,8 @@ const handlePeriodChange = useCallback((event) => {
 
         return resizeObserver;
     }, [updateLayout]);
+
+    // cleanup
     useEffect(() => {
         if (!processedEvents.length || !masterScale.current) return;
 
@@ -1439,6 +1459,11 @@ const handlePeriodChange = useCallback((event) => {
             if (scrollStateRef.current.programmaticScrollTimeout) {
                 clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
             }
+            
+            if (microIndicatorTextRef.current && microIndicatorTextRef.current.parentNode) {
+                microIndicatorTextRef.current.parentNode.removeChild(microIndicatorTextRef.current);
+                microIndicatorTextRef.current = null;
+            }
 
             cleanupOverlayElements();
             eventListenersRef.current.forEach(cleanup => cleanup());
@@ -1446,42 +1471,41 @@ const handlePeriodChange = useCallback((event) => {
         };
     }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
         
-useEffect(() => {
-    if (!eventDisplayRef.current) return;
+    useEffect(() => {
+        if (!eventDisplayRef.current) return;
 
-    const container = eventDisplayRef.current;
+        const container = eventDisplayRef.current;
 
-    // Original scroll listener (keep if needed for other logic)
-    container.addEventListener('scroll', handleEventScroll);
+        // Original scroll listener (keep if needed for other logic)
+        container.addEventListener('scroll', handleEventScroll);
 
-    // New preventive listeners
-    const preventUnwantedScroll = (e) => {
-        const maxScrollTop = calculateMaxScrollPosition();  // Your existing function
-        const atTop = container.scrollTop <= maxScrollTop;
+        // New preventive listeners
+        const preventUnwantedScroll = (e) => {
+            const maxScrollTop = calculateMaxScrollPosition();  // Your existing function
+            const atTop = container.scrollTop <= maxScrollTop;
 
-        // For wheel: Prevent if trying to scroll up (negative deltaY) at the top
-        if (e.type === 'wheel' && atTop && e.deltaY < 0) {
-            e.preventDefault();
-            return;
-        }
+            // For wheel: Prevent if trying to scroll up (negative deltaY) at the top
+            if (e.type === 'wheel' && atTop && e.deltaY < 0) {
+                e.preventDefault();
+                return;
+            }
 
-        if (e.type === 'touchmove' && atTop) {
-            e.preventDefault();
-        }
-    };
+            if (e.type === 'touchmove' && atTop) {
+                e.preventDefault();
+            }
+        };
 
-    container.addEventListener('wheel', preventUnwantedScroll, { passive: false });
-    container.addEventListener('touchmove', preventUnwantedScroll, { passive: false });
+        container.addEventListener('wheel', preventUnwantedScroll, { passive: false });
+        container.addEventListener('touchmove', preventUnwantedScroll, { passive: false });
 
-    return () => {
-        // Clean up original listener
-        container.removeEventListener('scroll', handleEventScroll);
-        // Clean up new listeners
-        container.removeEventListener('wheel', preventUnwantedScroll);
-        container.removeEventListener('touchmove', preventUnwantedScroll);
-    };
-}, [calculateMaxScrollPosition, handleEventScroll]);  // Include dependencies to avoid stale values
-
+        return () => {
+            // Clean up original listener
+            container.removeEventListener('scroll', handleEventScroll);
+            // Clean up new listeners
+            container.removeEventListener('wheel', preventUnwantedScroll);
+            container.removeEventListener('touchmove', preventUnwantedScroll);
+        };
+    }, [calculateMaxScrollPosition, handleEventScroll]);  // Include dependencies to avoid stale values
 
     useEffect(() => {
         updateEventDisplay();
