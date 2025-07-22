@@ -14,7 +14,7 @@ import {
 import './testindex.css';
 
 const TIME_RANGES = [
-    { start: -4100, end: -2200, color: '#5795ff' },
+    { start: -4150, end: -2200, color: '#5795ff' },
     { start: -2199, end: -1600, color: '#ff7f00' },
     { start: -1599, end: -1375, color: '#fc8eac' },
     { start: -1374, end: -1052, color: '#89b4c3' },
@@ -22,25 +22,25 @@ const TIME_RANGES = [
     { start: -930,  end: -715,  color: '#fdbf6f' },
     { start: -714,  end: -431,  color: '#cab2d6' },
     { start: -430,  end: -1,    color: '#FFB6C1' },
-    { start: 0,     end: 150,   color: '#C4A484' }
+    { start: 0,     end: 80,   color: '#C4A484' }
 ];
 
 const TIME_PERIODS = {
-    'all': [-4100, 150],
-    'period1': [-4100, -3000],
+    'all': [-4150, 80],
+    'period1': [-4150, -3000],
     'period2': [-2999, -2000], 
     'period3': [-1999, -1000],
     'period4': [-999, 0],
-    'period5': [1, 150]
+    'period5': [1, 80]
 };
 
 const PERIODS = [
     { value: 'all', label: 'ALL' },
-    { value: 'period1', label: '4101 BC - 3001 BC' },
+    { value: 'period1', label: '4151 BC - 3001 BC' },
     { value: 'period2', label: '3000 BC - 2001 BC' },
     { value: 'period3', label: '2000 BC - 1001 BC' },
     { value: 'period4', label: '1000 BC - 1 BC' },
-    { value: 'period5', label: '1 AD - 150 AD' }
+    { value: 'period5', label: '1 AD - 80 AD' }
 ];
 
 const UPDATE_THROTTLE_MS = 33; 
@@ -57,7 +57,7 @@ const HANDLE_HEIGHT = 14;
 const HANDLE_WIDTH_RATIO = 1/2;
 const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
-const FULL_RANGE = [-4100, 150];
+const FULL_RANGE = [-4150, 80];
 
 const LAYOUT_CONFIG = {
     SIDEBAR_RATIO: 0.4,        
@@ -1427,24 +1427,45 @@ const EventsTimeline = () => {
         };
     }, [setupChart, renderMacrochart, renderMicrochart, processedEvents, throttledSelectionChange, throttledIndicatorUpdate, throttledScrollHandler, cleanupOverlayElements]);
         
-    useEffect(() => {
-        if (!eventDisplayRef.current) return;
+useEffect(() => {
+    if (!eventDisplayRef.current) return;
 
-        const container = eventDisplayRef.current;
-        
-        const handleScroll = () => {
-            throttledScrollHandler();
-        };
+    const container = eventDisplayRef.current;
 
-        container.addEventListener('scroll', handleScroll, { passive: true });
+    // Original scroll listener (keep if needed for other logic)
+    container.addEventListener('scroll', handleEventScroll);
 
-        const cleanup = () => {
-            container.removeEventListener('scroll', handleScroll);
-        };
-        eventListenersRef.current.add(cleanup);
+    // New preventive listeners
+    const preventUnwantedScroll = (e) => {
+        const maxScrollTop = calculateMaxScrollPosition();  // Your existing function
+        const atTop = container.scrollTop <= maxScrollTop;
 
-        return cleanup;
-    }, [throttledScrollHandler]);
+        // For wheel: Prevent if trying to scroll up (negative deltaY) at the top
+        if (e.type === 'wheel' && atTop && e.deltaY < 0) {
+            e.preventDefault();
+            return;
+        }
+
+        // For touch: Prevent if moving downward (which scrolls up) at the top
+        if (e.type === 'touchmove' && atTop) {
+            // Simple check: if touch is moving down (positive dy), prevent if at top
+            // You may need to track touch start position for precision
+            e.preventDefault();
+        }
+    };
+
+    container.addEventListener('wheel', preventUnwantedScroll, { passive: false });
+    container.addEventListener('touchmove', preventUnwantedScroll, { passive: false });
+
+    return () => {
+        // Clean up original listener
+        container.removeEventListener('scroll', handleEventScroll);
+        // Clean up new listeners
+        container.removeEventListener('wheel', preventUnwantedScroll);
+        container.removeEventListener('touchmove', preventUnwantedScroll);
+    };
+}, [calculateMaxScrollPosition, handleEventScroll]);  // Include dependencies to avoid stale values
+
 
     useEffect(() => {
         updateEventDisplay();

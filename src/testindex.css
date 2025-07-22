@@ -20,6 +20,7 @@ body, html {
     overflow: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    overscroll-behavior-y: none;
 }
 
 body::-webkit-scrollbar {
@@ -354,6 +355,11 @@ body::-webkit-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
     position: relative;
+    overscroll-behavior: none;           /* Prevents all overscroll effects */
+    overscroll-behavior-y: none;         /* Specific to vertical scrolling */
+    scroll-behavior: auto;               /* Disables smooth scrolling during prevention */
+    -webkit-overflow-scrolling: touch;   /* Better touch handling on iOS */
+    scrollbar-gutter: stable; 
 }
 
 .event-display-container::-webkit-scrollbar {
