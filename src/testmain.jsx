@@ -90,11 +90,6 @@ const EventsTimeline = () => {
         programmaticScrollTimeout: null
     });
 
-    // NEW: Dynamic selection state to prevent circular updates
-    const dynamicSelectionState = useRef({
-        isUpdating: false
-    });
-
     const scrollDirectionRef = useRef({
         lastScrollTop: 0,
         direction: 'none', // 'up', 'down', 'none'
@@ -824,7 +819,7 @@ const EventsTimeline = () => {
     }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover]);
 
     const handleDynamicSelectionUpdate = useCallback(() => {
-        if (!selectionState.current.macroScaleInfo || dynamicSelectionState.current.isUpdating) return;
+        if (!selectionState.current.macroScaleInfo) return;
         if (!eventDisplayRef.current) return;
         
         const topVisibleYear = findTopVisibleYear();
@@ -887,9 +882,6 @@ const EventsTimeline = () => {
         
         if (!needsUpdate) return;
         
-        // Set flag to prevent circular updates
-        dynamicSelectionState.current.isUpdating = true;
-        
         // Update internal state
         selectionState.current.yearBounds = [newStart, newEnd];
         
@@ -898,29 +890,34 @@ const EventsTimeline = () => {
             const y0 = yearToPixel(newStart);
             const y1 = yearToPixel(newEnd);
             selectionState.current.pixelBounds = [y0, y1];
-            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+            // Update overlay visual position without triggering selection change
+            const elements = overlayElementsRef.current;
+            if (elements.overlay && selectionState.current.macroScaleInfo) {
+                const { pixelToYear } = selectionState.current.macroScaleInfo;
+                const height = y1 - y0;
+                const handleWidth = selectionState.current.macroScaleInfo.dimensions.width * HANDLE_WIDTH_RATIO;
+                const handleLeft = (selectionState.current.macroScaleInfo.dimensions.width - handleWidth) / 2;
+                
+                elements.overlay.style.top = y0 + 'px';
+                elements.overlay.style.height = height + 'px';
+                elements.topHandle.style.top = (y0 - HANDLE_HEIGHT / 2) + 'px';
+                elements.bottomHandle.style.top = (y1 - HANDLE_HEIGHT / 2) + 'px';
+                elements.topHandleText.style.top = (y0 - HANDLE_HEIGHT / 2) + 'px';
+                elements.topHandleText.textContent = formatYear(Math.round(pixelToYear(y0)));
+                elements.bottomHandleText.style.top = (y1 - HANDLE_HEIGHT / 2) + 'px';
+                elements.bottomHandleText.textContent = formatYear(Math.round(pixelToYear(y1)));
+            }
         }
+
+        // Use auto selection change to update state without triggering scroll
+        handleAutoSelectionChange(newStart, newEnd);
         
-        // Update microchart directly (this renders based on selectionState.current.yearBounds)
-        renderMicrochart();
-        
-        // Update UI to reflect custom range
-        setSelectedPeriod('all');
-        setIsCustomRange(true);
-        
-        // Clear the flag
-        dynamicSelectionState.current.isUpdating = false;
     }, [findTopVisibleYear, findBottomVisibleYear, renderMicrochart]);
 
     const throttledDynamicSelectionUpdate = useCallback(
         createThrottledFunction(handleDynamicSelectionUpdate, UPDATE_THROTTLE_MS),
         [handleDynamicSelectionUpdate, createThrottledFunction]
     );
-
-    const resetScrollDirection = useCallback(() => {
-        scrollDirectionRef.current.direction = 'none';
-        scrollDirectionRef.current.directionConfidenceCounter = 0;
-    }, []);
 
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
@@ -1088,10 +1085,7 @@ const EventsTimeline = () => {
         }
     }, [calculateLayoutDimensions, renderMicrochart]);
 
-    const handleSelectionChange = useCallback((startYear, endYear) => {
-        // Skip if this is a dynamic update to prevent circular calls
-        if (dynamicSelectionState.current.isUpdating) return;
-        
+    const handleUserSelectionChange = useCallback((startYear, endYear) => {
         selectionState.current.yearBounds = [startYear, endYear];
         const matchingPeriod = Object.keys(TIME_PERIODS).find(key => {
             const [pStart, pEnd] = TIME_PERIODS[key];
@@ -1107,12 +1101,31 @@ const EventsTimeline = () => {
         }
 
         renderMicrochart();
-        scrollToYear(startYear);
+        scrollToYear(startYear); // This triggers navigation for user actions
     }, [renderMicrochart, scrollToYear]);
 
+    const handleAutoSelectionChange = useCallback((startYear, endYear) => {
+        selectionState.current.yearBounds = [startYear, endYear];
+        const matchingPeriod = Object.keys(TIME_PERIODS).find(key => {
+            const [pStart, pEnd] = TIME_PERIODS[key];
+            return Math.abs(pStart - startYear) < 10 && Math.abs(pEnd - endYear) < 10;
+        });
+
+        if (matchingPeriod) {
+            setSelectedPeriod(matchingPeriod);
+            setIsCustomRange(false);
+        } else {
+            setSelectedPeriod('all');
+            setIsCustomRange(true);
+        }
+
+        renderMicrochart();
+        // NO scrollToYear call here - prevents circular updates
+    }, [renderMicrochart]);
+
     const throttledSelectionChange = useCallback(
-        createThrottledFunction(handleSelectionChange, UPDATE_THROTTLE_MS),
-        [handleSelectionChange, createThrottledFunction]
+        createThrottledFunction(handleUserSelectionChange, UPDATE_THROTTLE_MS),
+        [handleUserSelectionChange, createThrottledFunction]
     );
 
     const setupMacroOverlay = useCallback((dimensions) => {
