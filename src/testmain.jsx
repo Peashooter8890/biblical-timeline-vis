@@ -1335,33 +1335,33 @@ const EventsTimeline = () => {
         container.appendChild(fragment);
     }, [preserveExpandedStates, groupEventsByYear, createEventItem, calculateMaxScrollPosition, throttledIndicatorUpdate]);
 
-const handlePeriodChange = useCallback((event) => {
-    const period = event.target.value;
-    
-    setSelectedPeriod(period);
-    setIsCustomRange(false);
-    
-    const newRange = TIME_PERIODS[period];
-    
-    stateRef.current.selection = newRange;
-    
-    selectionState.current.yearBounds = newRange;
-    
-    // No need to call updateEventDisplay since we're not filtering anymore
-    renderMicrochart();
+    const handlePeriodChange = useCallback((event) => {
+        const period = event.target.value;
+        
+        setSelectedPeriod(period);
+        setIsCustomRange(false);
+        
+        const newRange = TIME_PERIODS[period];
+        
+        stateRef.current.selection = newRange;
+        
+        selectionState.current.yearBounds = newRange;
+        
+        // No need to call updateEventDisplay since we're not filtering anymore
+        renderMicrochart();
 
-    if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
-        const { yearToPixel } = selectionState.current.macroScaleInfo;
-        const y0 = yearToPixel(newRange[0]);
-        const y1 = yearToPixel(newRange[1]);
-        selectionState.current.pixelBounds = [y0, y1];
-        selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
-    }
+        if (selectionState.current.macroScaleInfo && selectionState.current.overlayElements) {
+            const { yearToPixel } = selectionState.current.macroScaleInfo;
+            const y0 = yearToPixel(newRange[0]);
+            const y1 = yearToPixel(newRange[1]);
+            selectionState.current.pixelBounds = [y0, y1];
+            selectionState.current.overlayElements.updateOverlayPosition(y0, y1);
+        }
 
-    if (period !== 'all' && newRange) {
-        scrollToYear(newRange[0]);
-    }
-}, [renderMicrochart, scrollToYear]);
+        if (period !== 'all' && newRange) {
+            scrollToYear(newRange[0]);
+        }
+    }, [renderMicrochart, scrollToYear]);
 
     const setupChart = useCallback((containerRef, svgRef, renderFunction, chartName) => {
         if (!containerRef.current) return null;
