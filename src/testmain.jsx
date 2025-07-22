@@ -468,7 +468,26 @@ const EventsTimeline = () => {
         }
     }, [processedEvents]);
 
-    
+    // NEW: Calculate maximum scroll position to prevent over-scrolling
+    const calculateMaxScrollPosition = useCallback(() => {
+        if (!eventDisplayRef.current) return 0;
+        
+        const container = eventDisplayRef.current;
+        const floatingHeader = container.querySelector('.floating-header');
+        const firstEvent = container.querySelector('.event-item');
+        
+        if (!floatingHeader || !firstEvent) return 0;
+        
+        const floatingHeaderHeight = floatingHeader.getBoundingClientRect().height;
+        const firstEventRect = firstEvent.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate position where first event would be right below floating header
+        const firstEventTop = firstEventRect.top - containerRect.top + container.scrollTop;
+        const maxScrollTop = Math.max(0, firstEventTop - floatingHeaderHeight);
+        
+        return maxScrollTop;
+    }, []);
 
     // POSITION INDICATOR FIX: Separate floating header from position detection
     const findTopVisibleYear = useCallback(() => {
@@ -503,12 +522,9 @@ const EventsTimeline = () => {
                 top: header.style.top
             };
             
-            // Temporarily reset to get true position (handle first header specially)
-            if (i === 0) {
-                // First header: restore to normal flow
-                header.style.position = 'static';
-                header.style.top = 'auto';
-            }
+            // Temporarily reset to get true position
+            header.style.position = 'static';
+            header.style.top = 'auto';
             header.style.opacity = '1';
             header.style.pointerEvents = 'auto';
             
@@ -518,10 +534,8 @@ const EventsTimeline = () => {
             // Restore original styling
             header.style.opacity = originalStyles.opacity;
             header.style.pointerEvents = originalStyles.pointerEvents;
-            if (i === 0) {
-                header.style.position = originalStyles.position;
-                header.style.top = originalStyles.top;
-            }
+            header.style.position = originalStyles.position;
+            header.style.top = originalStyles.top;
             
             if (headerTop <= containerTop + SWITCH_THRESHOLD) {
                 activeGroupIndex = i;
@@ -563,14 +577,19 @@ const EventsTimeline = () => {
         }
     }, [calculateDimensions, findTopVisibleYear]);
 
-    // MODIFIED: handleEventScroll with hybrid header hiding logic
+    // MODIFIED: handleEventScroll with improved logic - never hide first header, add scroll constraints
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
-        // Skip header hiding during programmatic scroll
-        if (scrollStateRef.current.isProgrammaticScroll) {
-            updatePositionIndicators();
-            return;
+        // Apply scroll constraint for user scrolling (not programmatic)
+        if (!scrollStateRef.current.isProgrammaticScroll) {
+            const container = eventDisplayRef.current;
+            const maxScrollTop = calculateMaxScrollPosition();
+
+            if (container.scrollTop < maxScrollTop) {
+                container.scrollTop = maxScrollTop;
+                return; // Exit early if we corrected the scroll
+            }
         }
 
         const topVisibleYear = findTopVisibleYear();
@@ -584,28 +603,20 @@ const EventsTimeline = () => {
                 floatingHeader.style.display = 'block';
                 setFloatingHeaderYear(topVisibleYear);
 
-                // Hybrid header hiding logic: treat first header differently
+                // Modified header hiding logic: never hide first header
                 const headers = container.querySelectorAll('.event-year-header');
                 headers.forEach((header, index) => {
                     const groupYear = stateRef.current.groupedEvents[index]?.year;
                     const shouldHide = groupYear === topVisibleYear;
                     
-                    if (shouldHide) {
-                        if (index === 0) {
-                            // First header: remove from document flow (no empty space)
-                            header.style.position = 'absolute';
-                            header.style.top = '-1000px';
-                            header.style.opacity = '1'; // Keep opacity normal
-                            header.style.pointerEvents = 'none';
-                        } else {
-                            // Other headers: use opacity (keep in flow for position detection)
-                            header.style.position = 'static';
-                            header.style.top = 'auto';
-                            header.style.opacity = '0';
-                            header.style.pointerEvents = 'none';
-                        }
+                    if (shouldHide && index > 0) { // Never hide first header (index 0)
+                        // Non-first headers: use opacity (keep in flow for position detection)
+                        header.style.position = 'static';
+                        header.style.top = 'auto';
+                        header.style.opacity = '0';
+                        header.style.pointerEvents = 'none';
                     } else {
-                        // Not hidden: restore normal state
+                        // Not hidden or first header: restore normal state
                         header.style.position = 'static';
                         header.style.top = 'auto';
                         header.style.opacity = '1';
@@ -616,7 +627,7 @@ const EventsTimeline = () => {
         }
 
         updatePositionIndicators();
-    }, [findTopVisibleYear, updatePositionIndicators]);
+    }, [findTopVisibleYear, updatePositionIndicators, calculateMaxScrollPosition]);
 
     const scrollToEvent = useCallback(async (eventID, eventData) => {
         if (!eventDisplayRef.current || !eventID) return;
@@ -683,7 +694,7 @@ const EventsTimeline = () => {
                 floatingHeader.getBoundingClientRect().height : 0;
             
             const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
-            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight - 5);
+            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight);
             
             container.scrollTo({
                 top: targetScrollTop,
@@ -1283,7 +1294,7 @@ const EventsTimeline = () => {
         return eventItem;
     }, [formatDuration, formatParticipants, formatLocations, formatVerses]);
 
-    // MODIFIED: updateEventDisplay with performance improvements
+    // MODIFIED: updateEventDisplay with initial scroll position setting
     const updateEventDisplay = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
@@ -1324,8 +1335,7 @@ const EventsTimeline = () => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
-        throttledIndicatorUpdate();
-    }, [preserveExpandedStates, groupEventsByYear, createEventItem, throttledIndicatorUpdate]);
+    }, [preserveExpandedStates, groupEventsByYear, createEventItem, calculateMaxScrollPosition, throttledIndicatorUpdate]);
 
     const handlePeriodChange = useCallback((event) => {
         const period = event.target.value;
