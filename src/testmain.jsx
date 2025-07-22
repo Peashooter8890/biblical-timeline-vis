@@ -172,23 +172,13 @@ const EventsTimeline = () => {
         
         const timelineContainer = macroContainerRef.current.closest('.timeline-container');
         if (!timelineContainer) return null;
-        
-        const containerStyle = window.getComputedStyle(timelineContainer);
+
         const containerWidth = timelineContainer.clientWidth; 
         const gap = LAYOUT_CONFIG.MICROCHART_GAP;
         const availableWidth = containerWidth - gap;
         const sidebarWidth = Math.floor(availableWidth * LAYOUT_CONFIG.SIDEBAR_RATIO);
         const contentWidth = Math.floor(availableWidth * LAYOUT_CONFIG.CONTENT_RATIO);
         const microchartWidth = sidebarWidth - LAYOUT_CONFIG.MACROCHART_WIDTH;
-
-        console.log('Layout calculation:', {
-            containerWidth,
-            availableWidth,
-            sidebarWidth,
-            microchartWidth,
-            minWidth: LAYOUT_CONFIG.MICROCHART_MIN_WIDTH
-        });
-        
         const showMicrochart = microchartWidth >= LAYOUT_CONFIG.MICROCHART_MIN_WIDTH;
         
         return {
@@ -201,7 +191,6 @@ const EventsTimeline = () => {
     }, []);
 
     const calculateMasterTimelineScale = useCallback(() => {
-        const [fullStart, fullEnd] = FULL_RANGE;
         const referenceHeight = 10000;
         const totalSpan = TIME_RANGES.reduce((sum, range) => 
             sum + Math.abs(range.end - range.start), 0);
@@ -747,7 +736,6 @@ const EventsTimeline = () => {
             (dimensions.width / ((2 * MICROCHART_COLUMNS) - 1))
         ));
         const dynamicDotRadius = dynamicDotDiameter / 2;
-        console.log(dynamicDotDiameter)
         const dynamicLineWidth = Math.max(1, dynamicDotDiameter / 3);
         const [viewStart, viewEnd] = selectionState.current.yearBounds;
         const masterViewStart = masterScale.current.yearToPixel(viewStart);
@@ -1237,8 +1225,6 @@ const EventsTimeline = () => {
             }
         });
 
-        // --- NEW: Add Events That are Part of This ---
-        // Find if this event has children in eventsChildrenData
         const childrenObj = eventsChildrenData.find(
             obj => obj.eventID === event.fields.eventID
         );
