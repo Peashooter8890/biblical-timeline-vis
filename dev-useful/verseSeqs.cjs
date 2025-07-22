@@ -184,19 +184,6 @@ eventsData.forEach(event => {
     }
 });
 
-// Build a map from child eventID to parent eventID(s)
-const childToParentMap = {};
-eventsChildrenData.forEach(parentObj => {
-    if (parentObj.eventChildren && Array.isArray(parentObj.eventChildren)) {
-        parentObj.eventChildren.forEach(childId => {
-            if (!childToParentMap[childId]) {
-                childToParentMap[childId] = [];
-            }
-            childToParentMap[childId].push(parentObj.eventID);
-        });
-    }
-});
-
 // Process each event
 const processedEvents = eventsData.map(event => {
     const fields = event.fields || {};
@@ -246,13 +233,16 @@ const processedEvents = eventsData.map(event => {
         }
     });
     
-    // Add eventsPartOf: list of titles of parent events this event is a child of
-    if (fields.eventID && childToParentMap[fields.eventID]) {
-        const parentTitles = childToParentMap[fields.eventID]
-            .map(parentId => eventIdToTitle[parentId])
-            .filter(Boolean);
-        if (parentTitles.length > 0) {
-            filteredFields.eventsPartOf = parentTitles;
+    // Add eventsPartOf: list of titles of child events that are part of this event
+    if (fields.eventID) {
+        const parentData = eventsChildrenData.find(parent => parent.eventID === fields.eventID);
+        if (parentData && parentData.eventChildren && parentData.eventChildren.length > 0) {
+            const childTitles = parentData.eventChildren
+                .map(childId => eventIdToTitle[childId])
+                .filter(Boolean); // Remove any undefined/null titles
+            if (childTitles.length > 0) {
+                filteredFields.eventsPartOf = childTitles;
+            }
         }
     }
 

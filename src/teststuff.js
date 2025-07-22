@@ -36,10 +36,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 2:4-25"
       ],
-      "partOf": "Lifetime of Adam",
-      "eventsPartOf": [
-        "Lifetime of Adam"
-      ]
+      "partOf": "Lifetime of Adam"
     }
   },
   {
@@ -79,6 +76,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:3-5"
+      ],
+      "eventsPartOf": [
+        "Creation of Adam and Eve",
+        "Death of Adam"
       ]
     }
   },
@@ -145,10 +146,7 @@ export const eventsFullData = [
         "Luke 3:38",
         "1 Chronicles 1:1"
       ],
-      "partOf": "Lifetime of Seth",
-      "eventsPartOf": [
-        "Lifetime of Seth"
-      ]
+      "partOf": "Lifetime of Seth"
     }
   },
   {
@@ -164,6 +162,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:6-8"
+      ],
+      "eventsPartOf": [
+        "Birth of Seth",
+        "Death of Seth"
       ]
     }
   },
@@ -184,10 +186,7 @@ export const eventsFullData = [
         "Genesis 5:6",
         "1 Chronicles 1:1"
       ],
-      "partOf": "Lifetime of Enos",
-      "eventsPartOf": [
-        "Lifetime of Enos"
-      ]
+      "partOf": "Lifetime of Enos"
     }
   },
   {
@@ -203,6 +202,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:9-11"
+      ],
+      "eventsPartOf": [
+        "Birth of Enos",
+        "Death of Enos"
       ]
     }
   },
@@ -223,10 +226,7 @@ export const eventsFullData = [
         "1 Chronicles 1:2",
         "Luke 3:37"
       ],
-      "partOf": "Lifetime of Cainan",
-      "eventsPartOf": [
-        "Lifetime of Cainan"
-      ]
+      "partOf": "Lifetime of Cainan"
     }
   },
   {
@@ -242,6 +242,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:12-14"
+      ],
+      "eventsPartOf": [
+        "Birth of Cainan",
+        "Death of Cainan"
       ]
     }
   },
@@ -260,10 +264,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:12"
       ],
-      "partOf": "Lifetime of Mahlaleel",
-      "eventsPartOf": [
-        "Lifetime of Mahlaleel"
-      ]
+      "partOf": "Lifetime of Mahlaleel"
     }
   },
   {
@@ -279,6 +280,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:15-17"
+      ],
+      "eventsPartOf": [
+        "Birth of Mahlaleel",
+        "Death of Mahlaleel"
       ]
     }
   },
@@ -297,10 +302,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:15"
       ],
-      "partOf": "Lifetime of Jared",
-      "eventsPartOf": [
-        "Lifetime of Jared"
-      ]
+      "partOf": "Lifetime of Jared"
     }
   },
   {
@@ -316,6 +318,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:18-20"
+      ],
+      "eventsPartOf": [
+        "Birth of Jared",
+        "Death of Jared"
       ]
     }
   },
@@ -334,10 +340,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:18"
       ],
-      "partOf": "Lifetime of Enoch",
-      "eventsPartOf": [
-        "Lifetime of Enoch"
-      ]
+      "partOf": "Lifetime of Enoch"
     }
   },
   {
@@ -353,6 +356,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:21-24"
+      ],
+      "eventsPartOf": [
+        "Birth of Enoch",
+        "Enoch taken up"
       ]
     }
   },
@@ -371,10 +378,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:21"
       ],
-      "partOf": "Lifetime of Methuselah",
-      "eventsPartOf": [
-        "Lifetime of Methuselah"
-      ]
+      "partOf": "Lifetime of Methuselah"
     }
   },
   {
@@ -390,6 +394,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:25-27"
+      ],
+      "eventsPartOf": [
+        "Birth of Methuselah",
+        "Death of Methuselah"
       ]
     }
   },
@@ -408,10 +416,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:25"
       ],
-      "partOf": "Lifetime of Lamech",
-      "eventsPartOf": [
-        "Lifetime of Lamech"
-      ]
+      "partOf": "Lifetime of Lamech"
     }
   },
   {
@@ -427,6 +432,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 5:28-31"
+      ],
+      "eventsPartOf": [
+        "Birth of Lamech",
+        "Death of Lamech"
       ]
     }
   },
@@ -447,10 +456,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:5"
       ],
-      "partOf": "Lifetime of Adam",
-      "eventsPartOf": [
-        "Lifetime of Adam"
-      ]
+      "partOf": "Lifetime of Adam"
     }
   },
   {
@@ -468,10 +474,7 @@ export const eventsFullData = [
         "Genesis 5:24",
         "Hebrews 11:5"
       ],
-      "partOf": "Lifetime of Enoch",
-      "eventsPartOf": [
-        "Lifetime of Enoch"
-      ]
+      "partOf": "Lifetime of Enoch"
     }
   },
   {
@@ -488,10 +491,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:8"
       ],
-      "partOf": "Lifetime of Seth",
-      "eventsPartOf": [
-        "Lifetime of Seth"
-      ]
+      "partOf": "Lifetime of Seth"
     }
   },
   {
@@ -509,10 +509,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:28-29"
       ],
-      "partOf": "Lifetime of Noah",
-      "eventsPartOf": [
-        "Lifetime of Noah"
-      ]
+      "partOf": "Lifetime of Noah"
     }
   },
   {
@@ -530,6 +527,10 @@ export const eventsFullData = [
         "Genesis 5:32",
         "Genesis 7:6",
         "Genesis 9:28-29"
+      ],
+      "eventsPartOf": [
+        "Birth of Noah",
+        "Death of Noah"
       ]
     }
   },
@@ -547,10 +548,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:11"
       ],
-      "partOf": "Lifetime of Enos",
-      "eventsPartOf": [
-        "Lifetime of Enos"
-      ]
+      "partOf": "Lifetime of Enos"
     }
   },
   {
@@ -567,10 +565,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:14"
       ],
-      "partOf": "Lifetime of Cainan",
-      "eventsPartOf": [
-        "Lifetime of Cainan"
-      ]
+      "partOf": "Lifetime of Cainan"
     }
   },
   {
@@ -587,10 +582,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:17"
       ],
-      "partOf": "Lifetime of Mahlaleel",
-      "eventsPartOf": [
-        "Lifetime of Mahlaleel"
-      ]
+      "partOf": "Lifetime of Mahlaleel"
     }
   },
   {
@@ -607,10 +599,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:20"
       ],
-      "partOf": "Lifetime of Jared",
-      "eventsPartOf": [
-        "Lifetime of Jared"
-      ]
+      "partOf": "Lifetime of Jared"
     }
   },
   {
@@ -645,10 +634,7 @@ export const eventsFullData = [
         "Genesis 5:32"
       ],
       "partOf": "Lifetime of Shem",
-      "notes": "Not all of Noah's sons listed in Gen 5:32 would have been born the same year. Shem was born when Noah was 102 in light of Gen 11:12.",
-      "eventsPartOf": [
-        "Lifetime of Shem"
-      ]
+      "notes": "Not all of Noah's sons listed in Gen 5:32 would have been born the same year. Shem was born when Noah was 102 in light of Gen 11:12."
     }
   },
   {
@@ -664,6 +650,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:10-11"
+      ],
+      "eventsPartOf": [
+        "Birth of Shem",
+        "Death of Shem"
       ]
     }
   },
@@ -698,10 +688,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:31"
       ],
-      "partOf": "Lifetime of Lamech",
-      "eventsPartOf": [
-        "Lifetime of Lamech"
-      ]
+      "partOf": "Lifetime of Lamech"
     }
   },
   {
@@ -718,10 +705,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 5:27"
       ],
-      "partOf": "Lifetime of Methuselah",
-      "eventsPartOf": [
-        "Lifetime of Methuselah"
-      ]
+      "partOf": "Lifetime of Methuselah"
     }
   },
   {
@@ -741,10 +725,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 7:6-17"
       ],
-      "partOf": "The Great Flood",
-      "eventsPartOf": [
-        "The Great Flood"
-      ]
+      "partOf": "The Great Flood"
     }
   },
   {
@@ -766,6 +747,13 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 7:6-8:19"
+      ],
+      "eventsPartOf": [
+        "The Great Flood begins",
+        "Water covers the earth",
+        "The flood subsides",
+        "Leaving the Ark",
+        "God makes a covenant with Noah"
       ]
     }
   },
@@ -786,10 +774,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 7:18-24"
       ],
-      "partOf": "The Great Flood",
-      "eventsPartOf": [
-        "The Great Flood"
-      ]
+      "partOf": "The Great Flood"
     }
   },
   {
@@ -812,10 +797,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 8:1-14"
       ],
-      "partOf": "The Great Flood",
-      "eventsPartOf": [
-        "The Great Flood"
-      ]
+      "partOf": "The Great Flood"
     }
   },
   {
@@ -838,10 +820,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 8:15-19"
       ],
-      "partOf": "The Great Flood",
-      "eventsPartOf": [
-        "The Great Flood"
-      ]
+      "partOf": "The Great Flood"
     }
   },
   {
@@ -859,10 +838,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 8:20-9:17"
       ],
-      "partOf": "The Great Flood",
-      "eventsPartOf": [
-        "The Great Flood"
-      ]
+      "partOf": "The Great Flood"
     }
   },
   {
@@ -900,10 +876,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:10"
       ],
-      "partOf": "Lifetime of Arphaxad",
-      "eventsPartOf": [
-        "Lifetime of Arphaxad"
-      ]
+      "partOf": "Lifetime of Arphaxad"
     }
   },
   {
@@ -919,6 +892,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:12-13"
+      ],
+      "eventsPartOf": [
+        "Birth of Arphaxad",
+        "Death of Arphaxad"
       ]
     }
   },
@@ -937,10 +914,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:12"
       ],
-      "partOf": "Lifetime of Salah",
-      "eventsPartOf": [
-        "Lifetime of Salah"
-      ]
+      "partOf": "Lifetime of Salah"
     }
   },
   {
@@ -956,6 +930,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:14-15"
+      ],
+      "eventsPartOf": [
+        "Birth of Salah",
+        "Death of Salah"
       ]
     }
   },
@@ -974,10 +952,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:14"
       ],
-      "partOf": "Lifetime of Eber",
-      "eventsPartOf": [
-        "Lifetime of Eber"
-      ]
+      "partOf": "Lifetime of Eber"
     }
   },
   {
@@ -993,6 +968,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:16-17"
+      ],
+      "eventsPartOf": [
+        "Birth of Eber",
+        "Death of Eber"
       ]
     }
   },
@@ -1011,10 +990,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:16"
       ],
-      "partOf": "Lifetime of Peleg",
-      "eventsPartOf": [
-        "Lifetime of Peleg"
-      ]
+      "partOf": "Lifetime of Peleg"
     }
   },
   {
@@ -1030,6 +1006,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:18-19"
+      ],
+      "eventsPartOf": [
+        "Birth of Peleg",
+        "Death of Peleg"
       ]
     }
   },
@@ -1064,10 +1044,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:18"
       ],
-      "partOf": "Lifetime of Reu",
-      "eventsPartOf": [
-        "Lifetime of Reu"
-      ]
+      "partOf": "Lifetime of Reu"
     }
   },
   {
@@ -1083,6 +1060,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:20-21"
+      ],
+      "eventsPartOf": [
+        "Birth of Reu",
+        "Death of Reu"
       ]
     }
   },
@@ -1101,10 +1082,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:20"
       ],
-      "partOf": "Lifetime of Serug",
-      "eventsPartOf": [
-        "Lifetime of Serug"
-      ]
+      "partOf": "Lifetime of Serug"
     }
   },
   {
@@ -1120,6 +1098,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:22-23"
+      ],
+      "eventsPartOf": [
+        "Birth of Serug",
+        "Death of Serug"
       ]
     }
   },
@@ -1138,10 +1120,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:22"
       ],
-      "partOf": "Lifetime of Nahor",
-      "eventsPartOf": [
-        "Lifetime of Nahor"
-      ]
+      "partOf": "Lifetime of Nahor"
     }
   },
   {
@@ -1157,6 +1136,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:24-25"
+      ],
+      "eventsPartOf": [
+        "Birth of Nahor",
+        "Death of Nahor"
       ]
     }
   },
@@ -1175,10 +1158,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:24"
       ],
-      "partOf": "Lifetime of Terah",
-      "eventsPartOf": [
-        "Lifetime of Terah"
-      ]
+      "partOf": "Lifetime of Terah"
     }
   },
   {
@@ -1194,6 +1174,10 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 11:26-28"
+      ],
+      "eventsPartOf": [
+        "Birth of Terah",
+        "Death of Terah"
       ]
     }
   },
@@ -1211,10 +1195,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:19"
       ],
-      "partOf": "Lifetime of Peleg",
-      "eventsPartOf": [
-        "Lifetime of Peleg"
-      ]
+      "partOf": "Lifetime of Peleg"
     }
   },
   {
@@ -1231,10 +1212,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:25"
       ],
-      "partOf": "Lifetime of Nahor",
-      "eventsPartOf": [
-        "Lifetime of Nahor"
-      ]
+      "partOf": "Lifetime of Nahor"
     }
   },
   {
@@ -1251,10 +1229,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 9:29"
       ],
-      "partOf": "Lifetime of Noah",
-      "eventsPartOf": [
-        "Lifetime of Noah"
-      ]
+      "partOf": "Lifetime of Noah"
     }
   },
   {
@@ -1276,10 +1251,7 @@ export const eventsFullData = [
         "Genesis 11:26-27"
       ],
       "partOf": "Lifetime of Abraham",
-      "notes": "Not all of Terah's sons would have been born the same year. In light of Acts 7:4 and Genesis 12:4, Abraham was born when Terah was 130 years old.",
-      "eventsPartOf": [
-        "Lifetime of Abraham"
-      ]
+      "notes": "Not all of Terah's sons would have been born the same year. In light of Acts 7:4 and Genesis 12:4, Abraham was born when Terah was 130 years old."
     }
   },
   {
@@ -1296,6 +1268,10 @@ export const eventsFullData = [
       "verses": [
         "Genesis 21:5",
         "Genesis 25:7"
+      ],
+      "eventsPartOf": [
+        "Birth of Abraham",
+        "Death of Abraham"
       ]
     }
   },
@@ -1333,10 +1309,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:21"
       ],
-      "partOf": "Lifetime of Reu",
-      "eventsPartOf": [
-        "Lifetime of Reu"
-      ]
+      "partOf": "Lifetime of Reu"
     }
   },
   {
@@ -1353,10 +1326,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:23"
       ],
-      "partOf": "Lifetime of Serug",
-      "eventsPartOf": [
-        "Lifetime of Serug"
-      ]
+      "partOf": "Lifetime of Serug"
     }
   },
   {
@@ -1376,10 +1346,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:32"
       ],
-      "partOf": "Lifetime of Terah",
-      "eventsPartOf": [
-        "Lifetime of Terah"
-      ]
+      "partOf": "Lifetime of Terah"
     }
   },
   {
@@ -1407,10 +1374,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:31-12:9"
       ],
-      "partOf": "Sojourn in Canaan and Egypt",
-      "eventsPartOf": [
-        "Sojourn in Canaan and Egypt"
-      ]
+      "partOf": "Sojourn in Canaan and Egypt"
     }
   },
   {
@@ -1449,10 +1413,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 12:10-20"
       ],
-      "partOf": "Sojourn in Canaan and Egypt",
-      "eventsPartOf": [
-        "Sojourn in Canaan and Egypt"
-      ]
+      "partOf": "Sojourn in Canaan and Egypt"
     }
   },
   {
@@ -1475,6 +1436,11 @@ export const eventsFullData = [
       "verses": [
         "Exodus 12:40",
         "Galatians 3:17"
+      ],
+      "eventsPartOf": [
+        "Abraham enters Canaan",
+        "Abraham goes to Egypt",
+        "Abraham and Lot Separate"
       ]
     }
   },
@@ -1499,10 +1465,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 13:1-18"
       ],
-      "partOf": "Sojourn in Canaan and Egypt",
-      "eventsPartOf": [
-        "Sojourn in Canaan and Egypt"
-      ]
+      "partOf": "Sojourn in Canaan and Egypt"
     }
   },
   {
@@ -1521,10 +1484,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 16:11-16"
       ],
-      "partOf": "Lifetime of Ishmael",
-      "eventsPartOf": [
-        "Lifetime of Ishmael"
-      ]
+      "partOf": "Lifetime of Ishmael"
     }
   },
   {
@@ -1541,6 +1501,10 @@ export const eventsFullData = [
       "verses": [
         "Genesis 16:16",
         "Genesis 25:17"
+      ],
+      "eventsPartOf": [
+        "Birth of Ishmael",
+        "Death of Ishmael"
       ]
     }
   },
@@ -1558,10 +1522,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:13"
       ],
-      "partOf": "Lifetime of Arphaxad",
-      "eventsPartOf": [
-        "Lifetime of Arphaxad"
-      ]
+      "partOf": "Lifetime of Arphaxad"
     }
   },
   {
@@ -1605,10 +1566,7 @@ export const eventsFullData = [
         "Genesis 17:19",
         "Genesis 21:3"
       ],
-      "partOf": "Lifetime of Isaac",
-      "eventsPartOf": [
-        "Lifetime of Isaac"
-      ]
+      "partOf": "Lifetime of Isaac"
     }
   },
   {
@@ -1626,6 +1584,10 @@ export const eventsFullData = [
         "Genesis 17:19",
         "Genesis 21:3",
         "Genesis 35:28"
+      ],
+      "eventsPartOf": [
+        "Birth of Isaac",
+        "Death of Isaac"
       ]
     }
   },
@@ -1643,10 +1605,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:15"
       ],
-      "partOf": "Lifetime of Salah",
-      "eventsPartOf": [
-        "Lifetime of Salah"
-      ]
+      "partOf": "Lifetime of Salah"
     }
   },
   {
@@ -1680,10 +1639,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:11"
       ],
-      "partOf": "Lifetime of Shem",
-      "eventsPartOf": [
-        "Lifetime of Shem"
-      ]
+      "partOf": "Lifetime of Shem"
     }
   },
   {
@@ -1703,10 +1659,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 25:24-26"
       ],
-      "partOf": "Lifetime of Jacob",
-      "eventsPartOf": [
-        "Lifetime of Jacob"
-      ]
+      "partOf": "Lifetime of Jacob"
     }
   },
   {
@@ -1723,6 +1676,10 @@ export const eventsFullData = [
       "verses": [
         "Genesis 25:24-26",
         "Genesis 49:33"
+      ],
+      "eventsPartOf": [
+        "Birth of Jacob and Esau",
+        "Death of Jacob"
       ]
     }
   },
@@ -1771,10 +1728,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 25:7"
       ],
-      "partOf": "Lifetime of Abraham",
-      "eventsPartOf": [
-        "Lifetime of Abraham"
-      ]
+      "partOf": "Lifetime of Abraham"
     }
   },
   {
@@ -1791,10 +1745,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 11:17"
       ],
-      "partOf": "Lifetime of Eber",
-      "eventsPartOf": [
-        "Lifetime of Eber"
-      ]
+      "partOf": "Lifetime of Eber"
     }
   },
   {
@@ -1811,10 +1762,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 25:17"
       ],
-      "partOf": "Lifetime of Ishmael",
-      "eventsPartOf": [
-        "Lifetime of Ishmael"
-      ]
+      "partOf": "Lifetime of Ishmael"
     }
   },
   {
@@ -2034,10 +1982,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 30:23-24"
       ],
-      "partOf": "Lifetime of Joseph",
-      "eventsPartOf": [
-        "Lifetime of Joseph"
-      ]
+      "partOf": "Lifetime of Joseph"
     }
   },
   {
@@ -2057,6 +2002,12 @@ export const eventsFullData = [
       "verses": [
         "Genesis 30:23-24",
         "Genesis 50:22"
+      ],
+      "eventsPartOf": [
+        "Birth of Joseph",
+        "Joseph sold to Egypt",
+        "Joseph Promoted in Egypt",
+        "Death of Joseph"
       ]
     }
   },
@@ -2109,10 +2060,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 37:3-36"
       ],
-      "partOf": "Lifetime of Joseph",
-      "eventsPartOf": [
-        "Lifetime of Joseph"
-      ]
+      "partOf": "Lifetime of Joseph"
     }
   },
   {
@@ -2147,10 +2095,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 46:13"
       ],
-      "partOf": "Lifetime of Job",
-      "eventsPartOf": [
-        "Lifetime of Job"
-      ]
+      "partOf": "Lifetime of Job"
     }
   },
   {
@@ -2167,6 +2112,10 @@ export const eventsFullData = [
       "verses": [
         "Genesis 46:13",
         "Job 42:16-17"
+      ],
+      "eventsPartOf": [
+        "Birth of Job",
+        "Death of Job"
       ]
     }
   },
@@ -2209,10 +2158,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 35:28-29"
       ],
-      "partOf": "Lifetime of Isaac",
-      "eventsPartOf": [
-        "Lifetime of Isaac"
-      ]
+      "partOf": "Lifetime of Isaac"
     }
   },
   {
@@ -2234,7 +2180,7 @@ export const eventsFullData = [
       ],
       "partOf": "Lifetime of Joseph",
       "eventsPartOf": [
-        "Lifetime of Joseph"
+        "7 years of plenty"
       ]
     }
   },
@@ -2256,10 +2202,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 41:47-53"
       ],
-      "partOf": "Joseph Promoted in Egypt",
-      "eventsPartOf": [
-        "Joseph Promoted in Egypt"
-      ]
+      "partOf": "Joseph Promoted in Egypt"
     }
   },
   {
@@ -2286,6 +2229,9 @@ export const eventsFullData = [
       ],
       "verses": [
         "Genesis 41:54-43:34"
+      ],
+      "eventsPartOf": [
+        "Joseph's brothers return to Egypt"
       ]
     }
   },
@@ -2330,10 +2276,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 43:1-45:28"
       ],
-      "partOf": "7 years of famine",
-      "eventsPartOf": [
-        "7 years of famine"
-      ]
+      "partOf": "7 years of famine"
     }
   },
   {
@@ -2354,10 +2297,7 @@ export const eventsFullData = [
         "Genesis 47:28",
         "Genesis 49:28-31"
       ],
-      "partOf": "Lifetime of Jacob",
-      "eventsPartOf": [
-        "Lifetime of Jacob"
-      ]
+      "partOf": "Lifetime of Jacob"
     }
   },
   {
@@ -2393,10 +2333,7 @@ export const eventsFullData = [
       "verses": [
         "Genesis 50:22-26"
       ],
-      "partOf": "Lifetime of Joseph",
-      "eventsPartOf": [
-        "Lifetime of Joseph"
-      ]
+      "partOf": "Lifetime of Joseph"
     }
   },
   {
@@ -2413,10 +2350,7 @@ export const eventsFullData = [
       "verses": [
         "Job 42:16-17"
       ],
-      "partOf": "Lifetime of Job",
-      "eventsPartOf": [
-        "Lifetime of Job"
-      ]
+      "partOf": "Lifetime of Job"
     }
   },
   {
@@ -2438,10 +2372,7 @@ export const eventsFullData = [
       "verses": [
         "Exodus 2:1-10"
       ],
-      "partOf": "Lifetime of Moses",
-      "eventsPartOf": [
-        "Lifetime of Moses"
-      ]
+      "partOf": "Lifetime of Moses"
     }
   },
   {
@@ -2461,6 +2392,9 @@ export const eventsFullData = [
       "verses": [
         "Exodus 2:2",
         "Deuteronomy 34:7"
+      ],
+      "eventsPartOf": [
+        "Birth of Moses"
       ]
     }
   },
@@ -2563,7 +2497,11 @@ export const eventsFullData = [
       "verses": [
         "Exodus 13:18-18:27"
       ],
-      "groups": "Tribe of Levi,Tribe of Benjamin,Tribe of Joseph,Tribe of Judah,Tribe of Reuben,Tribe of Asher,Tribe of Gad,Tribe of Dan,Tribe of Zebulun,Tribe of Naphtali,Tribe of Simeon,Tribe of Issachar,Nation of Israel"
+      "groups": "Tribe of Levi,Tribe of Benjamin,Tribe of Joseph,Tribe of Judah,Tribe of Reuben,Tribe of Asher,Tribe of Gad,Tribe of Dan,Tribe of Zebulun,Tribe of Naphtali,Tribe of Simeon,Tribe of Issachar,Nation of Israel",
+      "eventsPartOf": [
+        "Ten Commandments Given",
+        "Tabernacle Built"
+      ]
     }
   },
   {
@@ -2584,10 +2522,7 @@ export const eventsFullData = [
       "verses": [
         "Exodus 19:1-20:17"
       ],
-      "partOf": "Wilderness Wanderings",
-      "eventsPartOf": [
-        "Wilderness Wanderings"
-      ]
+      "partOf": "Wilderness Wanderings"
     }
   },
   {
@@ -2605,10 +2540,7 @@ export const eventsFullData = [
         "Exodus 25:1-33:23"
       ],
       "groups": "Nation of Israel",
-      "partOf": "Wilderness Wanderings",
-      "eventsPartOf": [
-        "Wilderness Wanderings"
-      ]
+      "partOf": "Wilderness Wanderings"
     }
   },
   {
@@ -3010,7 +2942,13 @@ export const eventsFullData = [
         "Judges 15:11",
         "Judges 15:20"
       ],
-      "groups": "Nation of Israel"
+      "groups": "Nation of Israel",
+      "eventsPartOf": [
+        "Judgeship of Elon",
+        "Judgeship of Abdon",
+        "Judgeship of Samson",
+        "Sampson destroys Temple of Dagon"
+      ]
     }
   },
   {
@@ -3031,10 +2969,7 @@ export const eventsFullData = [
         "Judges 12:11-12"
       ],
       "groups": "Nation of Israel",
-      "partOf": "Philistine Dominion",
-      "eventsPartOf": [
-        "Philistine Dominion"
-      ]
+      "partOf": "Philistine Dominion"
     }
   },
   {
@@ -3051,10 +2986,7 @@ export const eventsFullData = [
       "verses": [
         "1 Samuel 9:2"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3075,10 +3007,7 @@ export const eventsFullData = [
         "Judges 12:13-15"
       ],
       "groups": "Nation of Israel",
-      "partOf": "Philistine Dominion",
-      "eventsPartOf": [
-        "Philistine Dominion"
-      ]
+      "partOf": "Philistine Dominion"
     }
   },
   {
@@ -3116,10 +3045,7 @@ export const eventsFullData = [
         "Judges 16:31"
       ],
       "groups": "Nation of Israel",
-      "partOf": "Philistine Dominion",
-      "eventsPartOf": [
-        "Philistine Dominion"
-      ]
+      "partOf": "Philistine Dominion"
     }
   },
   {
@@ -3136,10 +3062,7 @@ export const eventsFullData = [
       "verses": [
         "Judges 16:23-31"
       ],
-      "partOf": "Philistine Dominion",
-      "eventsPartOf": [
-        "Philistine Dominion"
-      ]
+      "partOf": "Philistine Dominion"
     }
   },
   {
@@ -3168,6 +3091,15 @@ export const eventsFullData = [
       "duration": "120Y",
       "verses": [
         "1 Samuel 10:1"
+      ],
+      "eventsPartOf": [
+        "Birth of Saul",
+        "David Kills Goliath",
+        "Death of Saul",
+        "Reign of David",
+        "Death of David",
+        "Reign of Solomon",
+        "Construction of Solomon's Temple"
       ]
     }
   },
@@ -3186,10 +3118,7 @@ export const eventsFullData = [
       "verses": [
         "1 Samuel 17:1-58"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3209,10 +3138,7 @@ export const eventsFullData = [
       "verses": [
         "1 Samuel 31:3-13"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3233,10 +3159,7 @@ export const eventsFullData = [
       "verses": [
         "2 Samuel 2:1-24:25"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3256,10 +3179,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 2:10-11"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3279,10 +3199,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 2:12-11:42"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3299,10 +3216,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 5:1-7:51"
       ],
-      "partOf": "United Kingdom",
-      "eventsPartOf": [
-        "United Kingdom"
-      ]
+      "partOf": "United Kingdom"
     }
   },
   {
@@ -3315,6 +3229,39 @@ export const eventsFullData = [
       "duration": "390Y",
       "verses": [
         "1 Kings 11:43"
+      ],
+      "eventsPartOf": [
+        "Reign of Rehoboam",
+        "Reign of Abijam",
+        "Death of Abijam",
+        "Reign of Asa",
+        "Death of Asa",
+        "Reign of Jehoshaphat",
+        "Death of Jehoshaphat",
+        "Reign of Jehoram",
+        "Reign of Ahaziah (Jehoahaz)",
+        "Reign of Athaliah",
+        "Death of Jehoram",
+        "Reign of Joash",
+        "Reign of Amaziah",
+        "Death of Amaziah",
+        "Reign of Uzziah",
+        "Death of Uzziah",
+        "Reign of Jotham",
+        "Reign of Ahaz",
+        "Death of Jotham",
+        "Reign of Hezekiah",
+        "Death of Hezekiah",
+        "Reign of Manasseh",
+        "Death of Manasseh",
+        "Reign of Amon",
+        "Death of Amon",
+        "Reign of Josiah",
+        "Death of Josiah",
+        "Reign of Johoahaz (Shallum)",
+        "Reign of Jehoiakim",
+        "Reign of Jeconiah",
+        "Reign of Zedekiah"
       ]
     }
   },
@@ -3351,10 +3298,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 12:17-24"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3367,6 +3311,39 @@ export const eventsFullData = [
       "duration": "254Y",
       "verses": [
         "1 Kings 12:20"
+      ],
+      "eventsPartOf": [
+        "Reign of Jeroboam I",
+        "Reign of Nadab",
+        "Reign of Baasha",
+        "Reign of Elah",
+        "Reign of Zimri",
+        "Reign of Tibni",
+        "Reign of Omri",
+        "Death of Tibni",
+        "Reign of Ahab",
+        "Death of Omri",
+        "Reign of Ahaziah",
+        "Reign of Joram",
+        "Reign of Jehu",
+        "Death of Jehu",
+        "Reign of Jehoahaz",
+        "Death of Jehoahaz",
+        "Reign of Jehoash",
+        "Reign of Jeroboam II",
+        "Death of Jehoahash",
+        "Death of Jeroboam II",
+        "Reign of Zachariah",
+        "Reign of Shallum",
+        "Death of Zachariah",
+        "Death of Shallum",
+        "Reign of Menahem",
+        "Death of Menahem",
+        "Reign of Pekahiah",
+        "Death of Pekahiah",
+        "Reign of Pekah",
+        "Death of Pekah",
+        "Reign of Hoshea"
       ]
     }
   },
@@ -3388,10 +3365,7 @@ export const eventsFullData = [
         "1 Kings 12:20",
         "1 Kings 12:25-14:20"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3411,10 +3385,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:1-8"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3434,10 +3405,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:8"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3457,10 +3425,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:9-24"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3480,10 +3445,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:25-26"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3503,10 +3465,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:33-16:5"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3526,10 +3485,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:6-8"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3549,10 +3505,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:15-16"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3572,10 +3525,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:21-22"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3595,10 +3545,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:22-28"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3615,10 +3562,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:22"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3638,10 +3582,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:28-30"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3661,10 +3602,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 16:28"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3684,10 +3622,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 15:24"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3708,10 +3643,7 @@ export const eventsFullData = [
         "1 Kings 22:41-44",
         "1 Kings 22:46-50"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3730,6 +3662,9 @@ export const eventsFullData = [
         "1 Kings 21:17-29",
         "2 Kings 1:1-2:14",
         "2 Kings 5:1-27"
+      ],
+      "eventsPartOf": [
+        "Elijah Translated"
       ]
     }
   },
@@ -3750,10 +3685,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 22:50"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3773,10 +3705,7 @@ export const eventsFullData = [
       "verses": [
         "1 Kings 22:51-53"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3790,10 +3719,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 2:1-14"
       ],
-      "partOf": "Prophecies of Elijah",
-      "eventsPartOf": [
-        "Prophecies of Elijah"
-      ]
+      "partOf": "Prophecies of Elijah"
     }
   },
   {
@@ -3832,10 +3758,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 3:1-6"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3856,10 +3779,7 @@ export const eventsFullData = [
         "2 Kings 1:17",
         "2 Kings 8:16-24"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3879,10 +3799,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 8:25-29"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3902,10 +3819,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 9:2-10:36"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -3925,10 +3839,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 11:1-3"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3948,10 +3859,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 8:24"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3971,10 +3879,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 11:21-12:21"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -3994,10 +3899,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 10:35"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4017,10 +3919,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 13:1-9"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4040,10 +3939,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 13:9"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4063,10 +3959,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 13:10-13"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4086,10 +3979,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 14:1-22"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4109,10 +3999,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 14:23-29"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4148,10 +4035,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 13:13"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4184,10 +4068,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 14:22"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4207,10 +4088,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:1-7"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4259,10 +4137,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 14:29"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4282,10 +4157,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:8-9"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4305,10 +4177,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:10"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4326,10 +4195,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:10"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4350,10 +4216,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:14"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4373,10 +4236,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:17-22"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4393,10 +4253,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:22"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4416,10 +4273,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:23-26"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4440,10 +4294,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:25"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4463,10 +4314,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:27-31"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4502,10 +4350,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:7"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4525,10 +4370,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:32-38"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4564,10 +4406,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 16:1-20"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4584,10 +4423,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:38"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4605,10 +4441,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 15:30"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4628,10 +4461,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 17:1-4"
       ],
-      "partOf": "Northern Kingdom (Israel)",
-      "eventsPartOf": [
-        "Northern Kingdom (Israel)"
-      ]
+      "partOf": "Northern Kingdom (Israel)"
     }
   },
   {
@@ -4670,10 +4500,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 18:1-20:21"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4690,10 +4517,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 20:21"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4713,10 +4537,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 21:1-18"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4752,10 +4573,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 21:18"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4775,10 +4593,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 21:19-26"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4798,10 +4613,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 21:23"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4821,10 +4633,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 22:1-23:30"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4877,10 +4686,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 23:29"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4900,10 +4706,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 23:31-35"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4923,10 +4726,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 23:36-24:7"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -4978,10 +4778,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 24:8-17"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -5001,10 +4798,7 @@ export const eventsFullData = [
       "verses": [
         "2 Kings 24:18-25:7"
       ],
-      "partOf": "Southern Kingdom (Judah)",
-      "eventsPartOf": [
-        "Southern Kingdom (Judah)"
-      ]
+      "partOf": "Southern Kingdom (Judah)"
     }
   },
   {
@@ -7169,10 +6963,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 12:24-13:3"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7205,6 +6996,16 @@ export const eventsFullData = [
       ],
       "verses": [
         "Acts 12:24-14:28"
+      ],
+      "eventsPartOf": [
+        "First missionary journey begins",
+        "Barnabas and Saul go to Cyprus",
+        "Mission to Antioch in Pisidia",
+        "Mission to Iconium",
+        "Mission to Lystra and Derbe",
+        "Return to Antioch in Syria",
+        "Jerusalem Council",
+        "Paul and Barnabas part ways"
       ]
     }
   },
@@ -7232,10 +7033,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 13:4-12"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7262,10 +7060,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 13:13-52"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7286,10 +7081,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 14:1-5"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7311,10 +7103,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 14:6-20"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7342,10 +7131,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 14:21-28"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7371,10 +7157,7 @@ export const eventsFullData = [
         "Acts 15:1-34"
       ],
       "groups": "Apostles (Post-Ascension)",
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7401,6 +7184,22 @@ export const eventsFullData = [
       "verses": [
         "Acts 15:1-41",
         "Acts 16:1-18:23"
+      ],
+      "eventsPartOf": [
+        "Second Missionary Journey begins",
+        "Timothy Joins Paul and Silas",
+        "Mission to Phrygia, Galatia and Asia",
+        "Call to Macedonia",
+        "Lydia's Conversion",
+        "Paul casts demon out of soothsayer",
+        "Paul and Silas imprisoned",
+        "Philippian jailer converted",
+        "Paul and Silas released",
+        "Uproar in Thessalonica",
+        "Mission to Berea",
+        "Paul preaches in Athens",
+        "Mission to Corinth, 1&2 Thess Written",
+        "Return from Second Missionary Journey"
       ]
     }
   },
@@ -7424,10 +7223,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 15:35-39"
       ],
-      "partOf": "First Missionary Journey",
-      "eventsPartOf": [
-        "First Missionary Journey"
-      ]
+      "partOf": "First Missionary Journey"
     }
   },
   {
@@ -7466,10 +7262,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 15:40-41"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7492,10 +7285,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:1-5"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7522,10 +7312,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:6-8"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7552,10 +7339,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:9-12"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7579,10 +7363,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:13-15"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7605,10 +7386,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:16-18"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7629,10 +7407,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:19-34"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7653,10 +7428,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:25-34"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7678,10 +7450,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 16:35-40"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7703,10 +7472,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 17:1-9"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7728,10 +7494,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 17:10-15"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7754,10 +7517,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 17:16-34"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7786,10 +7546,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 18:1-17"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7817,10 +7574,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 18:18-23"
       ],
-      "partOf": "Second Missionary Journey",
-      "eventsPartOf": [
-        "Second Missionary Journey"
-      ]
+      "partOf": "Second Missionary Journey"
     }
   },
   {
@@ -7843,10 +7597,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 18:24-28"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -7870,6 +7621,30 @@ export const eventsFullData = [
       ],
       "verses": [
         "Acts 18:24-20:16"
+      ],
+      "eventsPartOf": [
+        "Third Missionary Journey Begins",
+        "Mission to Ephesus/1 Cor Written",
+        "Riot in Ephesus",
+        "Mission to Macedonia and Greece",
+        "Eutychus revived",
+        "Voyage to Miletus",
+        "Paul speaks to Ephesian Elders",
+        "Voyage from Miletus to Jerusalem",
+        "Paul visits elders in Jerusalem",
+        "Paul arrested in the Temple",
+        "Paul gives his testimony",
+        "Paul goes before the Council",
+        "The conspiracy to kill Paul",
+        "Paul sent to Felix",
+        "Paul appeals to Caesar",
+        "Agrippa and Bernice meet Festus",
+        "Paul goes before Agrippa",
+        "Journey to Rome begins",
+        "Paul is shipwrecked by a storm",
+        "Paul stays at Malta",
+        "Paul arrives at Rome",
+        "Paul's First Roman imprisonment"
       ]
     }
   },
@@ -7895,10 +7670,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 19:1-22"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -7923,10 +7695,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 19:23-41"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -7957,10 +7726,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 20:1-6"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -7982,10 +7748,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 20:7-12"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8012,10 +7775,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 20:13-16"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8036,10 +7796,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 20:17-38"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8073,10 +7830,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 21:1-17"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8098,10 +7852,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 21:18-26"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8122,10 +7873,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 21:27-36"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8145,10 +7893,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 21:37-22:29"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8169,10 +7914,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 22:30-23:11"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8192,10 +7934,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 23:12-22"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8222,10 +7961,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 23:23-24:27"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8246,10 +7982,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 25:1-12"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8273,10 +8006,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 25:13-21"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8300,10 +8030,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 25:22-26:32"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8341,10 +8068,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 27:1-12"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8416,10 +8140,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 27:13-44"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8443,10 +8164,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 28:1-10"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8474,10 +8192,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 28:11-16"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
@@ -8500,10 +8215,7 @@ export const eventsFullData = [
       "verses": [
         "Acts 28:17-31"
       ],
-      "partOf": "Third Missionary Journey",
-      "eventsPartOf": [
-        "Third Missionary Journey"
-      ]
+      "partOf": "Third Missionary Journey"
     }
   },
   {
