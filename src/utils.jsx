@@ -1,23 +1,32 @@
-const TIME_RANGES = [
-    { start: -4100, end: -2200, color: '#5795ff' },
-    { start: -2199, end: -1600, color: '#ff7f00' },
-    { start: -1599, end: -1375, color: '#fc8eac' },
-    { start: -1374, end: -1052, color: '#89b4c3' },
-    { start: -1051, end: -931,  color: '#b2df8a' },
-    { start: -930,  end: -715,  color: '#fdbf6f' },
-    { start: -714,  end: -431,  color: '#cab2d6' },
-    { start: -430,  end: -1,    color: '#FFB6C1' },
-    { start: 0,     end: 150,    color: '#C4A484' }
+export const TIME_RANGES = [
+    { start: -4150, end: -2200, color: '#b10404ff' },  // Red
+    { start: -2199, end: -1600, color: '#a70581ff' },  // Pink
+    { start: -1599, end: -1375, color: '#670b61ff' },  // Purple
+    { start: -1374, end: -1052, color: '#040492ff' },  // Blue
+    { start: -1051, end: -931,  color: '#019898ff' },  // Teal
+    { start: -930,  end: -715,  color: '#006400' },  // Strong Green
+    { start: -714,  end: -431,  color: '#00be00ff' },  // Light Green
+    { start: -430,  end: -1,    color: '#bbbb04ff' },  // Yellow
+    { start: 0,     end: 80,    color: '#aa7003ff' }   // Orange
 ];
 
-const TIME_PERIODS = {
-    'all': [-4100, 150],
-    'period1': [-4100, -3000],
+export const TIME_PERIODS = {
+    'all': [-4150, 80],
+    'period1': [-4150, -3000],
     'period2': [-2999, -2000], 
     'period3': [-1999, -1000],
     'period4': [-999, 0],
-    'period5': [1, 150]
+    'period5': [1, 80]
 };
+
+export const PERIODS = [
+    { value: 'all', label: 'ALL' },
+    { value: 'period1', label: '4151 BC - 3001 BC' },
+    { value: 'period2', label: '3000 BC - 2001 BC' },
+    { value: 'period3', label: '2000 BC - 1001 BC' },
+    { value: 'period4', label: '1000 BC - 1 BC' },
+    { value: 'period5', label: '1 AD - 80 AD' }
+];
 
 export const parseDuration = (durationStr) => {
     // make 'D' (day) into 'Y' (year) format

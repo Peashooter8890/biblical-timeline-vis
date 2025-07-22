@@ -3,7 +3,10 @@ import ReactDOM from 'react-dom/client';
 import * as d3 from 'd3';
 import { eventsFullData, peopleFullData, placesFullData, eventsChildrenData } from './teststuff.js';
 const getStyleOf = (fileName) => {};
-import { 
+import {
+    TIME_RANGES,
+    TIME_PERIODS,
+    PERIODS,
     formatYear, 
     parseDuration, 
     getRangeInfo, 
@@ -12,36 +15,6 @@ import {
     calculateDimensions,
 } from './utils.jsx';
 import './testindex.css';
-
-const TIME_RANGES = [
-    { start: -4150, end: -2200, color: '#5795ff' },
-    { start: -2199, end: -1600, color: '#ff7f00' },
-    { start: -1599, end: -1375, color: '#fc8eac' },
-    { start: -1374, end: -1052, color: '#89b4c3' },
-    { start: -1051, end: -931,  color: '#b2df8a' },
-    { start: -930,  end: -715,  color: '#fdbf6f' },
-    { start: -714,  end: -431,  color: '#cab2d6' },
-    { start: -430,  end: -1,    color: '#FFB6C1' },
-    { start: 0,     end: 80,   color: '#C4A484' }
-];
-
-const TIME_PERIODS = {
-    'all': [-4150, 80],
-    'period1': [-4150, -3000],
-    'period2': [-2999, -2000], 
-    'period3': [-1999, -1000],
-    'period4': [-999, 0],
-    'period5': [1, 80]
-};
-
-const PERIODS = [
-    { value: 'all', label: 'ALL' },
-    { value: 'period1', label: '4151 BC - 3001 BC' },
-    { value: 'period2', label: '3000 BC - 2001 BC' },
-    { value: 'period3', label: '2000 BC - 1001 BC' },
-    { value: 'period4', label: '1000 BC - 1 BC' },
-    { value: 'period5', label: '1 AD - 80 AD' }
-];
 
 const UPDATE_THROTTLE_MS = 33; 
 const EQUAL_DISTRIBUTION_AREA = 0.5;
