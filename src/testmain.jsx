@@ -545,7 +545,10 @@ const EventsTimeline = () => {
                 // Position the text box vertically centered relative to the indicator line
                 if (microIndicatorTextRef.current) {
                     microIndicatorTextRef.current.textContent = formatYear(topVisibleYear);
-                    const textY = microY - 10;
+                    
+                    // Calculate position relative to the line indicator instead of recalculating
+                    const lineTop = parseFloat(microIndicatorRef.current.style.top) || 0;
+                    const textY = lineTop - 10;
                     microIndicatorTextRef.current.style.top = `${textY}px`;
                 }
             }
