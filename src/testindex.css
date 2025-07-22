@@ -3,8 +3,8 @@
     --tw-gray-300: rgb(203 213 225);
     --tw-gray-800: rgb(30 41 59);
     --tw-blue-500: rgb(14 165 233);
-    --sidebar-ratio: 0.4; /* 2/5 */
-    --content-ratio: 0.6; /* 3/5 */
+    --sidebar-ratio: 0.4;
+    --content-ratio: 0.6;
     --microchart-gap: 20px;
     --macrochart-width: 100px;
     --microchart-min-width: 100px; /* Hide when less than this */
