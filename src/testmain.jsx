@@ -546,7 +546,7 @@ const EventsTimeline = () => {
                 if (microIndicatorTextRef.current) {
                     microIndicatorTextRef.current.textContent = formatYear(topVisibleYear);
                     const textY = microY - 10;
-                    microIndicatorTextRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height, textY))}px`;
+                    microIndicatorTextRef.current.style.top = `${textY}px`;
                 }
             }
         }

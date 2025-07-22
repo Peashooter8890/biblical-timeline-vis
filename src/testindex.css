@@ -148,6 +148,7 @@ body::-webkit-scrollbar {
     border-right: 1px solid #ccc;
     background-color: #f0f0f0;
     flex-shrink: 0;
+    overflow: visible;
 }
 
 .macrochart-container {
