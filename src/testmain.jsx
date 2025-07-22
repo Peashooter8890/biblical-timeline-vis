@@ -95,6 +95,13 @@ const EventsTimeline = () => {
         isUpdating: false
     });
 
+    const scrollDirectionRef = useRef({
+        lastScrollTop: 0,
+        direction: 'none', // 'up', 'down', 'none'
+        directionConfidenceCounter: 0,
+        lastUpdateTime: 0
+    });
+
     // UTILITY FUNCTIONS (no dependencies)
     const createThrottledFunction = useCallback((func, delay) => {
         let timeoutId;
@@ -542,10 +549,8 @@ const EventsTimeline = () => {
                 // Position the text box vertically centered relative to the indicator line
                 if (microIndicatorTextRef.current) {
                     microIndicatorTextRef.current.textContent = formatYear(topVisibleYear);
-                    // Center the 20px high text box relative to the 2px high indicator line
-                    // Offset: (textHeight - indicatorHeight) / 2 = (20 - 2) / 2 = 9px
-                    const textY = microY - 9;
-                    microIndicatorTextRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height - 20, textY))}px`;
+                    const textY = microY - 10;
+                    microIndicatorTextRef.current.style.top = `${Math.max(0, Math.min(microDimensions.height, textY))}px`;
                 }
             }
         }
@@ -820,6 +825,7 @@ const EventsTimeline = () => {
 
     const handleDynamicSelectionUpdate = useCallback(() => {
         if (!selectionState.current.macroScaleInfo || dynamicSelectionState.current.isUpdating) return;
+        if (!eventDisplayRef.current) return;
         
         const topVisibleYear = findTopVisibleYear();
         const bottomVisibleYear = findBottomVisibleYear();
@@ -827,32 +833,59 @@ const EventsTimeline = () => {
         
         if (topVisibleYear === null || bottomVisibleYear === null) return;
         
-        // Check if visible range is outside current selection bounds
-        const needsUpdate = topVisibleYear < currentStart || bottomVisibleYear > currentEnd;
-        if (!needsUpdate) return;
+        // Track scroll direction with confidence building
+        const currentScrollTop = eventDisplayRef.current.scrollTop;
+        const scrollDelta = currentScrollTop - scrollDirectionRef.current.lastScrollTop;
+        const currentTime = Date.now();
+        
+        // Determine scroll direction with minimum threshold and debouncing
+        if (Math.abs(scrollDelta) > 3 && currentTime - scrollDirectionRef.current.lastUpdateTime > 50) {
+            const newDirection = scrollDelta > 0 ? 'down' : 'up';
+            
+            if (scrollDirectionRef.current.direction === newDirection) {
+                scrollDirectionRef.current.directionConfidenceCounter++;
+            } else {
+                scrollDirectionRef.current.direction = newDirection;
+                scrollDirectionRef.current.directionConfidenceCounter = 1;
+            }
+            
+            scrollDirectionRef.current.lastUpdateTime = currentTime;
+        }
+        
+        scrollDirectionRef.current.lastScrollTop = currentScrollTop;
+        
+        // Only proceed if we have confident direction
+        if (scrollDirectionRef.current.directionConfidenceCounter < 2) return;
+        
+        const direction = scrollDirectionRef.current.direction;
+        const { yearToPixel, pixelToYear } = selectionState.current.macroScaleInfo;
         
         // Calculate current pixel height to preserve it
-        const { yearToPixel, pixelToYear } = selectionState.current.macroScaleInfo;
         const currentPixelHeight = yearToPixel(currentEnd) - yearToPixel(currentStart);
         
         let newStart = currentStart;
         let newEnd = currentEnd;
+        let needsUpdate = false;
         
-        if (topVisibleYear < currentStart) {
-            // Scrolled up beyond selection - move selection start up
-            newStart = topVisibleYear;
-            // Preserve pixel height by calculating corresponding end year
-            const newStartPixel = yearToPixel(newStart);
-            const newEndPixel = newStartPixel + currentPixelHeight;
-            newEnd = pixelToYear(newEndPixel);
-        } else if (bottomVisibleYear > currentEnd) {
-            // Scrolled down beyond selection - move selection end down
+        // Direction-specific logic - only move in the scroll direction
+        if (direction === 'down' && bottomVisibleYear > currentEnd) {
+            // Scrolling down: move selection down to include bottom visible year
             newEnd = bottomVisibleYear;
-            // Preserve pixel height by calculating corresponding start year
             const newEndPixel = yearToPixel(newEnd);
             const newStartPixel = newEndPixel - currentPixelHeight;
             newStart = pixelToYear(newStartPixel);
+            needsUpdate = true;
+            
+        } else if (direction === 'up' && topVisibleYear < currentStart) {
+            // Scrolling up: move selection up to include top visible year
+            newStart = topVisibleYear;
+            const newStartPixel = yearToPixel(newStart);
+            const newEndPixel = newStartPixel + currentPixelHeight;
+            newEnd = pixelToYear(newEndPixel);
+            needsUpdate = true;
         }
+        
+        if (!needsUpdate) return;
         
         // Set flag to prevent circular updates
         dynamicSelectionState.current.isUpdating = true;
@@ -883,6 +916,11 @@ const EventsTimeline = () => {
         createThrottledFunction(handleDynamicSelectionUpdate, UPDATE_THROTTLE_MS),
         [handleDynamicSelectionUpdate, createThrottledFunction]
     );
+
+    const resetScrollDirection = useCallback(() => {
+        scrollDirectionRef.current.direction = 'none';
+        scrollDirectionRef.current.directionConfidenceCounter = 0;
+    }, []);
 
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
