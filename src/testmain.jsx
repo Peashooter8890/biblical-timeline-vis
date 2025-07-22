@@ -901,6 +901,7 @@ const EventsTimeline = () => {
             .attr('cy', d => d.y)
             .attr('r', dynamicDotRadius) 
             .attr('fill', d => d.color)
+            .style('stroke-width', `${Math.max(1, dynamicDotDiameter / 5)}px`) // <-- Add this line
             .style('cursor', 'pointer')
             .on('mouseover', function(event, d) {
                 tooltip.transition()
@@ -916,7 +917,6 @@ const EventsTimeline = () => {
                 tooltip.transition()
                     .duration(500)
                     .style('opacity', 0);
-
                 removeConnectedHover(d.eventID);
             })
             .on('click', function(event, d) {
