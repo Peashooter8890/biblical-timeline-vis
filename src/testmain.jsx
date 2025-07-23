@@ -17,6 +17,7 @@ import {
 import './testindex.css';
 
 const UPDATE_THROTTLE_MS = 33; 
+const SCROLL_THROTTLE_MS = 33;
 const EQUAL_DISTRIBUTION_AREA = 0.5;
 const PROPORTIONATE_DISTRIBUTION_AREA = 0.5;
 const YEAR_LABEL_INTERVAL = 500;
@@ -524,6 +525,11 @@ const EventsTimeline = () => {
         [updatePositionIndicators, createThrottledFunction]
     );
 
+    const throttledIndicatorUpdateScroll = useCallback(
+        createThrottledFunction(updatePositionIndicators, SCROLL_THROTTLE_MS),
+        [updatePositionIndicators, createThrottledFunction]
+    );
+
     const applyConnectedHover = useCallback((eventID) => {
         if (!microSvgRef.current || !eventID) return;
 
@@ -890,7 +896,7 @@ const EventsTimeline = () => {
     }, [findTopVisibleYear, findBottomVisibleYear, renderMicrochart]);
 
     const throttledDynamicSelectionUpdate = useCallback(
-        createThrottledFunction(handleDynamicSelectionUpdate, UPDATE_THROTTLE_MS),
+        createThrottledFunction(handleDynamicSelectionUpdate, SCROLL_THROTTLE_MS),
         [handleDynamicSelectionUpdate, createThrottledFunction]
     );
 
@@ -942,7 +948,7 @@ const EventsTimeline = () => {
             }
         }
 
-        updatePositionIndicators();
+        throttledIndicatorUpdateScroll();
         
         // NEW: Add dynamic selection update
         throttledDynamicSelectionUpdate();
@@ -1259,7 +1265,6 @@ const EventsTimeline = () => {
             const { dimensions } = selectionState.current.macroScaleInfo;
             const [currentY0, currentY1] = selectionState.current.pixelBounds;
             const currentHeight = currentY1 - currentY0;
-            console.log(currentHeight);
 
             // Check if selection is already full range (nowhere to move)
             if (currentY0 <= 0 && currentY1 >= dimensions.height) {
