@@ -484,15 +484,19 @@ const EventsTimeline = () => {
             .style('opacity', 1.0);
     }, []);
 
+
     const scrollToYear = useCallback((targetYear) => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
         const container = eventDisplayRef.current;
+        
+        // Clear cached headers for fresh DOM query
         const headers = container.querySelectorAll('.event-year-header');
         
-        // Find the exact year or the first year greater than or equal to target
+        // Find the target header
         let targetHeader = null;
         let fallbackHeader = null;
+        let targetIndex = -1;
         
         headers.forEach((header, index) => {
             const headerText = header.textContent;
@@ -507,28 +511,52 @@ const EventsTimeline = () => {
                 year = match ? parseInt(match[1]) : 0;
             }
             
-            // Exact match takes priority
             if (year === targetYear) {
                 targetHeader = header;
-            } 
-            // If no exact match, find first year >= target
-            else if (!targetHeader && year >= targetYear && !fallbackHeader) {
+                targetIndex = index;
+            } else if (!targetHeader && year >= targetYear && !fallbackHeader) {
                 fallbackHeader = header;
+                targetIndex = index;
             }
         });
         
-        // Use exact match if found, otherwise use fallback
         const headerToUse = targetHeader || fallbackHeader || headers[0];
+        const indexToUse = targetIndex >= 0 ? targetIndex : 0;
         
         if (headerToUse) {
-            // Always scroll to position the target year at the very top
-            // Calculate the header's current position relative to the container
-            const containerRect = container.getBoundingClientRect();
-            const headerRect = headerToUse.getBoundingClientRect();
-            const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+            // Calculate cumulative height by walking through DOM elements
+            // This is more reliable than getBoundingClientRect for far elements
+            let cumulativeHeight = 0;
+            const allChildren = Array.from(container.children);
             
-            // Force scroll to put header at top, regardless of current visibility
-            container.scrollTop = relativeTop;
+            for (let i = 0; i < allChildren.length; i++) {
+                const child = allChildren[i];
+                
+                // Check if this is our target header
+                if (child === headerToUse) {
+                    break;
+                }
+                
+                // Add this element's height to cumulative height
+                // Use scrollHeight for more accurate height including margins
+                cumulativeHeight += child.scrollHeight;
+                
+                // Add any margin/padding between elements
+                const computedStyle = window.getComputedStyle(child);
+                cumulativeHeight += parseFloat(computedStyle.marginTop) || 0;
+                cumulativeHeight += parseFloat(computedStyle.marginBottom) || 0;
+            }
+            const targetScrollTop = Math.max(0, cumulativeHeight - 39);
+
+            // Force immediate scroll without smooth behavior to prevent race conditions
+            container.scrollTop = targetScrollTop;
+            
+            // Double-check after a frame to ensure it took effect
+            requestAnimationFrame(() => {
+                if (Math.abs(container.scrollTop - targetScrollTop) > 10) {
+                    container.scrollTop = targetScrollTop;
+                }
+            });
         }
     }, []);
 
