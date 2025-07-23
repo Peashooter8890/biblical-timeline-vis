@@ -93,6 +93,37 @@ const EventsTimeline = () => {
         lastUpdateTime: 0
     });
 
+    const yearHeaderCacheRef = useRef(new Map());
+
+    const updateYearHeaderCache = useCallback(() => {
+        if (!eventDisplayRef.current) return;
+        
+        const newCache = new Map();
+        const headers = eventDisplayRef.current.querySelectorAll('.event-year-header');
+        
+        headers.forEach(header => {
+            const yearText = header.textContent;
+            let year;
+            
+            // Logic to parse the year from the header text (e.g., "4000 BC")
+            if (yearText.includes('BC|AD')) {
+                year = 0;
+            } else if (yearText.includes('BC')) {
+                const match = yearText.match(/(\d+)\s*BC/);
+                year = match ? -parseInt(match[1]) : 0;
+            } else {
+                const match = yearText.match(/(-?\d+)/);
+                year = match ? parseInt(match[1]) : 0;
+            }
+            
+            // Store the element's direct offsetTop in the cache
+            newCache.set(year, header.offsetTop);
+        });
+        
+        yearHeaderCacheRef.current = newCache;
+        console.log('Year header cache updated:', yearHeaderCacheRef.current);
+    }, []);
+
     // UTILITY FUNCTIONS (no dependencies)
     const createThrottledFunction = useCallback((func, delay) => {
         let timeoutId;
@@ -489,75 +520,52 @@ const EventsTimeline = () => {
         if (!eventDisplayRef.current || !stateRef.current.events.length) return;
 
         const container = eventDisplayRef.current;
-        
-        // Clear cached headers for fresh DOM query
-        const headers = container.querySelectorAll('.event-year-header');
-        
-        // Find the target header
-        let targetHeader = null;
-        let fallbackHeader = null;
-        let targetIndex = -1;
-        
-        headers.forEach((header, index) => {
-            const headerText = header.textContent;
-            let year;
-            if (headerText.includes('BC|AD')) {
-                year = 0;
-            } else if (headerText.includes('BC')) {
-                const match = headerText.match(/(\d+)\s*BC/);
-                year = match ? -parseInt(match[1]) : 0;
-            } else {
-                const match = headerText.match(/(-?\d+)/);
-                year = match ? parseInt(match[1]) : 0;
-            }
-            
-            if (year === targetYear) {
-                targetHeader = header;
-                targetIndex = index;
-            } else if (!targetHeader && year >= targetYear && !fallbackHeader) {
-                fallbackHeader = header;
-                targetIndex = index;
-            }
-        });
-        
-        const headerToUse = targetHeader || fallbackHeader || headers[0];
-        const indexToUse = targetIndex >= 0 ? targetIndex : 0;
-        
-        if (headerToUse) {
-            // Calculate cumulative height by walking through DOM elements
-            // This is more reliable than getBoundingClientRect for far elements
-            let cumulativeHeight = 0;
-            const allChildren = Array.from(container.children);
-            
-            for (let i = 0; i < allChildren.length; i++) {
-                const child = allChildren[i];
-                
-                // Check if this is our target header
-                if (child === headerToUse) {
-                    break;
-                }
-                
-                // Add this element's height to cumulative height
-                // Use scrollHeight for more accurate height including margins
-                cumulativeHeight += child.scrollHeight;
-                
-                // Add any margin/padding between elements
-                const computedStyle = window.getComputedStyle(child);
-                cumulativeHeight += parseFloat(computedStyle.marginTop) || 0;
-                cumulativeHeight += parseFloat(computedStyle.marginBottom) || 0;
-            }
-            const targetScrollTop = Math.max(0, cumulativeHeight - 39);
+        const cache = yearHeaderCacheRef.current;
 
-            // Force immediate scroll without smooth behavior to prevent race conditions
-            container.scrollTop = targetScrollTop;
-            
-            // Double-check after a frame to ensure it took effect
-            requestAnimationFrame(() => {
-                if (Math.abs(container.scrollTop - targetScrollTop) > 10) {
-                    container.scrollTop = targetScrollTop;
-                }
-            });
+        if (cache.size === 0) {
+            console.warn('Scroll attempted before year cache was built.');
+            return;
         }
+
+        // 1. Get all cached years and sort them numerically.
+        // This is crucial for finding the "next" year correctly.
+        const sortedYears = Array.from(cache.keys()).sort((a, b) => a - b);
+
+        // 2. Find the first year in the list that is >= targetYear.
+        let yearToScrollTo = sortedYears.find(year => year >= targetYear);
+
+        // 3. Handle the edge case where the targetYear is past the last event.
+        // If no year is found, it means the target is beyond our last entry.
+        // In this case, we should scroll to the very last year available.
+        if (yearToScrollTo === undefined) {
+            yearToScrollTo = sortedYears[sortedYears.length - 1];
+        }
+        
+        // 4. Look up the pixel offset for the correctly identified year.
+        const targetOffset = cache.get(yearToScrollTo);
+        
+        if (targetOffset === undefined) {
+            // This should theoretically not happen if the cache is properly built.
+            console.error(`Could not find a cached offset for year ${yearToScrollTo}.`);
+            return;
+        }
+
+        // 5. Dynamically get the visible height of the sticky header for precision.
+        const getStickyHeaderHeight = () => {
+            // This selector should match the class you apply to the sticky header.
+            const stickyHeader = container.querySelector('.event-year-header.sticky');
+            // Get the real height, or use a sensible fallback.
+            return stickyHeader ? stickyHeader.getBoundingClientRect().height : 39;
+        };
+
+        const targetScrollTop = targetOffset;
+
+        // 6. Scroll to the calculated position.
+        container.scrollTo({
+            top: targetScrollTop,
+            behavior: 'auto' // 'auto' for an instant jump, 'smooth' for animation.
+        });
+
     }, []);
 
     const renderMicrochart = useCallback(() => {
@@ -1423,6 +1431,7 @@ const EventsTimeline = () => {
             }
             
             setTimeout(() => {
+                updateYearHeaderCache();
                 const newEventRect = eventItem.getBoundingClientRect();
                 const newContainerRect = container.getBoundingClientRect();
                 const newViewportPosition = newEventRect.top - newContainerRect.top;
@@ -1442,8 +1451,6 @@ const EventsTimeline = () => {
 
         // Batch preserve states before rebuilding
         const expandedStatesMap = preserveExpandedStates();
-
-        // Remove filtering - show all events
         const filteredEvents = stateRef.current.events;
         const groupedEvents = groupEventsByYear(filteredEvents);
         stateRef.current.groupedEvents = groupedEvents;
@@ -1473,6 +1480,9 @@ const EventsTimeline = () => {
 
         container.innerHTML = '';
         container.appendChild(fragment);
+        window.requestAnimationFrame(() => {
+            updateYearHeaderCache();
+        });
     }, [preserveExpandedStates, groupEventsByYear, createEventItem]);
 
     const handlePeriodChange = useCallback((event) => {
