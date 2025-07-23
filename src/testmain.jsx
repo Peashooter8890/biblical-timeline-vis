@@ -33,6 +33,7 @@ const TOOLTIP_OFFSET_X = 10;
 const TOOLTIP_OFFSET_Y = 50;
 const FULL_RANGE = [-4150, 80];
 const CHART_WHEEL_SENSITIVITY = 0.5;
+const SCROLL_DEBOUNCE_MS = 200;
 
 const LAYOUT_CONFIG = {
     SIDEBAR_RATIO: 0.4,        
@@ -149,6 +150,20 @@ const EventsTimeline = () => {
         };
         
         return throttledFn;
+    }, []);
+
+    const createDebouncedFunction = useCallback((func, delay) => {
+        let timeoutId;
+        const debouncedFn = (...args) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+        debouncedFn.cancel = () => {
+            clearTimeout(timeoutId);
+        };
+        return debouncedFn;
     }, []);
 
     // HELPER FUNCTIONS (basic calculations)
@@ -567,6 +582,11 @@ const EventsTimeline = () => {
         });
 
     }, []);
+
+    const debouncedScrollToYear = useCallback(
+        createDebouncedFunction(scrollToYear, SCROLL_DEBOUNCE_MS),
+        [scrollToYear, createDebouncedFunction]
+    );
 
     const renderMicrochart = useCallback(() => {
         if (!microSvgRef.current || !microContainerRef.current || !processedEvents.length || !masterScale.current) return;
@@ -1003,8 +1023,7 @@ const EventsTimeline = () => {
         }
 
         renderMicrochart();
-        scrollToYear(startYear); // This triggers navigation for user actions
-    }, [renderMicrochart, scrollToYear]);
+    }, [renderMicrochart]);
 
     const handleAutoSelectionChange = useCallback((startYear, endYear) => {
         selectionState.current.yearBounds = [startYear, endYear];
@@ -1135,6 +1154,12 @@ const EventsTimeline = () => {
                 selectionState.current.isDragging = false;
                 document.removeEventListener('mousemove', handleMove);
                 document.removeEventListener('mouseup', handleUp);
+                if (selectionState.current.macroScaleInfo) {
+                    const { pixelToYear } = selectionState.current.macroScaleInfo;
+                    const [finalY0] = selectionState.current.pixelBounds;
+                    const finalStartYear = pixelToYear(finalY0);
+                    scrollToYear(finalStartYear);
+                }
             };
 
             document.addEventListener('mousemove', handleMove);
@@ -1214,51 +1239,50 @@ const EventsTimeline = () => {
         };
 
         const microWheelHandler = (event) => {
-            // Only handle if we have valid scales and not currently dragging
             if (!selectionState.current.macroScaleInfo || 
                 !masterScale.current ||
                 !overlayElementsRef.current.overlay || 
                 selectionState.current.isDragging) {
                 return;
             }
-
             event.preventDefault();
-            
-            const { dimensions } = selectionState.current.macroScaleInfo;
+
+            const { dimensions, pixelToYear } = selectionState.current.macroScaleInfo;
             const [currentY0, currentY1] = selectionState.current.pixelBounds;
             const currentHeight = currentY1 - currentY0;
-            
-            // Check if selection is already full range
+
             if (currentY0 <= 0 && currentY1 >= dimensions.height) {
                 return;
             }
             
-            // For microchart, we need to convert the wheel movement to macrochart coordinates
-            // The microchart represents the currently selected range
             const microDimensions = calculateDimensions(microContainerRef.current);
             if (microDimensions.height === 0) return;
             
-            // Calculate movement relative to the microchart height
             const microMovement = event.deltaY * CHART_WHEEL_SENSITIVITY;
-            // Convert to macrochart movement (proportional to current selection size)
             const macroMovement = (microMovement / microDimensions.height) * currentHeight;
+            let newY0 = Math.max(0, Math.min(dimensions.height - currentHeight, currentY0 + macroMovement));
             
-            let newY0 = currentY0 + macroMovement;
-            let newY1 = currentY1 + macroMovement;
-            
-            // Constrain to bounds
-            if (newY0 < 0) {
-                newY0 = 0;
-                newY1 = currentHeight;
+            // Update overlay visuals and state
+            if (selectionState.current.overlayElements?.updateOverlayPosition) {
+                selectionState.current.overlayElements.updateOverlayPosition(newY0, newY0 + currentHeight);
             }
-            if (newY1 > dimensions.height) {
-                newY1 = dimensions.height;
-                newY0 = dimensions.height - currentHeight;
+
+            // NEW: Trigger the debounced scroll action.
+            const startYear = pixelToYear(newY0);
+            debouncedScrollToYear(startYear);
+        };
+
+        // Add event listeners (unchanged)
+        macroContainerRef.current.addEventListener('wheel', macroWheelHandler, { passive: false });
+        microContainerRef.current.addEventListener('wheel', microWheelHandler, { passive: false });
+
+        // Return cleanup function (unchanged)
+        return () => {
+            if (macroContainerRef.current) {
+                macroContainerRef.current.removeEventListener('wheel', macroWheelHandler);
             }
-            
-            // Update overlay position
-            if (selectionState.current.overlayElements && selectionState.current.overlayElements.updateOverlayPosition) {
-                selectionState.current.overlayElements.updateOverlayPosition(newY0, newY1);
+            if (microContainerRef.current) {
+                microContainerRef.current.removeEventListener('wheel', microWheelHandler);
             }
         };
 
