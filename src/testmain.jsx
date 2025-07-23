@@ -47,7 +47,6 @@ const MICROCHART_COLUMNS = 10
 const EventsTimeline = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('all');
     const [isCustomRange, setIsCustomRange] = useState(false);
-    const [floatingHeaderYear, setFloatingHeaderYear] = useState(null);
 
     const macroContainerRef = useRef(null);
     const macroSvgRef = useRef(null);
@@ -86,11 +85,6 @@ const EventsTimeline = () => {
     });
 
     const eventListenersRef = useRef(new Set());
-
-    const scrollStateRef = useRef({
-        isProgrammaticScroll: false,
-        programmaticScrollTimeout: null
-    });
 
     const scrollDirectionRef = useRef({
         lastScrollTop: 0,
@@ -320,25 +314,8 @@ const EventsTimeline = () => {
         selectionState.current.overlayElements = null;
     }, []);
 
-    const calculateMaxScrollPosition = useCallback(() => {
-        if (!eventDisplayRef.current) return 0;
-        
-        const container = eventDisplayRef.current;
-        const floatingHeader = container.querySelector('.floating-header');
-        const firstEvent = container.querySelector('.event-item');
-        
-        if (!floatingHeader || !firstEvent) return 0;
-        
-        const floatingHeaderHeight = floatingHeader.getBoundingClientRect().height;
-        const firstEventRect = firstEvent.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        
-        // Calculate position where first event would be right below floating header
-        const firstEventTop = firstEventRect.top - containerRect.top + container.scrollTop;
-        const maxScrollTop = Math.max(0, firstEventTop - floatingHeaderHeight);
-        
-        return maxScrollTop;
-    }, []);
+    // With CSS sticky headers, we don't need complex scroll position constraints
+    // The browser handles sticky positioning automatically
 
     // FORMATTING FUNCTIONS
     const formatDuration = useCallback((duration) => {
@@ -393,42 +370,18 @@ const EventsTimeline = () => {
             return stateRef.current.groupedEvents[stateRef.current.groupedEvents.length - 1].year;
         }
 
-        // Use logical position instead of visual position for headers
-        const SWITCH_THRESHOLD = 20;
         const containerRect = container.getBoundingClientRect();
         const containerTop = containerRect.top;
         
-        // Get all original header positions (ignoring any CSS modifications)
         const yearHeaders = container.querySelectorAll('.event-year-header');
         let activeGroupIndex = 0;
         
         for (let i = 0; i < yearHeaders.length; i++) {
             const header = yearHeaders[i];
-            
-            // Store original styles for restoration
-            const originalStyles = {
-                opacity: header.style.opacity,
-                pointerEvents: header.style.pointerEvents,
-                position: header.style.position,
-                top: header.style.top
-            };
-            
-            // Temporarily reset to get true position
-            header.style.position = 'static';
-            header.style.top = 'auto';
-            header.style.opacity = '1';
-            header.style.pointerEvents = 'auto';
-            
             const headerRect = header.getBoundingClientRect();
             const headerTop = headerRect.top;
             
-            // Restore original styling
-            header.style.opacity = originalStyles.opacity;
-            header.style.pointerEvents = originalStyles.pointerEvents;
-            header.style.position = originalStyles.position;
-            header.style.top = originalStyles.top;
-            
-            if (headerTop <= containerTop + SWITCH_THRESHOLD) {
+            if (headerTop <= containerTop + 20) {
                 activeGroupIndex = i;
             } else {
                 break;
@@ -448,27 +401,9 @@ const EventsTimeline = () => {
         const yearHeaders = container.querySelectorAll('.event-year-header');
         let bottomVisibleYear = null;
         
-        // Check headers from bottom to top to find the last visible one
         for (let i = yearHeaders.length - 1; i >= 0; i--) {
             const header = yearHeaders[i];
-            
-            // Temporarily reset styles to get true position
-            const originalStyles = {
-                opacity: header.style.opacity,
-                position: header.style.position,
-                top: header.style.top
-            };
-            
-            header.style.position = 'static';
-            header.style.top = 'auto';
-            header.style.opacity = '1';
-            
             const headerRect = header.getBoundingClientRect();
-            
-            // Restore original styles
-            header.style.opacity = originalStyles.opacity;
-            header.style.position = originalStyles.position;
-            header.style.top = originalStyles.top;
             
             if (headerRect.top <= containerBottom) {
                 bottomVisibleYear = stateRef.current.groupedEvents[i]?.year;
@@ -486,7 +421,6 @@ const EventsTimeline = () => {
         const topVisibleYear = findTopVisibleYear();
         
         if (topVisibleYear !== null) {
-            setFloatingHeaderYear(topVisibleYear);
             const macroY = selectionState.current.macroScaleInfo.yearToPixel(topVisibleYear);
             const macroContainer = macroContainerRef.current;
             if (macroContainer) {
@@ -587,9 +521,13 @@ const EventsTimeline = () => {
         const headerToUse = targetHeader || fallbackHeader || headers[0];
         
         if (headerToUse) {
+            // Always scroll to position the target year at the very top
+            // Calculate the header's current position relative to the container
             const containerRect = container.getBoundingClientRect();
             const headerRect = headerToUse.getBoundingClientRect();
             const relativeTop = headerRect.top - containerRect.top + container.scrollTop;
+            
+            // Force scroll to put header at top, regardless of current visibility
             container.scrollTop = relativeTop;
         }
     }, []);
@@ -932,89 +870,25 @@ const EventsTimeline = () => {
     const handleEventScroll = useCallback(() => {
         if (!eventDisplayRef.current || !stateRef.current.groupedEvents.length) return;
 
-        // Apply scroll constraint for user scrolling (not programmatic)
-        if (!scrollStateRef.current.isProgrammaticScroll) {
-            const container = eventDisplayRef.current;
-            const maxScrollTop = calculateMaxScrollPosition();
-
-            if (container.scrollTop < maxScrollTop) {
-                container.scrollTop = maxScrollTop;
-                return; // Exit early if we corrected the scroll
-            }
-        }
-
-        const topVisibleYear = findTopVisibleYear();
+        // With CSS sticky headers, no scroll constraints needed
+        // The browser handles sticky positioning automatically
         
-        if (topVisibleYear !== null) {
-            const container = eventDisplayRef.current;
-            const floatingHeader = container.querySelector('.floating-header');
-            
-            if (floatingHeader) {
-                floatingHeader.textContent = formatYear(topVisibleYear);
-                floatingHeader.style.display = 'block';
-                setFloatingHeaderYear(topVisibleYear);
-
-                // Modified header hiding logic: never hide last header
-                const headers = container.querySelectorAll('.event-year-header');
-                headers.forEach((header, index) => {
-                    const groupYear = stateRef.current.groupedEvents[index]?.year;
-                    const shouldHide = groupYear === topVisibleYear;
-                    
-                    if (shouldHide && index < headers.length - 1) { // Never hide last header
-                        // Non-last headers: use opacity (keep in flow for position detection)
-                        header.style.position = 'static';
-                        header.style.top = 'auto';
-                        header.style.opacity = '0';
-                        header.style.pointerEvents = 'none';
-                    } else {
-                        // Not hidden or last header: restore normal state
-                        header.style.position = 'static';
-                        header.style.top = 'auto';
-                        header.style.opacity = '1';
-                        header.style.pointerEvents = 'auto';
-                    }
-                });
-            }
-        }
-
         throttledIndicatorUpdateScroll();
-        
-        // NEW: Add dynamic selection update
         throttledDynamicSelectionUpdate();
-    }, [findTopVisibleYear, updatePositionIndicators, calculateMaxScrollPosition, throttledDynamicSelectionUpdate]);
+    }, [throttledIndicatorUpdateScroll, throttledDynamicSelectionUpdate]);
 
     const scrollToEvent = useCallback(async (eventID, eventData) => {
         if (!eventDisplayRef.current || !eventID) return;
 
         const container = eventDisplayRef.current;
-        
-        // Set programmatic scroll flag and clear any existing timeout
-        scrollStateRef.current.isProgrammaticScroll = true;
-        if (scrollStateRef.current.programmaticScrollTimeout) {
-            clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
-        }
-
-        // Restore all headers to their normal state before calculating scroll position
-        const headers = container.querySelectorAll('.event-year-header');
-        headers.forEach(header => {
-            header.style.position = 'static';
-            header.style.top = 'auto';
-            header.style.opacity = '1';
-            header.style.pointerEvents = 'auto';
-        });
-
         const eventElement = container.querySelector(`[data-event-id="${eventID}"]`);
-        if (!eventElement) {
-            // Re-enable header hiding if event not found
-            scrollStateRef.current.isProgrammaticScroll = false;
-            return;
-        }
+        if (!eventElement) return;
 
         const triangle = eventElement.querySelector('.event-triangle');
         const eventDetails = eventElement.querySelector('.event-details');
         const isAlreadyExpanded = triangle?.classList.contains('expanded') || false;
 
-        // Step 1: Handle expansion if needed
+        // Handle expansion if needed
         if (triangle && eventDetails && !isAlreadyExpanded) {
             triangle.classList.add('expanded');
             eventDetails.classList.remove('collapsed');
@@ -1024,47 +898,31 @@ const EventsTimeline = () => {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        // Step 2: Ensure all DOM updates are complete
+        // Ensure all DOM updates are complete
         await new Promise(resolve => window.requestAnimationFrame(resolve));
         await new Promise(resolve => window.requestAnimationFrame(resolve));
 
-        // Step 3: Set up floating header
-        const floatingHeader = container.querySelector('.floating-header');
-        if (floatingHeader && eventData) {
-            floatingHeader.textContent = formatYear(eventData.startDate);
-            floatingHeader.style.display = 'block';
-            
-            // Ensure header layout is complete
-            floatingHeader.offsetHeight;
-            await new Promise(resolve => window.requestAnimationFrame(resolve));
-        }
-        // Step 4: Calculate and perform scroll
+        // Calculate and perform scroll with dynamic header height
         const containerRect = container.getBoundingClientRect();
         const elementRect = eventElement.getBoundingClientRect();
         
         if (containerRect.height > 0 && elementRect.height > 0) {
-            const floatingHeaderHeight = floatingHeader ? 
-                floatingHeader.getBoundingClientRect().height : 0;
+            // Get actual sticky header height instead of hardcoded 50px
+            const getStickyHeaderHeight = () => {
+                const stickyHeader = container.querySelector('.event-year-header');
+                return stickyHeader ? stickyHeader.getBoundingClientRect().height : 50; // fallback to 50px
+            };
             
             const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
-            const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight);
+            const headerHeight = getStickyHeaderHeight();
+            const targetScrollTop = Math.max(0, currentElementTop - headerHeight);
+            
             container.scrollTo({
                 top: targetScrollTop,
                 behavior: 'smooth'
             });
-
-            // Set timeout to re-enable header hiding after scroll completes
-            // Use a longer timeout to account for smooth scrolling duration
-            scrollStateRef.current.programmaticScrollTimeout = setTimeout(() => {
-                scrollStateRef.current.isProgrammaticScroll = false;
-                // Trigger one final scroll handler to restore proper header state
-                handleEventScroll();
-            }, 1000); // Adjust timing as needed
-        } else {
-            // Re-enable header hiding if scroll calculation fails
-            scrollStateRef.current.isProgrammaticScroll = false;
         }
-    }, [handleEventScroll]);
+    }, []);
 
     const throttledScrollHandler = useCallback(
         createThrottledFunction(handleEventScroll, UPDATE_THROTTLE_MS),
@@ -1565,10 +1423,7 @@ const EventsTimeline = () => {
         const container = eventDisplayRef.current;
         const fragment = document.createDocumentFragment();
         
-        const floatingHeader = document.createElement('div');
-        floatingHeader.className = 'floating-header';
-        floatingHeader.style.display = 'none';
-        fragment.appendChild(floatingHeader);
+        // No floating header creation - using CSS sticky headers instead
 
         if (groupedEvents.length === 0) {
             const noEvents = document.createElement('p');
@@ -1687,11 +1542,6 @@ const EventsTimeline = () => {
             if (throttledDynamicSelectionUpdate?.cancel) {
                 throttledDynamicSelectionUpdate.cancel();
             }
-
-            // Clear programmatic scroll timeout
-            if (scrollStateRef.current.programmaticScrollTimeout) {
-                clearTimeout(scrollStateRef.current.programmaticScrollTimeout);
-            }
             
             if (microIndicatorTextRef.current && microIndicatorTextRef.current.parentNode) {
                 microIndicatorTextRef.current.parentNode.removeChild(microIndicatorTextRef.current);
@@ -1710,36 +1560,13 @@ const EventsTimeline = () => {
 
         const container = eventDisplayRef.current;
 
-        // Original scroll listener (keep if needed for other logic)
+        // Simplified scroll listener
         container.addEventListener('scroll', handleEventScroll);
 
-        // New preventive listeners
-        const preventUnwantedScroll = (e) => {
-            const maxScrollTop = calculateMaxScrollPosition();  // Your existing function
-            const atTop = container.scrollTop <= maxScrollTop;
-
-            // For wheel: Prevent if trying to scroll up (negative deltaY) at the top
-            if (e.type === 'wheel' && atTop && e.deltaY < 0) {
-                e.preventDefault();
-                return;
-            }
-
-            if (e.type === 'touchmove' && atTop) {
-                e.preventDefault();
-            }
-        };
-
-        container.addEventListener('wheel', preventUnwantedScroll, { passive: false });
-        container.addEventListener('touchmove', preventUnwantedScroll, { passive: false });
-
         return () => {
-            // Clean up original listener
             container.removeEventListener('scroll', handleEventScroll);
-            // Clean up new listeners
-            container.removeEventListener('wheel', preventUnwantedScroll);
-            container.removeEventListener('touchmove', preventUnwantedScroll);
         };
-    }, [calculateMaxScrollPosition, handleEventScroll]);
+    }, [handleEventScroll]);
 
     // EVENT DISPLAY UPDATE
     useEffect(() => {
