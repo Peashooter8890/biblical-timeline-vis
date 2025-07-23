@@ -746,7 +746,22 @@ const EventsTimeline = () => {
                 removeConnectedHover(d.eventID);
             })
             .on('click', function(event, d) {
-                scrollToEvent(d.eventID, d.eventData);
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Create a safe wrapper function
+                const safeScrollToEvent = () => {
+                    try {
+                        scrollToEvent(d.eventID, d);
+                    } catch (error) {
+                        console.error('Error scrolling to event:', error);
+                    }
+                };
+                
+                // Use both setTimeout and requestAnimationFrame for maximum compatibility
+                window.requestAnimationFrame(() => {
+                    window.setTimeout(safeScrollToEvent, 0);
+                });
             });
 
         let tooltip = d3.select(microContainerRef.current).select('.microchart-tooltip');
@@ -786,7 +801,22 @@ const EventsTimeline = () => {
                 removeConnectedHover(d.eventID);
             })
             .on('click', function(event, d) {
-                scrollToEvent(d.eventID, d);
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Create a safe wrapper function
+                const safeScrollToEvent = () => {
+                    try {
+                        scrollToEvent(d.eventID, d);
+                    } catch (error) {
+                        console.error('Error scrolling to event:', error);
+                    }
+                };
+                
+                // Use both setTimeout and requestAnimationFrame for maximum compatibility
+                window.requestAnimationFrame(() => {
+                    window.setTimeout(safeScrollToEvent, 0);
+                });
             });
 
         if (!microIndicatorTextRef.current && microContainerRef.current) {
@@ -795,7 +825,6 @@ const EventsTimeline = () => {
             microContainerRef.current.appendChild(textElement);
             microIndicatorTextRef.current = textElement;
         }
-
         throttledIndicatorUpdate();
     }, [calculateLayoutDimensions, calculateDimensions, processedEvents, throttledIndicatorUpdate, applyConnectedHover, removeConnectedHover]);
 
@@ -996,8 +1025,8 @@ const EventsTimeline = () => {
         }
 
         // Step 2: Ensure all DOM updates are complete
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => window.requestAnimationFrame(resolve));
+        await new Promise(resolve => window.requestAnimationFrame(resolve));
 
         // Step 3: Set up floating header
         const floatingHeader = container.querySelector('.floating-header');
@@ -1007,9 +1036,8 @@ const EventsTimeline = () => {
             
             // Ensure header layout is complete
             floatingHeader.offsetHeight;
-            await new Promise(resolve => requestAnimationFrame(resolve));
+            await new Promise(resolve => window.requestAnimationFrame(resolve));
         }
-
         // Step 4: Calculate and perform scroll
         const containerRect = container.getBoundingClientRect();
         const elementRect = eventElement.getBoundingClientRect();
@@ -1020,7 +1048,6 @@ const EventsTimeline = () => {
             
             const currentElementTop = elementRect.top - containerRect.top + container.scrollTop;
             const targetScrollTop = Math.max(0, currentElementTop - floatingHeaderHeight);
-            
             container.scrollTo({
                 top: targetScrollTop,
                 behavior: 'smooth'
